@@ -1,6 +1,5 @@
 package com.ivieleague.smbtranslation
 
-import com.ivieleague.smbtranslation.old.TwoBits
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 

@@ -1,6 +1,7 @@
 package com.ivieleague.smbtranslation
 
-import com.ivieleague.smbtranslation.old.InexactBitSetting
+import com.ivieleague.smbtranslation.utils.InexactBitSetting
+
 
 fun System.initializeNameTables() {
     //> InitializeNameTables:

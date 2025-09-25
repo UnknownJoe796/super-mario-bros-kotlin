@@ -1,6 +1,6 @@
 package com.ivieleague.smbtranslation
 
-import com.ivieleague.smbtranslation.old.InexactBitSetting
+import com.ivieleague.smbtranslation.utils.InexactBitSetting
 import kotlin.experimental.and
 import kotlin.experimental.or
 import kotlin.experimental.xor
@@ -323,14 +323,14 @@ fun System.spriteShuffler(): Unit {
             // what the fuck is the point of clearing the carry before using add-with-carry?!?!
             //> adc SprShuffleAmt,y         ;get shuffle amount, add to current sprite offset
             //> bcc StrSprOffset            ;if not exceeded $ff, skip second add
-            var updated = (a + ram.sprShuffleAmt[ram.sprShuffleAmtOffset.toInt()].toUInt()).toUByte()
-            if(updated.overflows) {
+            var updated = (a + ram.sprShuffleAmt[ram.sprShuffleAmtOffset.toInt()].toUInt())
+            if(updated > 0x7Fu) {  //TODO: Check for accuracy
                 //> clc
                 //> adc $00                     ;otherwise add preset value $28 to offset
                 updated += temp.toUByte()
             }
             //> StrSprOffset:  sta SprDataOffset,x         ;store new offset here or old one if branched to here
-            ram.sprites[x/4].x = updated
+            ram.sprites[x/4].x = updated.toUByte()
         }
         //> NextSprOffset: dex                         ;move backwards to next one
         x--

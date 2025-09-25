@@ -1,6 +1,6 @@
 package com.ivieleague.smbtranslation
 
-import com.ivieleague.smbtranslation.old.InexactBitSetting
+import com.ivieleague.smbtranslation.utils.InexactBitSetting
 
 
 fun System.start() {
@@ -12,7 +12,13 @@ fun System.start() {
 
     //> lda #%00010000               ;init PPU control register 1
     //> sta PPU_CTRL_REG1
-    com.ivieleague.smbtranslation.old.PictureProcessingUnit.Control.backgroundTableOffset = true
+    ppu.control.nmiEnabled = false
+    ppu.control.extWrite = false
+    ppu.control.tallSpriteMode = false
+    ppu.control.spritePatternTableOffset = false
+    ppu.control.drawVertical = false
+    ppu.control.baseNametableAddress = 0
+    ppu.control.backgroundTableOffset = true
 
     //> ldx #$ff                     ;reset stack pointer
     //> txs
@@ -50,7 +56,7 @@ fun System.start() {
     }
 
     //> sta SND_DELTA_REG+1          ;reset delta counter load register
-    com.ivieleague.smbtranslation.old.AudioProcessingUnit.deltaModulation.loadCounter = 0
+    apu.deltaModulation.loadCounter = 0
     //> sta OperMode                 ;reset primary mode of operation
     ram.operMode = 0x0
     //> lda #$a5                     ;set warm boot flag
@@ -69,8 +75,8 @@ fun System.start() {
 
     //> lda #%00000110
     //> sta PPU_CTRL_REG2            ;turn off clipping for OAM and background
-    com.ivieleague.smbtranslation.old.PictureProcessingUnit.Mask.showLeftBackground = true
-    com.ivieleague.smbtranslation.old.PictureProcessingUnit.Mask.showLeftSprites = true
+    ppu.mask.showLeftBackground = true
+    ppu.mask.showLeftSprites = true
 
     //> jsr MoveAllSpritesOffscreen
     moveAllSpritesOffscreen()
