@@ -24,7 +24,7 @@ fun System.initializeNameTables() {
         //> WriteNTAddr:  sta PPU_ADDRESS
         //> lda #$00
         //> sta PPU_ADDRESS
-        ppu.vramAddress = (highByte.toInt() shl 8).toShort()
+        ppu.internalVramAddress = (highByte.toInt() shl 8).toShort()
 
         //> ldx #$04                  ;clear name table with blank tile #24
         //> ldy #$c0

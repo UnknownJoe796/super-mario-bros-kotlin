@@ -59,7 +59,7 @@ fun System.nonMaskableInterrupt() {
     initScroll(0)
 
     //> sta PPU_SPR_ADDR          ;reset spr-ram address register
-    ppu.setOamAddress(0)
+    ppu.writeOamAddress(0x00.toByte())
 
     //> lda #$02                  ;perform spr-ram DMA access on $0200-$02ff
     //> sta SPR_DMA

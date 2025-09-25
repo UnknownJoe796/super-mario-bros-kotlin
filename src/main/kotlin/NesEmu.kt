@@ -111,8 +111,10 @@ class PictureProcessingUnit {
 
     //    PPU_SPR_ADDR / OAMADDR 	$2003 	AAAA AAAA 	W 	OAM read/write address
     var oamAddress: Byte = 0x00
-    fun setOamAddress(address: Byte) {
-        TODO()
+    fun writeOamAddress(address: Byte) {
+        // In hardware this writes to OAMADDR ($2003); here we mirror into our property
+        oamAddress = address
+        // TODO: Implement side effects if/when OAM is emulated
     }
 
     //    PPU_SPR_DATA / OAMDATA 	$2004 	DDDD DDDD 	RW 	OAM data read/write
@@ -126,18 +128,18 @@ class PictureProcessingUnit {
     fun scroll(x: Byte, y: Byte) { TODO() }
 
     //    PPU_ADDRESS / PPUADDR 	$2006 	..AA AAAA AAAA AAAA 	Wx2 	VRAM address (two writes: most significant byte, then least significant byte)
-    var vramAddress: VramAddress = 0x0000
+    var internalVramAddress: VramAddress = 0x0000
     fun setVramAddress(value: VramAddress) {
-        vramAddress = value
+        internalVramAddress = value
     }
 
     //    PPU_DATA / PPUDATA 	$2007 	DDDD DDDD 	RW 	VRAM data read/write
     fun readVram(): Byte {
-        vramAddress = vramAddress.plus(if(control.drawVertical) 32 else 1).toShort()
+        internalVramAddress = internalVramAddress.plus(if(control.drawVertical) 32 else 1).toShort()
         TODO()
     }
     fun writeVram(value: Byte) {
-        vramAddress = vramAddress.plus(if(control.drawVertical) 32 else 1).toShort()
+        internalVramAddress = internalVramAddress.plus(if(control.drawVertical) 32 else 1).toShort()
         TODO()
     }
 
