@@ -12,8 +12,10 @@ fun System.initializeNameTables() {
     //> ora #%00010000            ;set sprites for first 4k and background for second 4k
     //> and #%11110000            ;clear rest of lower nybble, leave higher alone
     //> jsr WritePPUReg1
-    @InexactBitSetting
     ppu.control.backgroundTableOffset = true
+    ppu.control.spritePatternTableOffset = false
+    ppu.control.drawVertical = false
+    ppu.control.baseNametableAddress = 0
 
     //> lda #$24                  ;set vram address to start of name table 1
     //> jsr WriteNTAddr
@@ -35,7 +37,7 @@ fun System.initializeNameTables() {
         //> dex
         //> bne InitNTLoop
         repeat(0x300) {
-            ppu.writeVram(0x00)
+            ppu.writeVram(0x24.toByte())
         }
 
         //> ldy #64                   ;now to clear the attribute table (with zero this time)
@@ -49,7 +51,7 @@ fun System.initializeNameTables() {
 
         repeat(64) {
             //> InitATLoop:   sta PPU_DATA
-            ppu.writeVram(0x00)
+            ppu.writeVram(0x00.toByte())
             //> dey
             //> bne InitATLoop
         }
@@ -64,8 +66,8 @@ fun System.initializeNameTables() {
         return initScroll(0x0)
     }
     // These come from above the subroutine declaration
-    writeNtAddr(0x24)
-    writeNtAddr(0x20)
+    writeNtAddr(0x24.toByte())
+    writeNtAddr(0x20.toByte())
 }
 
 fun System.initScroll(a: Byte) {

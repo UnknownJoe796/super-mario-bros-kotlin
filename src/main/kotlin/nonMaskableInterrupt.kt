@@ -111,7 +111,7 @@ fun System.nonMaskableInterrupt() {
     //> lsr
     //> bcs PauseSkip
     // Timers only run if we're not paused.
-    if (ram.gamePauseStatus and 0x1 == 0x0.toByte()) {
+    if ((ram.gamePauseStatus.toInt() and 0x01) == 0) {
         //> lda TimerControl          ;if master timer control not set, decrement
         //> beq DecTimers             ;all frame and interval timers
         if (ram.timerControl != 0x0.toByte()) {
@@ -130,24 +130,24 @@ fun System.nonMaskableInterrupt() {
     //> lda PseudoRandomBitReg    ;get first memory location of LSFR bytes
     //> and #%00000010            ;mask out all but d1
     //> sta $00                   ;save here
-    val temp = ram.pseudoRandomBitReg[0] and 0b00000010
+    val temp = (ram.pseudoRandomBitReg[0].toInt() and 0b0000_0010).toByte()
 
     //> lda PseudoRandomBitReg+1  ;get second memory location
     //> and #%00000010            ;mask out all but d1
     //> eor $00                   ;perform exclusive-OR on d1 from first and second bytes
-    val temp2 = ram.pseudoRandomBitReg[1] and 0b00000010 xor temp
+    val temp2 = ((ram.pseudoRandomBitReg[1].toInt()) and 0b0000_0010 xor temp.toInt()).toByte()
 
     //> clc                       ;if neither or both are set, carry will be clear
     //> beq RotPRandomBit
     //> sec                       ;if one or the other is set, carry will be set
     var carry = temp2 != 0x00.toByte()
 
-    repeat(0x7) {
+    for (it in 0 until 7) {
         //> RotPRandomBit: ror PseudoRandomBitReg,x  ;rotate carry into d7, and rotate last bit into carry
-        val initial = ram.pseudoRandomBitReg[it + 1]
-        ram.pseudoRandomBitReg[it + 1] = (initial.rotateRight(1) and 0b01111111) or
-                (if(carry) 0b10000000.toByte() else 0.toByte())
-        carry = (initial and 0b1) != 0.toByte()
+        val initial = ram.pseudoRandomBitReg[it]
+        val rotated = ((initial.toInt() ushr 1) and 0x7F) or (if (carry) 0x80 else 0)
+        ram.pseudoRandomBitReg[it] = rotated.toByte()
+        carry = (initial.toInt() and 0x01) != 0
         //> inx                       ;increment to next byte
         //> dey                       ;decrement for loop
         //> bne RotPRandomBit
@@ -157,7 +157,7 @@ fun System.nonMaskableInterrupt() {
     // We don't care.
     //> lda Sprite0HitDetectFlag  ;check for flag here
     //> beq SkipSprite0
-    if(!ram.sprite0HitDetectFlag) {
+    if(ram.sprite0HitDetectFlag) {
         //> Sprite0Clr:    lda PPU_STATUS            ;wait for sprite 0 flag to clear, which will
         //> and #%01000000            ;not happen until vblank has ended
         //> bne Sprite0Clr
@@ -167,8 +167,7 @@ fun System.nonMaskableInterrupt() {
         //> lda GamePauseStatus       ;if in pause mode, do not bother with sprites at all
         //> lsr
         //> bcs Sprite0Hit
-        @InexactBitSetting
-        if(ram.gamePauseStatus != 0.toByte()) {
+        if((ram.gamePauseStatus.toInt() and 0x01) == 0) {
             //> jsr MoveSpritesOffscreen
             moveSpritesOffscreen()
             //> jsr SpriteShuffler
@@ -200,8 +199,7 @@ fun System.nonMaskableInterrupt() {
     //> lda GamePauseStatus       ;if in pause mode, do not perform operation mode stuff
     //> lsr
     //> bcs SkipMainOper
-    @InexactBitSetting
-    if(ram.gamePauseStatus != 0.toByte()) {
+    if ((ram.gamePauseStatus.toInt() and 0x01) == 0) {
         //> jsr OperModeExecutionTree ;otherwise do one of many, many possible subroutines
         operModeExecutionTree()
     }
@@ -223,7 +221,7 @@ private fun System.decTimers() {
     val highestTimerToDecrement = if (ram.intervalTimerControl < 0) {
         //> lda #$14
         //> sta IntervalTimerControl  ;if control for interval timers expired,
-        ram.intervalTimerControl = 0x14
+        ram.intervalTimerControl = 0x14.toByte()
         //> ldx #$23                  ;interval timers will decrement along with frame timers
         0x23
     } else 0x14 // see above DecTimers: ldx #$14
@@ -280,7 +278,7 @@ fun System.pauseRoutine(): Unit {
         //> lda GamePauseStatus    ;check to see if timer flag is set
         //> and #%10000000         ;and if so, do not reset timer (residual,
         //> bne ExitPause          ;joypad reading routine makes this unnecessary)
-        if(ram.gamePauseStatus and 0b10000000.toByte() == 0x0.toByte()) return
+        if ((ram.gamePauseStatus.toInt() and 0x80) != 0) return
         //> lda #$2b               ;set pause timer
         //> sta GamePauseTimer
         ram.gamePauseTimer = 0x2b.toByte()
@@ -292,13 +290,13 @@ fun System.pauseRoutine(): Unit {
         //> eor #%00000001         ;invert d0 and set d7
         //> ora #%10000000
         //> bne SetPause           ;unconditional branch
-        ram.gamePauseStatus = ram.gamePauseStatus.xor(0b1).or(0b10000000.toByte())
+        ram.gamePauseStatus = ((ram.gamePauseStatus.toInt() xor 0x01) or 0x80).toByte()
         return
     }
     //> ClrPauseTimer: lda GamePauseStatus    ;clear timer flag if timer is at zero and start button
     //> and #%01111111         ;is not pressed
     //> SetPause:      sta GamePauseStatus
-    ram.gamePauseStatus = ram.gamePauseStatus.and(0b01111111.toByte())
+    ram.gamePauseStatus = (ram.gamePauseStatus.toInt() and 0x7F).toByte()
     //> ExitPause:     rts
 }
 fun System.updateTopScore(): Unit = TODO()
@@ -312,19 +310,18 @@ fun System.spriteShuffler(): Unit {
     val temp = 0x28.toByte()
     //> ldx #$0e                    ;start at the end of OAM data offsets
     var x = 0x0e
-    while(true) {
+    while(x >= 0) {
         //> ShuffleLoop:   lda SprDataOffset,x         ;check for offset value against
         val a = ram.sprites[x/4].x
         //> cmp $00                     ;the preset value
         //> bcc NextSprOffset           ;if less, skip this part
-        if (a < temp.toUByte()) {
+        if (a >= temp.toUByte()) {
             //> ldy SprShuffleAmtOffset     ;get current offset to preset value we want to add
             //> clc
-            // what the fuck is the point of clearing the carry before using add-with-carry?!?!
             //> adc SprShuffleAmt,y         ;get shuffle amount, add to current sprite offset
             //> bcc StrSprOffset            ;if not exceeded $ff, skip second add
             var updated = (a + ram.sprShuffleAmt[ram.sprShuffleAmtOffset.toInt()].toUInt())
-            if(updated > 0x7Fu) {  //TODO: Check for accuracy
+            if(updated > 0xFFu) {
                 //> clc
                 //> adc $00                     ;otherwise add preset value $28 to offset
                 updated += temp.toUByte()
@@ -337,6 +334,7 @@ fun System.spriteShuffler(): Unit {
         //> bpl ShuffleLoop
     }
 
+    //TODO: Complete below
     //> ldx SprShuffleAmtOffset     ;load offset
     //> inx
     //> cpx #$03                    ;check if offset + 1 goes to 3

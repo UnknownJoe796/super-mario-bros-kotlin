@@ -65,6 +65,24 @@ class PictureProcessingUnit {
          * (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
          */
         var baseNametableAddress: TwoBits by BitRangeAccess2(access, 0,1)
+
+        fun set(
+            nmiEnabled: Boolean = false,
+            extWrite: Boolean = false,
+            tallSpriteMode: Boolean = false,
+            backgroundTableOffset: Boolean = false,
+            spritePatternTableOffset: Boolean = false,
+            drawVertical: Boolean = false,
+            baseNametableAddress: TwoBits = 0,
+        ) {
+            this.nmiEnabled = nmiEnabled
+            this.extWrite = extWrite
+            this.tallSpriteMode = tallSpriteMode
+            this.backgroundTableOffset = backgroundTableOffset
+            this.spritePatternTableOffset = spritePatternTableOffset
+            this.drawVertical = drawVertical
+            this.baseNametableAddress = baseNametableAddress
+        }
     }
     private val controlByte = object: ByteAccess {
         override var value: Byte = 0

@@ -36,7 +36,7 @@ fun System.start() {
         //> WBootCheck:  lda TopScoreDisplay,x        ;check each score digit in the top score
         //> cmp #10                      ;to see if we have a valid digit
         //> bcs ColdBoot                 ;if not, give up and proceed with cold boot
-        if (ram.topScoreDisplay[index] >= 0x10) useColdBoot = true
+        if (ram.topScoreDisplay[index] >= 10) useColdBoot = true
         //> dex
         //> bpl WBootCheck
     }
@@ -44,15 +44,15 @@ fun System.start() {
     //> lda WarmBootValidation       ;second checkpoint, check to see if
     //> cmp #$a5                     ;another location has a specific value
     //> bne ColdBoot
-    useColdBoot = useColdBoot && !ram.warmBootValidation
+    useColdBoot = useColdBoot || !ram.warmBootValidation
 
     //> ldy #WarmBootOffset          ;if passed both, load warm boot pointer
     //> ColdBoot:    jsr InitializeMemory         ;clear memory using pointer in Y
     if(useColdBoot) {
         // Why in the HELL we do these exact ranges is beyond me.  There's no clean organization into area/game objects
-        for(index in 0x0..0x076F) ram.wholeBlock[index] = 0
+        initializeMemory(0x07D6)
     } else {
-        for(index in 0x0..0x07D6) ram.wholeBlock[index] = 0
+        initializeMemory(0x076F)
     }
 
     //> sta SND_DELTA_REG+1          ;reset delta counter load register
@@ -98,6 +98,32 @@ fun System.start() {
 
     //> EndlessLoop: jmp EndlessLoop              ;endless loop, need I say more?
     // TODO: Original looped forever here to wait for an NMI.  What do we do here?
+}
+
+fun System.initializeMemory(zeroToIndex: Short) {
+    //> ;$06 - RAM address low
+    //> ;$07 - RAM address high
+    //> InitializeMemory:
+    //> ldx #$07          ;set initial high byte to $0700-$07ff
+    //> lda #$00          ;set initial low byte to start of page (at $00 of page)
+    //> sta $06
+    //> InitPageLoop: stx $07
+    //> InitByteLoop: cpx #$01          ;check to see if we're on the stack ($0100-$01ff)
+    for(index in 0x0..zeroToIndex.toInt()) {
+        //> bne InitByte      ;if not, go ahead anyway
+        //> cpy #$60          ;otherwise, check to see if we're at $0160-$01ff
+        //> bcs SkipByte      ;if so, skip write
+        if(index !in 0x0160..0x1ff) {
+            //> InitByte:     sta ($06),y       ;otherwise, initialize byte with current low byte in Y
+            ram.wholeBlock[index] = 0
+        }
+        //> SkipByte:     dey
+        //> cpy #$ff          ;do this until all bytes in page have been erased
+        //> bne InitByteLoop
+        //> dex               ;go onto the next page
+        //> bpl InitPageLoop  ;do this until all pages of memory have been erased
+    }
+    //> rts
 }
 
 fun System.moveAllSpritesOffscreen() {
