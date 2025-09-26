@@ -11,14 +11,14 @@ value class JoypadBits(val byte: Byte) {
     val left: Boolean get() = byte.bit(1)
     val right: Boolean get() = byte.bit(0)
     constructor(
-        a: Boolean,
-        b: Boolean,
-        select: Boolean,
-        start: Boolean,
-        up: Boolean,
-        down: Boolean,
-        left: Boolean,
-        right: Boolean,
+        a: Boolean = false,
+        b: Boolean = false,
+        select: Boolean = false,
+        start: Boolean = false,
+        up: Boolean = false,
+        down: Boolean = false,
+        left: Boolean = false,
+        right: Boolean = false,
     ): this((
             (if (a) 0x1 shl 7 else 0) +
                     (if (b) 0x1 shl 6 else 0) +
@@ -48,10 +48,10 @@ value class SpriteFlags(val byte: Byte) {
     val behindBackground: Boolean get() = byte.bit(5)
     val palette: Byte get() = byte.bitRange(0, 1)
     constructor(
-        flipVertical: Boolean,
-        flipHorizontal: Boolean,
-        behindBackground: Boolean,
-        palette: Byte,
+        flipVertical: Boolean = false,
+        flipHorizontal: Boolean = false,
+        behindBackground: Boolean = false,
+        palette: Byte = 0,
     ): this((
             (if (flipVertical) 0x1 shl 7 else 0) +
                     (if (flipHorizontal) 0x1 shl 6 else 0) +
@@ -83,13 +83,13 @@ value class PpuControl(val byte: Byte) {
     /** Base nametable address (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00) **/
     val baseNametableAddress: Byte get() = byte.bitRange(0, 1)
     constructor(
-        nmiEnabled: Boolean,
-        extWrite: Boolean,
-        tallSpriteMode: Boolean,
-        backgroundTableOffset: Boolean,
-        spritePatternTableOffset: Boolean,
-        drawVertical: Boolean,
-        baseNametableAddress: Byte,
+        nmiEnabled: Boolean = false,
+        extWrite: Boolean = false,
+        tallSpriteMode: Boolean = false,
+        backgroundTableOffset: Boolean = false,
+        spritePatternTableOffset: Boolean = false,
+        drawVertical: Boolean = false,
+        baseNametableAddress: Byte = 0,
     ): this((
             (if (nmiEnabled) 0x1 shl 7 else 0) +
                     (if (extWrite) 0x1 shl 6 else 0) +
@@ -129,14 +129,14 @@ value class PpuMask(val byte: Byte) {
     /** Emphasize blue **/
     val emphasizeBlue: Boolean get() = byte.bit(7)
     constructor(
-        greyscale: Boolean,
-        showLeftSprites: Boolean,
-        showLeftBackground: Boolean,
-        backgroundEnabled: Boolean,
-        spriteEnabled: Boolean,
-        emphasizeRed: Boolean,
-        emphasizeGreen: Boolean,
-        emphasizeBlue: Boolean,
+        greyscale: Boolean = false,
+        showLeftSprites: Boolean = false,
+        showLeftBackground: Boolean = false,
+        backgroundEnabled: Boolean = false,
+        spriteEnabled: Boolean = false,
+        emphasizeRed: Boolean = false,
+        emphasizeGreen: Boolean = false,
+        emphasizeBlue: Boolean = false,
     ): this((
             (if (greyscale) 0x1 shl 0 else 0) +
                     (if (showLeftSprites) 0x1 shl 1 else 0) +
@@ -158,15 +158,16 @@ value class PpuMask(val byte: Byte) {
         emphasizeBlue: Boolean = this.emphasizeBlue,
     ) = PpuMask(greyscale, showLeftSprites, showLeftBackground, backgroundEnabled, spriteEnabled, emphasizeRed, emphasizeGreen, emphasizeBlue)
 }
+
 @JvmInline
 value class PpuStatus(val byte: Byte) {
     val vblank: Boolean get() = byte.bit(7)
     val sprite0Hit: Boolean get() = byte.bit(6)
     val spriteOverflow: Boolean get() = byte.bit(5)
     constructor(
-        vblank: Boolean,
-        sprite0Hit: Boolean,
-        spriteOverflow: Boolean,
+        vblank: Boolean = false,
+        sprite0Hit: Boolean = false,
+        spriteOverflow: Boolean = false,
     ): this((
             (if (vblank) 0x1 shl 7 else 0) +
                     (if (sprite0Hit) 0x1 shl 6 else 0) +

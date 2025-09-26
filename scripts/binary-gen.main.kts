@@ -15,7 +15,7 @@ data class BinaryType(
         }
         println("    constructor(")
         for(field in fields) {
-            println("        ${field.codeParameter},")
+            println("        ${field.codeParameter} = ${field.codeDefault},")
         }
         println("    ): this((")
         for(field in fields) {
@@ -39,6 +39,7 @@ sealed class Field {
     abstract val codeComment: String?
     abstract val codeField: String
     abstract val codeParameter: String
+    abstract val codeDefault: String
     abstract val codeSumPart: String
 }
 
@@ -46,12 +47,14 @@ data class BitField(override val name: String, val index: Int, val comment: Stri
     override val codeComment = comment?.let { "/** $it **/" }
     override val codeField: String = "val $name: Boolean get() = byte.bit($index)"
     override val codeParameter: String = "$name: Boolean"
+    override val codeDefault: String = "false"
     override val codeSumPart: String = "if ($name) 0x1 shl $index else 0"
 }
 data class BitRangeField(override val name: String, val start: Int, val endInclusive: Int, val comment: String? = null) : Field() {
     override val codeComment = comment?.let { "/** $it **/" }
     override val codeField: String = "val $name: Byte get() = byte.bitRange($start, $endInclusive)"
     override val codeParameter: String = "$name: Byte"
+    override val codeDefault: String = "0"
     override val codeSumPart: String = "$name.toInt() shr $start and 1.shl(${endInclusive - start}).minus(1)"
 }
 
