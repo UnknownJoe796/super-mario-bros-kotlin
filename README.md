@@ -65,7 +65,7 @@ class GameRam {
 Each phase will remain its own branch, as each is interesting and usable in its own right.
 
 - Phase 1 - Readable and Running
-  - [ ] Port the assembly (at 900 lines out of 16,352 lines)
+  - [ ] Port the assembly (at 968 lines out of 16,352 lines)
   - [ ] Extract character ROM data
   - [ ] Emulate the PPU
   - [ ] Emulate the APU

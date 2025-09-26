@@ -113,3 +113,7 @@ object Constants {
     const val VictoryModeValue: Byte      = 2
     const val GameOverModeValue: Byte     = 3
 }
+
+enum class OperMode {
+    TitleScreen, Game, Victory, GameOver
+}

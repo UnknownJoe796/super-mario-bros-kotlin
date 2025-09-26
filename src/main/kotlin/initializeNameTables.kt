@@ -12,10 +12,12 @@ fun System.initializeNameTables() {
     //> ora #%00010000            ;set sprites for first 4k and background for second 4k
     //> and #%11110000            ;clear rest of lower nybble, leave higher alone
     //> jsr WritePPUReg1
-    ppu.control.backgroundTableOffset = true
-    ppu.control.spritePatternTableOffset = false
-    ppu.control.drawVertical = false
-    ppu.control.baseNametableAddress = 0
+    ppu.control = ppu.control.copy(
+        backgroundTableOffset = true,
+        spritePatternTableOffset = false,
+        drawVertical = false,
+        baseNametableAddress = 0,
+    )
 
     //> lda #$24                  ;set vram address to start of name table 1
     //> jsr WriteNTAddr

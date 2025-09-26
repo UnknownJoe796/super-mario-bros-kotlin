@@ -1,5 +1,11 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.ByteAccess
+import com.ivieleague.smbtranslation.utils.JoypadBits
+import com.ivieleague.smbtranslation.utils.PpuControl
+import com.ivieleague.smbtranslation.utils.PpuMask
+import com.ivieleague.smbtranslation.utils.PpuStatus
+
 typealias TwoBits = Byte
 typealias ThreeBits = Byte
 typealias Nibble = Byte
@@ -10,122 +16,20 @@ typealias VramAddress = Short
 
 
 class PictureProcessingUnit {
-    //    PPU_CTRL_REG1: $2000
-    //    7  bit  0
-    //    ---- ----
-    //    VPHB SINN
-    //    |||| ||||
-    //    |||| ||++- Base nametable address
-    //    |||| ||    (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
-    //    |||| |+--- VRAM address increment per CPU read/write of PPUDATA
-    //    |||| |     (0: add 1, going across; 1: add 32, going down)
-    //    |||| +---- Sprite pattern table address for 8x8 sprites
-    //    ||||       (0: $0000; 1: $1000; ignored in 8x16 mode)
-    //    |||+------ Background pattern table address (0: $0000; 1: $1000)
-    //    ||+------- Sprite size (0: 8x8 pixels; 1: 8x16 pixels – see PPU OAM#Byte 1)
-    //    |+-------- PPU master/slave select
-    //    |          (0: read backdrop from EXT pins; 1: output color on EXT pins)
-    //    +--------- Vblank NMI enable (0: off, 1: on)
-    class Control(val access: ByteAccess) {
-        /**
-         * Vblank NMI enable (0: off, 1: on)
-         */
-        var nmiEnabled: Boolean by BitAccess2(access, 7)
+    /**
+     * PPU_CTRL_REG1: $2000
+     */
+    var control: PpuControl = PpuControl(0)
 
-        /**
-         * PPU master/slave select
-         * (0: read backdrop from EXT pins; 1: output color on EXT pins)
-         */
-        var extWrite: Boolean by BitAccess2(access, 6)
+    /**
+     * PPU_CTRL_REG2: $2001
+     */
+    var mask: PpuMask = PpuMask(0)
 
-        /**
-         * Sprite size (0: 8x8 pixels; 1: 8x16 pixels – see PPU OAM#Byte 1)
-         */
-        var tallSpriteMode: Boolean by BitAccess2(access, 5)
-
-        /**
-         * Background pattern table address (0: $0000; 1: $1000)
-         */
-        var backgroundTableOffset: Boolean by BitAccess2(access, 4)
-
-        /**
-         * Sprite pattern table address for 8x8 sprites
-         * (0: $0000; 1: $1000; ignored in 8x16 mode)
-         */
-        var spritePatternTableOffset: Boolean by BitAccess2(access, 3)
-
-        /**
-         * VRAM address increment per CPU read/write of PPUDATA
-         * (0: add 1, going across; 1: add 32, going down)
-         */
-        var drawVertical: Boolean by BitAccess2(access, 2)
-
-        /**
-         * Base nametable address
-         * (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
-         */
-        var baseNametableAddress: TwoBits by BitRangeAccess2(access, 0,1)
-
-        fun set(
-            nmiEnabled: Boolean = false,
-            extWrite: Boolean = false,
-            tallSpriteMode: Boolean = false,
-            backgroundTableOffset: Boolean = false,
-            spritePatternTableOffset: Boolean = false,
-            drawVertical: Boolean = false,
-            baseNametableAddress: TwoBits = 0,
-        ) {
-            this.nmiEnabled = nmiEnabled
-            this.extWrite = extWrite
-            this.tallSpriteMode = tallSpriteMode
-            this.backgroundTableOffset = backgroundTableOffset
-            this.spritePatternTableOffset = spritePatternTableOffset
-            this.drawVertical = drawVertical
-            this.baseNametableAddress = baseNametableAddress
-        }
-    }
-    private val controlByte = object: ByteAccess {
-        override var value: Byte = 0
-    }
-    val control = Control(controlByte)
-
-    //    PPU_CTRL_REG2: $2001
-    //    7  bit  0
-    //    ---- ----
-    //    BGRs bMmG
-    //    |||| ||||
-    //    |||| |||+- Greyscale (0: normal color, 1: greyscale)
-    //    |||| ||+-- 1: Show background in leftmost 8 pixels of screen, 0: Hide
-    //    |||| |+--- 1: Show sprites in leftmost 8 pixels of screen, 0: Hide
-    //    |||| +---- 1: Enable background rendering
-    //    |||+------ 1: Enable sprite rendering
-    //    ||+------- Emphasize red (green on PAL/Dendy)
-    //    |+-------- Emphasize green (red on PAL/Dendy)
-    //    +--------- Emphasize blue
-
-    class Mask(val access: ByteAccess) {
-        var emphasizeBlue: Boolean by BitAccess2(access, 7)
-        var emphasizeGreen: Boolean by BitAccess2(access, 6)
-        var emphasizeRed: Boolean by BitAccess2(access, 5)
-        var spriteEnabled: Boolean by BitAccess2(access, 4)
-        var backgroundEnabled: Boolean by BitAccess2(access, 3)
-        var showLeftBackground: Boolean by BitAccess2(access, 2)
-        var showLeftSprites: Boolean by BitAccess2(access, 1)
-        var greyscale: Boolean by BitAccess2(access, 0)
-    }
-    private val maskByte = object: ByteAccess {
-        override var value: Byte = 0
-    }
-    val mask = Mask(maskByte)
-
-
-    object Status {
-        //    PPU_STATUS / PPUSTATUS 	$2002 	VSO- ---- 	R 	vblank (V), sprite 0 hit (S), sprite overflow (O); read resets write pair for $2005/$2006
-        var vblank: Boolean = false
-        var spriteZeroHit: Boolean = false
-        var spriteOverflow: Boolean = false
-    }
-
+    /**
+     * PPU_STATUS / PPUSTATUS: $2002
+     */
+    val status: PpuStatus = PpuStatus(0)
 
     //    PPU_SPR_ADDR / OAMADDR 	$2003 	AAAA AAAA 	W 	OAM read/write address
     var oamAddress: Byte = 0x00
@@ -257,18 +161,6 @@ class AudioProcessingUnit() {
 }
 
 class Inputs {
-    val joypadPort1 = JoypadBits()
-    val joypadPort2 = JoypadBits()
-}
-
-class JoypadBits: ByteAccess {
-    override var value: Byte = 0
-    val a by BitAccess(7) // %10000000
-    val b by BitAccess(6) // %01000000
-    val select by BitAccess(5) // %00100000
-    val start by BitAccess(4) // %00010000
-    val up by BitAccess(3) // %00001000
-    val down by BitAccess(2) // %00000100
-    val left by BitAccess(1) // %00000010
-    val right by BitAccess(0) // %00000001
+    var joypadPort1: JoypadBits = JoypadBits(0)
+    var joypadPort2: JoypadBits = JoypadBits(0)
 }

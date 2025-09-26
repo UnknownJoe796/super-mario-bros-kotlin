@@ -1,5 +1,10 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.ByteAccess
+import com.ivieleague.smbtranslation.utils.JoypadBits
+import com.ivieleague.smbtranslation.utils.PpuControl
+import com.ivieleague.smbtranslation.utils.PpuMask
+import com.ivieleague.smbtranslation.utils.SpriteFlags
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
@@ -71,9 +76,15 @@ class GameRam {
 
     var objectOffset: Byte by Access(0x8)
     var frameCounter: Byte by Access(0x9)
-    var savedJoypadBits: Byte by Access(0x6fc)
-    var savedJoypad1Bits: Byte by Access(0x6fc)
-    var savedJoypad2Bits: Byte by Access(0x6fd)
+    var savedJoypadBits: JoypadBits
+        get() = JoypadBits(wholeBlock[0x6fc])
+        set(value) { wholeBlock[0x6fc] = value.byte }
+    var savedJoypad1Bits: JoypadBits
+        get() = JoypadBits(wholeBlock[0x6fc])
+        set(value) { wholeBlock[0x6fc] = value.byte }
+    var savedJoypad2Bits: JoypadBits
+        get() = JoypadBits(wholeBlock[0x6fd])
+        set(value) { wholeBlock[0x6fd] = value.byte }
     var joypadBitMask: Byte by Access(0x74a)
     var joypadOverride: Byte by Access(0x758)
     var aBButtons: Byte by Access(0xa)
@@ -81,9 +92,15 @@ class GameRam {
     var upDownButtons: Byte by Access(0xb)
     var leftRightButtons: Byte by Access(0xc)
     var gameEngineSubroutine: Byte by Access(0xe)
-    val mirrorPPUCTRLREG1 = PictureProcessingUnit.Control(Access(0x778))
-    val mirrorPPUCTRLREG2 = PictureProcessingUnit.Mask(Access(0x779))
-    var operMode: Byte by Access(0x770)
+    var mirrorPPUCTRLREG1: PpuControl
+        get() = PpuControl(wholeBlock[0x778])
+        set(value) { wholeBlock[0x778] = value.byte }
+    var mirrorPPUCTRLREG2: PpuMask
+        get() = PpuMask(wholeBlock[0x779])
+        set(value) { wholeBlock[0x779] = value.byte }
+    var operMode: OperMode // by Access(0x770)
+        get() = OperMode.entries[wholeBlock[0x770].toInt()]
+        set(value) { wholeBlock[0x770] = value.ordinal.toByte() }
     var operModeTask: Byte by Access(0x772)
     var screenRoutineTask: Byte by Access(0x73c)
     var gamePauseStatus: Byte by Access(0x776)
@@ -115,24 +132,13 @@ class GameRam {
     var screenTimer: Byte by Access(0x7a0)
     var worldEndTimer: Byte by Access(0x7a1)
     var demoTimer: Byte by Access(0x7a2)
-    var spriteData: Byte by Access(0x200)
 
     inner class Sprite(val offset: Int) {
         var y: UByte by UAccess(offset)
         var tilenumber: Byte by Access(offset + 1)
-        //    76543210
-        //    ||||||||
-        //    ||||||++- Palette (4 to 7) of sprite
-        //    |||+++--- Unimplemented (read 0)
-        //    ||+------ Priority (0: in front of background; 1: behind background)
-        //    |+------- Flip sprite horizontally
-        //    +-------- Flip sprite vertically
-        private val attributesAccess = Access(offset + 2)
-        var attributes: Byte by attributesAccess
-        var flipVertical: Boolean by BitAccess2(attributesAccess, 7)
-        var flipHorizontal: Boolean by BitAccess2(attributesAccess, 6)
-        var behindBackground: Boolean by BitAccess2(attributesAccess, 5)
-        var palette: TwoBits by BitRangeAccess2(attributesAccess, 0, 1)
+        var attributes: SpriteFlags
+            get() = SpriteFlags(wholeBlock[offset + 2])
+            set(value) { wholeBlock[offset + 2] = value.byte }
         var x: UByte by UAccess(offset + 3)
     }
     val sprites = Array(64) { Sprite(it * 4 + 0x200) }
@@ -280,14 +286,22 @@ class GameRam {
     var warmBootValidation: Boolean by BooleanAccess(0x7ff, trueValue = 0xa5.toByte())
     var sprShuffleAmtOffset: Byte by Access(0x6e0)
     val sprShuffleAmt = RangeAccess(0x6e1, 9999)
-    var sprDataOffset: Byte by Access(0x6e4)
+
+    // SprDataOffset is a contiguous table of 15 bytes starting at $6E4 used by SpriteShuffler
+    val sprDataOffsets = RangeAccess(0x6e4, 0x0f)
+//    var sprDataOffset: Byte by Access(0x6e4)  // Seems redundant now
+
     var playerSprDataOffset: Byte by Access(0x6e4)
     var enemySprDataOffset: Byte by Access(0x6e5)
     var blockSprDataOffset: Byte by Access(0x6ec)
     var altSprDataOffset: Byte by Access(0x6ec)
     var bubbleSprDataOffset: Byte by Access(0x6ee)
     var fBallSprDataOffset: Byte by Access(0x6f1)
-    var miscSprDataOffset: Byte by Access(0x6f3)
+
+    // Misc_SprDataOffset is a contiguous table of 9 bytes starting at $6F3
+    val miscSprDataOffsets = RangeAccess(0x6f3, 9)
+//    var miscSprDataOffset: Byte by Access(0x6f3)  // Seems redundant now
+
     var sprDataOffsetCtrl: Byte by Access(0x3ee)
     var playerState: Byte by Access(0x1d)
     var enemyState: Byte by Access(0x1e)

@@ -1,10 +1,8 @@
 package com.ivieleague.smbtranslation
 
-import com.ivieleague.smbtranslation.utils.InexactBitSetting
-import kotlin.experimental.and
-import kotlin.experimental.or
-import kotlin.experimental.xor
-import kotlin.repeat
+import com.ivieleague.smbtranslation.utils.ByteAccess
+import com.ivieleague.smbtranslation.utils.PpuControl
+import com.ivieleague.smbtranslation.utils.PpuMask
 
 /**
  * This has large skipped pieces because SCREW emulating the freaking PPU
@@ -15,40 +13,42 @@ fun System.nonMaskableInterrupt() {
     //> lda Mirror_PPU_CTRL_REG1  ;disable NMIs in mirror reg
     //> and #%01111111            ;save all other bits
     //> sta Mirror_PPU_CTRL_REG1
-    ram.mirrorPPUCTRLREG1.nmiEnabled = false
+    ram.mirrorPPUCTRLREG1 = ram.mirrorPPUCTRLREG1.copy(nmiEnabled = false)
 
     //> and #%01111110            ;alter name table address to be $2800
     //> sta PPU_CTRL_REG1         ;(essentially $2000) but save other bits
-    ppu.control.access.value = ram.mirrorPPUCTRLREG1.access.value
-    ppu.control.baseNametableAddress = 2
+    ppu.control = ram.mirrorPPUCTRLREG1.copy(baseNametableAddress = 2)
 
     //> lda Mirror_PPU_CTRL_REG2  ;disable OAM and background display by default
-    val tempReg2 = PictureProcessingUnit.Mask(object: ByteAccess {
-        override var value: Byte = 0
-    })
-    tempReg2.access.value = ram.mirrorPPUCTRLREG2.access.value
+    var tempReg2 = ram.mirrorPPUCTRLREG2
     //> and #%11100110
-    tempReg2.spriteEnabled = false
-    tempReg2.backgroundEnabled = false
+    tempReg2 = tempReg2.copy(
+        spriteEnabled = false,
+        backgroundEnabled = false,
+    )
 
     //> ldy DisableScreenFlag     ;get screen disable flag
     //> bne ScreenOff             ;if set, used bits as-is
     if(!ram.disableScreenFlag) {
         //> lda Mirror_PPU_CTRL_REG2  ;otherwise reenable bits and save them
-        tempReg2.access.value = ram.mirrorPPUCTRLREG2.access.value
+        tempReg2 = ram.mirrorPPUCTRLREG2
         //> ora #%00011110
-        tempReg2.spriteEnabled = true
-        tempReg2.backgroundEnabled = true
-        tempReg2.showLeftSprites = true
-        tempReg2.showLeftBackground = true
+        tempReg2 = tempReg2.copy(
+            spriteEnabled = true,
+            backgroundEnabled = true,
+            showLeftSprites = true,
+            showLeftBackground = true,
+        )
     }
     //> ScreenOff:     sta Mirror_PPU_CTRL_REG2  ;save bits for later but not in register at the moment
-    ram.mirrorPPUCTRLREG2.access.value = tempReg2.access.value
+    ram.mirrorPPUCTRLREG2 = tempReg2
     //> and #%11100111            ;disable screen for now
-    tempReg2.spriteEnabled = false
-    tempReg2.backgroundEnabled = false
+    tempReg2 = tempReg2.copy(
+        spriteEnabled = false,
+        backgroundEnabled = false,
+    )
     //> sta PPU_CTRL_REG2
-    ppu.mask.access.value = tempReg2.access.value
+    ppu.mask = tempReg2
 
 
     //> ldx PPU_STATUS            ;reset flip-flop and reset scroll registers to zero
@@ -96,7 +96,7 @@ fun System.nonMaskableInterrupt() {
 
     //> lda Mirror_PPU_CTRL_REG2  ;copy mirror of $2001 to register
     //> sta PPU_CTRL_REG2
-    ppu.mask.access.value = ram.mirrorPPUCTRLREG2.access.value
+    ppu.mask = ram.mirrorPPUCTRLREG2
 
     //> jsr SoundEngine           ;play sound
     soundEngine()
@@ -190,11 +190,11 @@ fun System.nonMaskableInterrupt() {
     ppu.scroll(ram.horizontalScroll, ram.verticalScroll)
 
     //> lda Mirror_PPU_CTRL_REG1  ;load saved mirror of $2000
-    val reg1temp = ram.mirrorPPUCTRLREG1.access.value
+    val reg1temp = ram.mirrorPPUCTRLREG1
     //> pha
-    ram.stack.push(reg1temp)
+    ram.stack.push(reg1temp.byte)
     //> sta PPU_CTRL_REG1
-    ppu.control.access.value = reg1temp
+    ppu.control = reg1temp
 
     //> lda GamePauseStatus       ;if in pause mode, do not perform operation mode stuff
     //> lsr
@@ -207,8 +207,7 @@ fun System.nonMaskableInterrupt() {
     //> pla
     //> ora #%10000000            ;reactivate NMIs
     //> sta PPU_CTRL_REG1
-    ppu.control.access.value = ram.stack.pop()
-    ppu.control.nmiEnabled = true
+    ppu.control = PpuControl(ram.stack.pop()).copy(nmiEnabled = true)
     //> rti                       ;we are done until the next frame!
 }
 
@@ -251,10 +250,10 @@ fun System.pauseRoutine(): Unit {
     //> cmp #VictoryModeValue  ;if so, go ahead
     //> beq ChkPauseTimer
     // wtf is this logic?
-    if(ram.operMode != Constants.VictoryModeValue) {
+    if(ram.operMode != OperMode.Victory) {
         //> cmp #GameModeValue     ;are we in game mode?
         //> bne ExitPause          ;if not, leave
-        if(ram.operMode != Constants.GameModeValue) return
+        if(ram.operMode != OperMode.Game) return
         //> lda OperMode_Task      ;if we are in game mode, are we running game engine?
         //> cmp #$03
         //> bne ExitPause          ;if not, leave
@@ -301,61 +300,82 @@ fun System.pauseRoutine(): Unit {
 }
 fun System.updateTopScore(): Unit = TODO()
 fun System.moveSpritesOffscreen(): Unit = TODO()
+
+/**
+ * Mitigate issues with sprites being undrawn because of the NES limitation of 8 sprites per scanline.
+ * This function cycles the order of the sprites, as the display prioritizes the first 8.  The result is flashing sprites, which is better than something just being invisible
+ * On a later pass, we'll eliminate the need for this entirely by using modern techniques.
+ */
 fun System.spriteShuffler(): Unit {
     //> ;$00 - used for preset value
     //> SpriteShuffler:
     //> ldy AreaType                ;load level type, likely residual code
     //> lda #$28                    ;load preset value which will put it at
     //> sta $00                     ;sprite #10
-    val temp = 0x28.toByte()
+    val preset = 0x28u
+
     //> ldx #$0e                    ;start at the end of OAM data offsets
     var x = 0x0e
-    while(x >= 0) {
+    while (x >= 0) {
         //> ShuffleLoop:   lda SprDataOffset,x         ;check for offset value against
-        val a = ram.sprites[x/4].x
+        val a: UByte = ram.sprDataOffsets[x].toUByte()
         //> cmp $00                     ;the preset value
         //> bcc NextSprOffset           ;if less, skip this part
-        if (a >= temp.toUByte()) {
+        if (a.toUInt() >= preset) {
             //> ldy SprShuffleAmtOffset     ;get current offset to preset value we want to add
+            val y = (ram.sprShuffleAmtOffset.toInt() and 0xFF)
             //> clc
             //> adc SprShuffleAmt,y         ;get shuffle amount, add to current sprite offset
             //> bcc StrSprOffset            ;if not exceeded $ff, skip second add
-            var updated = (a + ram.sprShuffleAmt[ram.sprShuffleAmtOffset.toInt()].toUInt())
-            if(updated > 0xFFu) {
+            val add = ram.sprShuffleAmt[y].toUByte()
+            val sum = a.toUInt() + add.toUInt()
+            val carry = sum > 0xFFu
+            var updated = (sum and 0xFFu).toUByte()
+            if (carry) {
                 //> clc
                 //> adc $00                     ;otherwise add preset value $28 to offset
-                updated += temp.toUByte()
+                updated = (updated.toUInt() + preset).toUByte()
             }
             //> StrSprOffset:  sta SprDataOffset,x         ;store new offset here or old one if branched to here
-            ram.sprites[x/4].x = updated.toUByte()
+            ram.sprDataOffsets[x] = updated.toByte()
         }
         //> NextSprOffset: dex                         ;move backwards to next one
         x--
         //> bpl ShuffleLoop
     }
 
-    //TODO: Complete below
     //> ldx SprShuffleAmtOffset     ;load offset
+    var amtOff = (ram.sprShuffleAmtOffset.toInt() and 0xFF)
     //> inx
+    amtOff++
     //> cpx #$03                    ;check if offset + 1 goes to 3
     //> bne SetAmtOffset            ;if offset + 1 not 3, store
     //> ldx #$00                    ;otherwise, init to 0
+    if (amtOff >= 3) amtOff = 0
     //> SetAmtOffset:  stx SprShuffleAmtOffset
+    ram.sprShuffleAmtOffset = amtOff.toByte()
+
     //> ldx #$08                    ;load offsets for values and storage
+    x = 0x08
     //> ldy #$02
+    var y = 0x02
     //> SetMiscOffset: lda SprDataOffset+5,y       ;load one of three OAM data offsets
-    //> sta Misc_SprDataOffset-2,x  ;store first one unmodified, but
-    //> clc                         ;add eight to the second and eight
-    //> adc #$08                    ;more to the third one
-    //> sta Misc_SprDataOffset-1,x  ;note that due to the way X is set up,
-    //> clc                         ;this code loads into the misc sprite offsets
-    //> adc #$08
-    //> sta Misc_SprDataOffset,x
-    //> dex
-    //> dex
-    //> dex
-    //> dey
-    //> bpl SetMiscOffset           ;do this until all misc spr offsets are loaded
+    while (y >= 0) {
+        val base = ram.sprDataOffsets[5 + y].toUByte()
+        //> sta Misc_SprDataOffset-2,x  ;store first one unmodified, but
+        ram.miscSprDataOffsets[x - 2] = base.toByte()
+        //> clc                         ;add eight to the second and eight
+        //> adc #$08                    ;more to the third one
+        ram.miscSprDataOffsets[x - 1] = (base.toUInt() + 0x08u).toUByte().toByte()
+        //> sta Misc_SprDataOffset-1,x  ;note that due to the way X is set up,
+        //> clc                         ;this code loads into the misc sprite offsets
+        //> adc #$08
+        ram.miscSprDataOffsets[x] = (base.toUInt() + 0x10u).toUByte().toByte()
+        //> dex / dex / dex
+        x -= 3
+        //> dey
+        y--
+        //> bpl SetMiscOffset           ;do this until all misc spr offsets are loaded
+    }
     //> rts
 }
-fun System.operModeExecutionTree(): Unit = TODO()

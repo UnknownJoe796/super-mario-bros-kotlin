@@ -1,6 +1,7 @@
 package com.ivieleague.smbtranslation
 
 import com.ivieleague.smbtranslation.utils.InexactBitSetting
+import com.ivieleague.smbtranslation.utils.PpuControl
 
 
 fun System.start() {
@@ -12,13 +13,15 @@ fun System.start() {
 
     //> lda #%00010000               ;init PPU control register 1
     //> sta PPU_CTRL_REG1
-    ppu.control.nmiEnabled = false
-    ppu.control.extWrite = false
-    ppu.control.tallSpriteMode = false
-    ppu.control.spritePatternTableOffset = false
-    ppu.control.drawVertical = false
-    ppu.control.baseNametableAddress = 0
-    ppu.control.backgroundTableOffset = true
+    ppu.control = PpuControl(
+        nmiEnabled = false,
+        extWrite = false,
+        tallSpriteMode = false,
+        spritePatternTableOffset = false,
+        drawVertical = false,
+        baseNametableAddress = 0,
+        backgroundTableOffset = true,
+    )
 
     //> ldx #$ff                     ;reset stack pointer
     //> txs
@@ -58,7 +61,7 @@ fun System.start() {
     //> sta SND_DELTA_REG+1          ;reset delta counter load register
     apu.deltaModulation.loadCounter = 0
     //> sta OperMode                 ;reset primary mode of operation
-    ram.operMode = 0x0
+    ram.operMode = OperMode.TitleScreen
     //> lda #$a5                     ;set warm boot flag
     //> sta WarmBootValidation
     ram.warmBootValidation = true
@@ -75,8 +78,10 @@ fun System.start() {
 
     //> lda #%00000110
     //> sta PPU_CTRL_REG2            ;turn off clipping for OAM and background
-    ppu.mask.showLeftBackground = true
-    ppu.mask.showLeftSprites = true
+    ppu.mask = ppu.mask.copy(
+        showLeftBackground = true,
+        showLeftSprites = true,
+    )
 
     //> jsr MoveAllSpritesOffscreen
     moveAllSpritesOffscreen()
@@ -93,8 +98,8 @@ fun System.start() {
     //> ora #%10000000               ;enable NMIs
     //> jsr WritePPUReg1
     @InexactBitSetting
-    ram.mirrorPPUCTRLREG1.nmiEnabled = true
-    ppu.control.access.value = ram.mirrorPPUCTRLREG1.access.value
+    ram.mirrorPPUCTRLREG1 = ram.mirrorPPUCTRLREG1.copy(nmiEnabled = true)
+    ppu.control = ram.mirrorPPUCTRLREG1
 
     //> EndlessLoop: jmp EndlessLoop              ;endless loop, need I say more?
     // TODO: Original looped forever here to wait for an NMI.  What do we do here?
