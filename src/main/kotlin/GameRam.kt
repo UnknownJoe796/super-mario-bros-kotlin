@@ -212,15 +212,25 @@ class GameRam {
     var stompChainCounter: Byte by Access(0x484)
 
     inner class VramBuffer(val ramOffset: Int): VramBytes {
-        var offset: Byte by Access(ramOffset + 0)
+        override var offset: Byte by Access(ramOffset + 0)
         val wholeBuffer = RangeAccess(ramOffset + 1, 0x340 - 0x301)
         override val bytes: ByteArray get() {
             var zeroIndex = wholeBuffer.start
             while (wholeBlock[zeroIndex] != 0.toByte()) zeroIndex++
             return wholeBlock.copyOfRange(wholeBuffer.start, zeroIndex)
         }
+        fun absorb(data: VramBytes) {
+            offset = data.offset
+            val b = data.bytes
+            for(index in b.indices) {
+                wholeBuffer[index] = b[index]
+            }
+        }
     }
-    interface VramBytes { val bytes: ByteArray }
+    interface VramBytes {
+        val offset: Byte
+        val bytes: ByteArray
+    }
     val vRAMBuffer1 = VramBuffer(0x300)
     val vRAMBuffer2 = VramBuffer(0x340)
 

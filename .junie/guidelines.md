@@ -1,5 +1,11 @@
 Project Guidelines (smb-translation)
 
+This is an attempt to port Super Mario Bros to readable, modifiable, and proper Kotlin, while retaining RAM-level accuracy to the original.
+
+The port includes *every single line of the disassembly* as comments, next to their equivalent Kotlin code.
+
+One day, when this is runnable, you will be able to use a SMB rom to play the game on your computer.
+
 Audience: Advanced Kotlin/Gradle developers working on this repository.
 
 1) Build and Configuration

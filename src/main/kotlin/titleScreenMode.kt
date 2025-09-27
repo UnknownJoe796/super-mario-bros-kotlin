@@ -208,7 +208,44 @@ private fun System.goContinue(worldNumber: Byte) {
 fun System.initializeGame(): Unit = TODO()
 fun System.screenRoutines(): Unit = TODO()
 fun System.primaryGameSetup(): Unit = TODO()
-fun System.drawMushroomIcon(): Unit = TODO()
+
+//> MushroomIconData:
+//>       .db $07, $22, $49, $83, $ce, $24, $24, $00
+private object MushroomIconData : GameRam.VramBytes {
+    override val offset: Byte = 0x07
+    override val bytes: ByteArray = byteArrayOf(
+        0x07,
+        0x22,
+        0x49,
+        0x83.toByte(),
+        0xCE.toByte(),
+        0x24,
+        0x24,
+        0x00
+    )
+}
+
+fun System.drawMushroomIcon() {
+    //> DrawMushroomIcon:
+    //>           ldy #$07                ;read eight bytes to be read by transfer routine
+    //> IconDataRead: lda MushroomIconData,y  ;note that the default position is set for a
+    //>           sta VRAM_Buffer1-1,y    ;1-player game
+    //>           dey
+    //>           bpl IconDataRead
+    ram.vRAMBuffer1.absorb(MushroomIconData)
+
+    //>           lda NumberOfPlayers     ;check number of players
+    //>           beq ExitIcon            ;if set to 1-player game, we're done
+    if (ram.numberOfPlayers != 0.toByte()) {
+        //>           lda #$24                ;otherwise, load blank tile in 1-player position
+        //>           sta VRAM_Buffer1+3
+        ram.vRAMBuffer1.wholeBuffer[3] = 0x24
+        //>           lda #$ce                ;then load shroom icon tile in 2-player position
+        //>           sta VRAM_Buffer1+5
+        ram.vRAMBuffer1.wholeBuffer[5] = 0xCE.toByte()
+    }
+    //> ExitIcon:     rts
+}
 
 /**
  * @return True if the demo is done

@@ -99,7 +99,15 @@ val types = listOf(
         BitField("vblank", 7),
         BitField("sprite0Hit", 6),
         BitField("spriteOverflow", 5),
-    ))
+    )),
+    BinaryType("VramBufferControl", listOf(
+        // control/len byte: bit7=1 -> increment by 32 (vertical), bit7=0 -> increment by 1 (horizontal);
+        //                    bit6=1 -> repeat the next data byte for "len" times; bit6=0 -> use next "len" bytes;
+        //                    bits0-5 = length (0..63)
+        BitField("drawVertically", 7),
+        BitField("repeat", 6),
+        BitField("length", 5),
+    )),
 )
 
 types.forEach { type ->

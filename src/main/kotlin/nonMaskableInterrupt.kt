@@ -237,9 +237,6 @@ private fun System.decTimers() {
     //> bpl DecTimersLoop         ;do this until all timers are dealt with
 }
 
-fun System.updateScreen(bufferToWrite: GameRam.VramBytes) {
-    TODO()
-}
 
 fun System.soundEngine(): Unit = TODO()
 fun System.readJoypads(): Unit = TODO()

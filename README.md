@@ -1,8 +1,10 @@
 # Super Mario Bros - Kotlin Port
 
-This is an attempt to port Super Mario Bros to readable, modifiable, and proper Kotlin, while retaining full accuracy to the original (including minus world!).
+This is an attempt to port Super Mario Bros to readable, modifiable, and proper Kotlin, while retaining full accuracy to the original's physics, look, and intent.
 
-The port includes *every single line of the disassembly* as comments, next to their equivalent Kotlin code.
+Note that we won't be emulating the various limitations of the NES.
+
+The port includes *every single line of the disassembly* as comments, next to their equivalent Kotlin code or explanations of how they aren't relevant anymore.
 
 One day, when this is runnable, you will be able to use a SMB rom to play on your computer.
 
@@ -80,3 +82,11 @@ Each phase will remain its own branch, as each is interesting and usable in its 
 - Super Mario Bros 4k - keeping the original resolution of the graphics, fit the vast majority of the game's levels onto a single 4k display.  Who needs scrolling?
 - SMB1+2J Flow - Run without interruption through both SMB1 and SMB2J.
 - Procedural level generation - Generate full new levels without the limitation of the NES, enabling us to use complex techniques
+
+## Decisions
+
+- We don't care about emulating the visual limitations of the NES's PPU, nor the complicated logic for juggling updates to it.  We're just going to directly update things as needed.
+  - This will yield some inaccuracies in RAM.
+  - This will eliminate visual glitches from the original.  Boo hoo.
+  - This will make the game run faster.  Yay!
+  - This will enable modders to do things beyond the original NES.
