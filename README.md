@@ -64,12 +64,17 @@ class GameRam {
 
 ## Progress
 
+![Title](title.png)
+
+*Above: Output of a unit test running the DrawTitleScreen subroutine (translated), GroundPaletteData, MushroomIconData, and a set of four test sprites making up small mario jumping in the top left*
+
 Each phase will remain its own branch, as each is interesting and usable in its own right.
 
 - Phase 1 - Readable and Running
   - [ ] Port the assembly (at 1061 lines out of 16,352 lines)
-  - [ ] Extract character ROM data
-  - [ ] Emulate the PPU
+  - [X] Extract character ROM data
+  - [X] Emulate the PPU
+    - Seems to be mostly complete, renders to Skiko, probably way to inefficient.
   - [ ] Emulate the APU
   - [ ] Emulate the Joypads
 - Phase 2 - Organized

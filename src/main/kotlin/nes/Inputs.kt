@@ -12,6 +12,6 @@ typealias VramAddress = Short
 
 
 class Inputs {
-    var joypadPort1: JoypadBits = JoypadBits(0)
-    var joypadPort2: JoypadBits = JoypadBits(0)
+    val joypadPort1: JoypadBits = JoypadBits(0)
+    val joypadPort2: JoypadBits = JoypadBits(0)
 }
