@@ -74,7 +74,7 @@ Each phase will remain its own branch, as each is interesting and usable in its 
   - [ ] Port the assembly (at 1061 lines out of 16,352 lines)
   - [X] Extract character ROM data
   - [X] Emulate the PPU
-    - Seems to be mostly complete, renders to Skiko, probably way to inefficient.
+    - Seems to be mostly complete, renders to Skiko, probably way too inefficient.
   - [ ] Emulate the APU
   - [ ] Emulate the Joypads
 - Phase 2 - Organized
