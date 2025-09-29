@@ -11,11 +11,10 @@ import java.io.File
 class PictureProcessingUnit {
     val originalRomSprites = Array<Pattern>(256) { Pattern() }
     val originalRomBackgrounds = Array<Pattern>(256) { Pattern() }
-    val backgroundColor: Color = Color(0xFF000000.toInt())
     val backgroundTiles = Array(2) { NesNametable() }
-    val backgroundPalettes = Array(4) { IndirectPalette(Palette.EMPTY) }
+    val backgroundPalettes = Array(4) { IndirectPalette(Palette.EMPTY, "background $it") }
     val sprites = Array(64) { Sprite() }
-    val spritePalettes = Array(4) { IndirectPalette(Palette.EMPTY) }
+    val spritePalettes = Array(4) { IndirectPalette(Palette.EMPTY, "foreground $it") }
 
     init {
         // Attempt to parse CHR data from the bundled SMB ROM and populate pattern tables.

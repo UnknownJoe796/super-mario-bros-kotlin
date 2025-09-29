@@ -24,8 +24,9 @@ object PpuRenderer {
         val paint = Paint()
 
         // Fill with PPU background color
-        val bgColor = ppu.backgroundColor.argb
-        paint.color = bgColor
+        val backgroundColor = ppu.backgroundPalettes[0].colors[0]
+        paint.color = backgroundColor.argb
+        println("Filling with back color ${backgroundColor}")
         canvas.drawRect(
             Rect.Companion.makeXYWH(
                 0f,

@@ -53,8 +53,9 @@ interface Palette {
     }
 }
 
-class IndirectPalette(var palette: Palette) : Palette {
+class IndirectPalette(var palette: Palette, val label: String) : Palette {
     override val colors: Array<Color> get() = palette.colors
+    override fun toString(): String = "Indirect $label ($palette)"
 }
 
 class DirectPalette(
@@ -64,82 +65,89 @@ class DirectPalette(
         Color(0xFFBBBBBB.toInt()),
         Color(0xFF666666.toInt()),
     )
-): Palette
+): Palette {
+    override fun toString(): String = colors.joinToString(", ")
+}
 
 @JvmInline
 value class Color(val argb: Int) {
     companion object {
         val nesPaletteLookup = intArrayOf(
-            0x7C7C7C,
-            0x0000FC,
-            0x0000BC,
-            0x4428BC,
-            0x940084,
-            0xA80020,
-            0xA81000,
-            0x881400,
-            0x503000,
-            0x007800,
-            0x006800,
-            0x005800,
-            0x004058,
+            0x626262,
+            0x001C95,
+            0x1904AC,
+            0x42009D,
+            0x61006B,
+            0x6E0025,
+            0x650500,
+            0x491E00,
+            0x223700,
+            0x004900,
+            0x004F00,
+            0x004816,
+            0x00355E,
             0x000000,
             0x000000,
             0x000000,
-            0xBCBCBC,
-            0x0078F8,
-            0x0058F8,
-            0x6844FC,
-            0xD800CC,
-            0xE40058,
-            0xF83800,
-            0xE45C10,
-            0xAC7C00,
-            0x00B800,
-            0x00A800,
-            0x00A844,
-            0x008888,
+
+            0xABABAB,
+            0x0C4EDB,
+            0x3D2EFF,
+            0x7115F3,
+            0x9B0BB9,
+            0xB01262,
+            0xA92704,
+            0x894600,
+            0x576600,
+            0x237F00,
+            0x008900,
+            0x008332,
+            0x006D90,
             0x000000,
             0x000000,
             0x000000,
-            0xF8F8F8,
-            0x3CBCFC,
-            0x6888FC,
-            0x9878F8,
-            0xF878F8,
-            0xF85898,
-            0xF87858,
-            0xFCA044,
-            0xF8B800,
-            0xB8F818,
-            0x58D854,
-            0x58F898,
-            0x00E8D8,
-            0x787878,
+
+            0xFFFFFF,
+            0x57A5FF,
+            0x8287FF,
+            0xB46DFF,
+            0xDF60FF,
+            0xF863C6,
+            0xF8746D,
+            0xDE9020,
+            0xB3AE00,
+            0x81C800,
+            0x56D522,
+            0x3DD36F,
+            0x3EC1C8,
+            0x4E4E4E,
             0x000000,
             0x000000,
-            0xFCFCFC,
-            0xA4E4FC,
-            0xB8B8F8,
-            0xD8B8F8,
-            0xF8B8F8,
-            0xF8A4C0,
-            0xF0D0B0,
-            0xFCE0A8,
-            0xF8D878,
-            0xD8F878,
-            0xB8F8B8,
-            0xB8F8D8,
-            0x00FCFC,
-            0xF8D8F8,
+
+            0xFFFFFF,
+            0xBEE0FF,
+            0xCDD4FF,
+            0xE0CAFF,
+            0xF1C4FF,
+            0xFCC4EF,
+            0xFDCACE,
+            0xF5D4AF,
+            0xE6DF9C,
+            0xD3E99A,
+            0xC2EFA8,
+            0xB7EFC4,
+            0xB6EAE5,
+            0xB8B8B8,
             0x000000,
             0x000000,
         )
     }
 
     constructor(byte: Byte) : this(
-        nesPaletteLookup[byte.toInt() and 31],
+        nesPaletteLookup[byte.toInt() and 0x3F] + 0xFF000000.toInt(),
     )
+
+    override fun toString(): String = "#${argb.toHexString().padStart(8, '0')}"
 }
 
 class Sprite {

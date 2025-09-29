@@ -33,6 +33,8 @@ class DrawTitleScreenTest {
         system.ppu.backgroundPalettes[2].palette = simplePalette
         system.ppu.backgroundPalettes[3].palette = simplePalette
 
+        system.updateScreen(system.GroundPaletteData)
+        system.ppu.backgroundPalettes[0].palette.colors[0] = Color(0x22.toByte()).also { println(it) }
         system.drawTitleScreen()
         system.updateScreen(system.vramAddrTable[5])
 

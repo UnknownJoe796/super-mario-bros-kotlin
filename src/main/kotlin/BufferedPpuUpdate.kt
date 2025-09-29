@@ -11,6 +11,48 @@ import com.ivieleague.smbtranslation.utils.VramBufferControl
 import com.ivieleague.smbtranslation.utils.bit
 import com.ivieleague.smbtranslation.utils.bitRange
 
+private fun applyAttributeCell(ppu: PictureProcessingUnit, nametable: TwoBits, ax: FiveBits, ay: FiveBits, value: Byte) {
+    val nt = ppu.backgroundTiles[nametable.toInt() and 0x01]
+    val baseX = (ax.toInt() and 0x1F) * 4
+    val baseY = (ay.toInt() and 0x1F) * 4
+    fun paletteForQuadrant(q: Int): Palette {
+        val idx = (value.toInt() shr (q * 2)) and 0x03
+        return ppu.backgroundPalettes[idx]
+    }
+    // Top-left quadrant (bits 0-1): tiles (0..1, 0..1)
+    val palTL = paletteForQuadrant(0).also { println("PAL: $it") }
+    for (dy in 0..1) for (dx in 0..1) {
+        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
+            val t = nt[baseX + dx, baseY + dy]
+            nt[baseX + dx, baseY + dy] = t.copy(palette = palTL)
+        }
+    }
+    // Top-right quadrant (bits 2-3): (2..3, 0..1)
+    val palTR = paletteForQuadrant(1).also { println("PAL: $it") }
+    for (dy in 0..1) for (dx in 2..3) {
+        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
+            val t = nt[baseX + dx, baseY + dy]
+            nt[baseX + dx, baseY + dy] = t.copy(palette = palTR)
+        }
+    }
+    // Bottom-left quadrant (bits 4-5): (0..1, 2..3)
+    val palBL = paletteForQuadrant(2).also { println("PAL: $it") }
+    for (dy in 2..3) for (dx in 0..1) {
+        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
+            val t = nt[baseX + dx, baseY + dy]
+            nt[baseX + dx, baseY + dy] = t.copy(palette = palBL)
+        }
+    }
+    // Bottom-right quadrant (bits 6-7): (2..3, 2..3)
+    val palBR = paletteForQuadrant(3).also { println("PAL: $it") }
+    for (dy in 2..3) for (dx in 2..3) {
+        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
+            val t = nt[baseX + dx, baseY + dy]
+            nt[baseX + dx, baseY + dy] = t.copy(palette = palBR)
+        }
+    }
+}
+
 sealed class BufferedPpuUpdate {
     abstract operator fun invoke(ppu: PictureProcessingUnit)
 
@@ -82,6 +124,58 @@ sealed class BufferedPpuUpdate {
     ): BufferedPpuUpdate() {
         override fun invoke(ppu: PictureProcessingUnit) {
             ppu.spritePalettes[index.toInt() and 0x03].palette = DirectPalette(colors.toTypedArray())
+        }
+    }
+
+    /**
+     * Attribute table updates: each byte controls palettes for a 4x4 tile block via four 2-bit fields.
+     * We expose two operations: literal string of attribute bytes and repeated byte.
+     * Coordinates (ax, ay) are in attribute-cell space: 0..7 by 0..7 within a nametable.
+     */
+    data class BackgroundAttributeString(
+        val nametable: TwoBits,
+        val ax: FiveBits,
+        val ay: FiveBits,
+        val drawVertically: Boolean,
+        val values: List<Byte>,
+    ) : BufferedPpuUpdate() {
+        override fun invoke(ppu: PictureProcessingUnit) {
+            var ax = ax.toInt() and 0x1F
+            var ay = ay.toInt() and 0x1F
+            for (v in values) {
+                applyAttributeCell(ppu, nametable, ax.toByte(), ay.toByte(), v)
+                if (drawVertically) {
+                    ay++
+                    if (ay >= 8) { ay = 0; ax = (ax + 1) % 8 }
+                } else {
+                    ax++
+                    if (ax >= 8) { ax = 0; ay = (ay + 1) % 8 }
+                }
+            }
+        }
+    }
+
+    data class BackgroundAttributeRepeat(
+        val nametable: TwoBits,
+        val ax: FiveBits,
+        val ay: FiveBits,
+        val drawVertically: Boolean,
+        val value: Byte,
+        val repetitions: Int,
+    ) : BufferedPpuUpdate() {
+        override fun invoke(ppu: PictureProcessingUnit) {
+            var ax = this.ax.toInt() and 0x1F
+            var ay = this.ay.toInt() and 0x1F
+            repeat(repetitions) {
+                applyAttributeCell(ppu, nametable, ax.toByte(), ay.toByte(), value)
+                if (drawVertically) {
+                    ay++
+                    if (ay >= 8) { ay = 0; ax = (ax + 1) % 8 }
+                } else {
+                    ax++
+                    if (ax >= 8) { ax = 0; ay = (ay + 1) % 8 }
+                }
+            }
         }
     }
 
@@ -211,9 +305,37 @@ sealed class BufferedPpuUpdate {
                             )
                         }
                     }
-                    // $23C0-$23FF (+ mirrors) attribute tables. We currently pass raw bytes through.
+                    // $23C0-$23FF (+ mirrors) attribute tables.
                     in 0x3C0..0x3FF -> {
-                        // TODO: Attribute tables!
+                        val ntIndex = ((addr - 0x2000) / 0x400) and 0x03
+                        val startInNt = (addr - 0x2000) % 0x400
+                        val attrIndex = startInNt - 0x3C0 // 0..63
+                        val startAx = (attrIndex % 8)
+                        val startAy = (attrIndex / 8)
+                        if (data.isNotEmpty()) {
+                            if (repeat) {
+                                out.add(
+                                    BackgroundAttributeRepeat(
+                                        nametable = ntIndex.toByte(),
+                                        ax = startAx.toByte(),
+                                        ay = startAy.toByte(),
+                                        drawVertically = drawVert,
+                                        value = data[0],
+                                        repetitions = length,
+                                    )
+                                )
+                            } else {
+                                out.add(
+                                    BackgroundAttributeString(
+                                        nametable = ntIndex.toByte(),
+                                        ax = startAx.toByte(),
+                                        ay = startAy.toByte(),
+                                        drawVertically = drawVert,
+                                        values = data.toList(),
+                                    )
+                                )
+                            }
+                        }
                     }
                     else -> {
                         // Unsupported VRAM range for now: fail fast to catch unexpected data during porting.

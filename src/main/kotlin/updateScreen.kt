@@ -2,7 +2,10 @@ package com.ivieleague.smbtranslation
 
 
 fun System.updateScreen(bufferToWrite: VBuffer) {
-    bufferToWrite.forEach { it(ppu) }
+    bufferToWrite.forEach {
+        println("Applying $it")
+        it(ppu)
+    }
     //> WriteBufferToScreen:
     //> sta PPU_ADDRESS           ;store high byte of vram address
     //> iny
