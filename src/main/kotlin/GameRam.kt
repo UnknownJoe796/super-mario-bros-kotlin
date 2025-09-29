@@ -8,57 +8,9 @@ import com.ivieleague.smbtranslation.utils.SpriteFlags
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
+annotation class RamLocation(val address: Int)
+
 class GameRam {
-    val wholeBlock = ByteArray(0x800)
-
-    private inner class Access(val index: Int) : ReadWriteProperty<Any?, Byte>, ByteAccess {
-        override var value: Byte
-            get() = wholeBlock[index]
-            set(value) { wholeBlock[index] = value }
-        override fun getValue(thisRef: Any?, property: KProperty<*>): Byte {
-            return wholeBlock[index]
-        }
-
-        override fun setValue(thisRef: Any?, property: KProperty<*>, value: Byte) {
-            wholeBlock[index] = value
-        }
-    }
-
-    private inner class UAccess(val index: Int) : ReadWriteProperty<Any?, UByte>, ByteAccess {
-        override var value: Byte
-            get() = wholeBlock[index]
-            set(value) { wholeBlock[index] = value.toByte() }
-        override fun getValue(thisRef: Any?, property: KProperty<*>): UByte {
-            return wholeBlock[index].toUByte()
-        }
-
-        override fun setValue(thisRef: Any?, property: KProperty<*>, value: UByte) {
-            wholeBlock[index] = value.toByte()
-        }
-    }
-
-    private inner class BooleanAccess(val index: Int, val trueValue: Byte = 0x1) : ReadWriteProperty<Any?, Boolean> {
-        override fun getValue(thisRef: Any?, property: KProperty<*>): Boolean {
-            return wholeBlock[index] != 0.toByte()
-        }
-
-        override fun setValue(thisRef: Any?, property: KProperty<*>, value: Boolean) {
-            wholeBlock[index] = if (value) trueValue else 0
-        }
-    }
-
-    inner class RangeAccess(val start: Int, val size: Int) {
-        operator fun get(index: Int): Byte {
-            assert(index < size)
-            return wholeBlock[start + index]
-        }
-
-        operator fun set(index: Int, value: Byte) {
-            assert(index < size)
-            wholeBlock[start + index] = value
-        }
-    }
-
     val stack = Stack()
 
     inner class Stack {
@@ -74,495 +26,440 @@ class GameRam {
         }
     }
 
-    var objectOffset: Byte by Access(0x8)
-    var frameCounter: Byte by Access(0x9)
-    var savedJoypadBits: JoypadBits
-        get() = JoypadBits(wholeBlock[0x6fc])
-        set(value) { wholeBlock[0x6fc] = value.byte }
-    var savedJoypad1Bits: JoypadBits
-        get() = JoypadBits(wholeBlock[0x6fc])
-        set(value) { wholeBlock[0x6fc] = value.byte }
-    var savedJoypad2Bits: JoypadBits
-        get() = JoypadBits(wholeBlock[0x6fd])
-        set(value) { wholeBlock[0x6fd] = value.byte }
-    var joypadBitMask: Byte by Access(0x74a)
-    var joypadOverride: Byte by Access(0x758)
-    var aBButtons: Byte by Access(0xa)
-    var previousABButtons: Byte by Access(0xd)
-    var upDownButtons: Byte by Access(0xb)
-    var leftRightButtons: Byte by Access(0xc)
-    var gameEngineSubroutine: Byte by Access(0xe)
-    var mirrorPPUCTRLREG1: PpuControl
-        get() = PpuControl(wholeBlock[0x778])
-        set(value) { wholeBlock[0x778] = value.byte }
-    var mirrorPPUCTRLREG2: PpuMask
-        get() = PpuMask(wholeBlock[0x779])
-        set(value) { wholeBlock[0x779] = value.byte }
-    var operMode: OperMode // by Access(0x770)
-        get() = OperMode.entries[wholeBlock[0x770].toInt()]
-        set(value) { wholeBlock[0x770] = value.ordinal.toByte() }
-    var operModeTask: Byte by Access(0x772)
-    var screenRoutineTask: Byte by Access(0x73c)
-    var gamePauseStatus: Byte by Access(0x776)
-    var gamePauseTimer: Byte by Access(0x777)
-    var demoAction: Byte by Access(0x717)
-    var demoActionTimer: Byte by Access(0x718)
-    var timerControl: Byte by Access(0x747)
-    var intervalTimerControl: Byte by Access(0x77f)
-    val timers = RangeAccess(0x780, 0x23)
-    var selectTimer: Byte by Access(0x780)
-    var playerAnimTimer: Byte by Access(0x781)
-    var jumpSwimTimer: Byte by Access(0x782)
-    var runningTimer: Byte by Access(0x783)
-    var blockBounceTimer: Byte by Access(0x784)
-    var sideCollisionTimer: Byte by Access(0x785)
-    var jumpspringTimer: Byte by Access(0x786)
-    var gameTimerCtrlTimer: Byte by Access(0x787)
-    var climbSideTimer: Byte by Access(0x789)
-    var enemyFrameTimer: Byte by Access(0x78a)
-    var frenzyEnemyTimer: Byte by Access(0x78f)
-    var bowserFireBreathTimer: Byte by Access(0x790)
-    var stompTimer: Byte by Access(0x791)
-    var airBubbleTimer: Byte by Access(0x792)
-    var scrollIntervalTimer: Byte by Access(0x795)
-    var enemyIntervalTimer: Byte by Access(0x796)
-    var brickCoinTimer: Byte by Access(0x79d)
-    var injuryTimer: Byte by Access(0x79e)
-    var starInvincibleTimer: Byte by Access(0x79f)
-    var screenTimer: Byte by Access(0x7a0)
-    var worldEndTimer: Byte by Access(0x7a1)
-    var demoTimer: Byte by Access(0x7a2)
+    @RamLocation(0x8) var objectOffset: Byte = 0
+    @RamLocation(0x9) var frameCounter: Byte = 0
+    var savedJoypadBits: JoypadBits = JoypadBits(0)
+    var savedJoypad1Bits: JoypadBits = JoypadBits(0)
+    var savedJoypad2Bits: JoypadBits = JoypadBits(0)
+    @RamLocation(0x74a) var joypadBitMask: Byte = 0
+    @RamLocation(0x758) var joypadOverride: Byte = 0
+    @RamLocation(0xa) var aBButtons: Byte = 0
+    @RamLocation(0xd) var previousABButtons: Byte = 0
+    @RamLocation(0xb) var upDownButtons: Byte = 0
+    @RamLocation(0xc) var leftRightButtons: Byte = 0
+    @RamLocation(0xe) var gameEngineSubroutine: Byte = 0
+    var mirrorPPUCTRLREG1: PpuControl = PpuControl(0)
+    var mirrorPPUCTRLREG2: PpuMask = PpuMask(0)
+    @RamLocation(0x770) var operMode: OperMode = OperMode.TitleScreen
+    @RamLocation(0x772) var operModeTask: Byte = 0
+    @RamLocation(0x73c) var screenRoutineTask: Byte = 0
+    @RamLocation(0x776) var gamePauseStatus: Byte = 0
+    @RamLocation(0x777) var gamePauseTimer: Byte = 0
+    @RamLocation(0x717) var demoAction: Byte = 0
+    @RamLocation(0x718) var demoActionTimer: Byte = 0
+    @RamLocation(0x747) var timerControl: Byte = 0
+    @RamLocation(0x77f) var intervalTimerControl: Byte = 0
+    @RamLocation(0x780) val timers = ByteArray(0x23)
+    @RamLocation(0x780) var selectTimer: Byte = 0
+    @RamLocation(0x781) var playerAnimTimer: Byte = 0
+    @RamLocation(0x782) var jumpSwimTimer: Byte = 0
+    @RamLocation(0x783) var runningTimer: Byte = 0
+    @RamLocation(0x784) var blockBounceTimer: Byte = 0
+    @RamLocation(0x785) var sideCollisionTimer: Byte = 0
+    @RamLocation(0x786) var jumpspringTimer: Byte = 0
+    @RamLocation(0x787) var gameTimerCtrlTimer: Byte = 0
+    @RamLocation(0x789) var climbSideTimer: Byte = 0
+    @RamLocation(0x78a) var enemyFrameTimer: Byte = 0
+    @RamLocation(0x78f) var frenzyEnemyTimer: Byte = 0
+    @RamLocation(0x790) var bowserFireBreathTimer: Byte = 0
+    @RamLocation(0x791) var stompTimer: Byte = 0
+    @RamLocation(0x792) var airBubbleTimer: Byte = 0
+    @RamLocation(0x795) var scrollIntervalTimer: Byte = 0
+    @RamLocation(0x796) var enemyIntervalTimer: Byte = 0
+    @RamLocation(0x79d) var brickCoinTimer: Byte = 0
+    @RamLocation(0x79e) var injuryTimer: Byte = 0
+    @RamLocation(0x79f) var starInvincibleTimer: Byte = 0
+    @RamLocation(0x7a0) var screenTimer: Byte = 0
+    @RamLocation(0x7a1) var worldEndTimer: Byte = 0
+    @RamLocation(0x7a2) var demoTimer: Byte = 0
 
-    inner class Sprite(val offset: Int) {
-        var y: UByte by UAccess(offset)
-        var tilenumber: Byte by Access(offset + 1)
-        var attributes: SpriteFlags
-            get() = SpriteFlags(wholeBlock[offset + 2])
-            set(value) { wholeBlock[offset + 2] = value.byte }
-        var x: UByte by UAccess(offset + 3)
+    class Sprite(val offset: Int) {
+        var y: UByte = 0u  // offset
+        var tilenumber: Byte = 0  // offset + 1
+        var attributes: SpriteFlags = SpriteFlags(0)  // offset + 2
+        var x: UByte = 0u  // offset + 3
     }
-    val sprites = Array(64) { Sprite(it * 4 + 0x200) }
+    @RamLocation(0x200) val sprites = Array(64) { Sprite(it * 4 + 0x200) }
 
-    var screenEdgePageLoc: Byte by Access(0x71a)
-    var screenEdgeXPos: Byte by Access(0x71c)
-    var screenLeftPageLoc: Byte by Access(0x71a)
-    var screenRightPageLoc: Byte by Access(0x71b)
-    var screenLeftXPos: Byte by Access(0x71c)
-    var screenRightXPos: Byte by Access(0x71d)
-    var playerFacingDir: Byte by Access(0x33)
-    var destinationPageLoc: Byte by Access(0x34)
-    var victoryWalkControl: Byte by Access(0x35)
-    var scrollFractional: Byte by Access(0x768)
-    var primaryMsgCounter: Byte by Access(0x719)
-    var secondaryMsgCounter: Byte by Access(0x749)
-    var horizontalScroll: Byte by Access(0x73f)
-    var verticalScroll: Byte by Access(0x740)
-    var scrollLock: Byte by Access(0x723)
-    var scrollThirtyTwo: Byte by Access(0x73d)
-    var playerXScroll: Byte by Access(0x6ff)
-    var playerPosForScroll: Byte by Access(0x755)
-    var scrollAmount: Byte by Access(0x775)
-    var areaData: Byte by Access(0xe7)
-    var areaDataLow: Byte by Access(0xe7)
-    var areaDataHigh: Byte by Access(0xe8)
-    var enemyData: Byte by Access(0xe9)
-    var enemyDataLow: Byte by Access(0xe9)
-    var enemyDataHigh: Byte by Access(0xea)
-    var areaParserTaskNum: Byte by Access(0x71f)
-    var columnSets: Byte by Access(0x71e)
-    var currentPageLoc: Byte by Access(0x725)
-    var currentColumnPos: Byte by Access(0x726)
-    var backloadingFlag: Byte by Access(0x728)
-    var behindAreaParserFlag: Byte by Access(0x729)
-    var areaObjectPageLoc: Byte by Access(0x72a)
-    var areaObjectPageSel: Byte by Access(0x72b)
-    var areaDataOffset: Byte by Access(0x72c)
-    var areaObjOffsetBuffer: Byte by Access(0x72d)
-    var areaObjectLength: Byte by Access(0x730)
-    var staircaseControl: Byte by Access(0x734)
-    var areaObjectHeight: Byte by Access(0x735)
-    var mushroomLedgeHalfLen: Byte by Access(0x736)
-    var enemyDataOffset: Byte by Access(0x739)
-    var enemyObjectPageLoc: Byte by Access(0x73a)
-    var enemyObjectPageSel: Byte by Access(0x73b)
-    var metatileBuffer: Byte by Access(0x6a1)
-    var blockBufferColumnPos: Byte by Access(0x6a0)
-    var currentNTAddrLow: Byte by Access(0x721)
-    var currentNTAddrHigh: Byte by Access(0x720)
-    var attributeBuffer: Byte by Access(0x3f9)
-    var loopCommand: Byte by Access(0x745)
-    var displayDigits: Byte by Access(0x7d7)
+    @RamLocation(0x71a) var screenEdgePageLoc: Byte = 0
+    @RamLocation(0x71c) var screenEdgeXPos: Byte = 0
+    @RamLocation(0x71a) var screenLeftPageLoc: Byte = 0
+    @RamLocation(0x71b) var screenRightPageLoc: Byte = 0
+    @RamLocation(0x71c) var screenLeftXPos: Byte = 0
+    @RamLocation(0x71d) var screenRightXPos: Byte = 0
+    @RamLocation(0x33) var playerFacingDir: Byte = 0
+    @RamLocation(0x34) var destinationPageLoc: Byte = 0
+    @RamLocation(0x35) var victoryWalkControl: Byte = 0
+    @RamLocation(0x768) var scrollFractional: Byte = 0
+    @RamLocation(0x719) var primaryMsgCounter: Byte = 0
+    @RamLocation(0x749) var secondaryMsgCounter: Byte = 0
+    @RamLocation(0x73f) var horizontalScroll: Byte = 0
+    @RamLocation(0x740) var verticalScroll: Byte = 0
+    @RamLocation(0x723) var scrollLock: Byte = 0
+    @RamLocation(0x73d) var scrollThirtyTwo: Byte = 0
+    @RamLocation(0x6ff) var playerXScroll: Byte = 0
+    @RamLocation(0x755) var playerPosForScroll: Byte = 0
+    @RamLocation(0x775) var scrollAmount: Byte = 0
+    @RamLocation(0xe7) var areaData: Byte = 0
+    @RamLocation(0xe7) var areaDataLow: Byte = 0
+    @RamLocation(0xe8) var areaDataHigh: Byte = 0
+    @RamLocation(0xe9) var enemyData: Byte = 0
+    @RamLocation(0xe9) var enemyDataLow: Byte = 0
+    @RamLocation(0xea) var enemyDataHigh: Byte = 0
+    @RamLocation(0x71f) var areaParserTaskNum: Byte = 0
+    @RamLocation(0x71e) var columnSets: Byte = 0
+    @RamLocation(0x725) var currentPageLoc: Byte = 0
+    @RamLocation(0x726) var currentColumnPos: Byte = 0
+    @RamLocation(0x728) var backloadingFlag: Byte = 0
+    @RamLocation(0x729) var behindAreaParserFlag: Byte = 0
+    @RamLocation(0x72a) var areaObjectPageLoc: Byte = 0
+    @RamLocation(0x72b) var areaObjectPageSel: Byte = 0
+    @RamLocation(0x72c) var areaDataOffset: Byte = 0
+    @RamLocation(0x72d) var areaObjOffsetBuffer: Byte = 0
+    @RamLocation(0x730) var areaObjectLength: Byte = 0
+    @RamLocation(0x734) var staircaseControl: Byte = 0
+    @RamLocation(0x735) var areaObjectHeight: Byte = 0
+    @RamLocation(0x736) var mushroomLedgeHalfLen: Byte = 0
+    @RamLocation(0x739) var enemyDataOffset: Byte = 0
+    @RamLocation(0x73a) var enemyObjectPageLoc: Byte = 0
+    @RamLocation(0x73b) var enemyObjectPageSel: Byte = 0
+    @RamLocation(0x6a1) var metatileBuffer: Byte = 0
+    @RamLocation(0x6a0) var blockBufferColumnPos: Byte = 0
+    @RamLocation(0x721) var currentNTAddrLow: Byte = 0
+    @RamLocation(0x720) var currentNTAddrHigh: Byte = 0
+    @RamLocation(0x3f9) var attributeBuffer: Byte = 0
+    @RamLocation(0x745) var loopCommand: Byte = 0
+    @RamLocation(0x7d7) var displayDigits: Byte = 0
 
-    val topScoreDisplay = RangeAccess(0x7d7, 6)
+    @RamLocation(0x7d7) val topScoreDisplay = ByteArray(6)
 
-    val scoreAndCoinDisplay = RangeAccess(0x7dd, 0x18)
-    var playerScoreDisplay: Byte by Access(0x7dd)
-    var gameTimerDisplay: Byte by Access(0x7f8)
-    var digitModifier: Byte by Access(0x134)
-    var verticalFlipFlag: Byte by Access(0x109)
-    var floateyNumControl: Byte by Access(0x110)
-    var shellChainCounter: Byte by Access(0x125)
-    var floateyNumTimer: Byte by Access(0x12c)
-    var floateyNumXPos: Byte by Access(0x117)
-    var floateyNumYPos: Byte by Access(0x11e)
-    var flagpoleFNumYPos: Byte by Access(0x10d)
-    var flagpoleFNumYMFDummy: Byte by Access(0x10e)
-    var flagpoleScore: Byte by Access(0x10f)
-    var flagpoleCollisionYPos: Byte by Access(0x70f)
-    var stompChainCounter: Byte by Access(0x484)
+    @RamLocation(0x7dd) val scoreAndCoinDisplay = ByteArray(0x18)
+    @RamLocation(0x7dd) var playerScoreDisplay: Byte = 0
+    @RamLocation(0x7f8) var gameTimerDisplay: Byte = 0
+    @RamLocation(0x134) var digitModifier: Byte = 0
+    @RamLocation(0x109) var verticalFlipFlag: Byte = 0
+    @RamLocation(0x110) var floateyNumControl: Byte = 0
+    @RamLocation(0x125) var shellChainCounter: Byte = 0
+    @RamLocation(0x12c) var floateyNumTimer: Byte = 0
+    @RamLocation(0x117) var floateyNumXPos: Byte = 0
+    @RamLocation(0x11e) var floateyNumYPos: Byte = 0
+    @RamLocation(0x10d) var flagpoleFNumYPos: Byte = 0
+    @RamLocation(0x10e) var flagpoleFNumYMFDummy: Byte = 0
+    @RamLocation(0x10f) var flagpoleScore: Byte = 0
+    @RamLocation(0x70f) var flagpoleCollisionYPos: Byte = 0
+    @RamLocation(0x484) var stompChainCounter: Byte = 0
 
-    inner class VramBuffer(val ramOffset: Int): VramBytes {
-        override var offset: Byte by Access(ramOffset + 0)
-        val wholeBuffer = RangeAccess(ramOffset + 1, 0x340 - 0x301)
-        override val bytes: ByteArray get() {
-            var zeroIndex = wholeBuffer.start
-            while (wholeBlock[zeroIndex] != 0.toByte()) zeroIndex++
-            return wholeBlock.copyOfRange(wholeBuffer.start, zeroIndex)
-        }
-        fun absorb(data: VramBytes) {
-            offset = data.offset
-            val b = data.bytes
-            for(index in b.indices) {
-                wholeBuffer[index] = b[index]
-            }
-        }
-    }
-    interface VramBytes {
-        val offset: Byte
-        val bytes: ByteArray
-    }
-    val vRAMBuffer1 = VramBuffer(0x300)
-    val vRAMBuffer2 = VramBuffer(0x340)
+    @RamLocation(0x300) val vRAMBuffer1 = VBuffer()
+    @RamLocation(0x340) val vRAMBuffer2 = VBuffer()
 
-    var vRAMBufferAddrCtrl: Byte by Access(0x773)
+    @RamLocation(0x773) var vRAMBufferAddrCtrl: Byte = 0
 
-    var sprite0HitDetectFlag: Boolean by BooleanAccess(0x722)
-    var disableScreenFlag: Boolean by BooleanAccess(0x774)
-    var disableIntermediate: Byte by Access(0x769)
-    var colorRotateOffset: Byte by Access(0x6d4)
-    var terrainControl: Byte by Access(0x727)
-    var areaStyle: Byte by Access(0x733)
-    var foregroundScenery: Byte by Access(0x741)
-    var backgroundScenery: Byte by Access(0x742)
-    var cloudTypeOverride: Byte by Access(0x743)
-    var backgroundColorCtrl: Byte by Access(0x744)
-    var areaType: Byte by Access(0x74e)
-    var areaAddrsLOffset: Byte by Access(0x74f)
-    var areaPointer: Byte by Access(0x750)
-    var playerEntranceCtrl: Byte by Access(0x710)
-    var gameTimerSetting: Byte by Access(0x715)
-    var altEntranceControl: Byte by Access(0x752)
-    var entrancePage: Byte by Access(0x751)
-    var numberOfPlayers: Byte by Access(0x77a)
-    var warpZoneControl: Byte by Access(0x6d6)
-    var changeAreaTimer: Byte by Access(0x6de)
-    var multiLoopCorrectCntr: Byte by Access(0x6d9)
-    var multiLoopPassCntr: Byte by Access(0x6da)
-    var fetchNewGameTimerFlag: Boolean by BooleanAccess(0x757)
-    var gameTimerExpiredFlag: Byte by Access(0x759)
-    var primaryHardMode: Boolean by BooleanAccess(0x76a)
-    var secondaryHardMode: Byte by Access(0x6cc)
-    var worldSelectNumber: Byte by Access(0x76b)
-    var worldSelectEnableFlag: Boolean by BooleanAccess(0x7fc)
-    var continueWorld: Byte by Access(0x7fd)
-    var currentPlayer: Byte by Access(0x753)
-    var playerSize: Byte by Access(0x754)
-    var playerStatus: Byte by Access(0x756)
-    var onscreenPlayerInfo: Byte by Access(0x75a)
-    var numberofLives: Byte by Access(0x75a)
-    var halfwayPage: Byte by Access(0x75b)
-    var levelNumber: Byte by Access(0x75c)
-    var hidden1UpFlag: Boolean by BooleanAccess(0x75d)
-    var coinTally: Byte by Access(0x75e)
-    var worldNumber: Byte by Access(0x75f)
-    var areaNumber: Byte by Access(0x760)
-    var coinTallyFor1Ups: Byte by Access(0x748)
-    var offscreenPlayerInfo: Byte by Access(0x761)
-    var offScrNumberofLives: Byte by Access(0x761)
-    var offScrHalfwayPage: Byte by Access(0x762)
-    var offScrLevelNumber: Byte by Access(0x763)
-    var offScrHidden1UpFlag: Boolean by BooleanAccess(0x764)
-    var offScrCoinTally: Byte by Access(0x765)
-    var offScrWorldNumber: Byte by Access(0x766)
-    var offScrAreaNumber: Byte by Access(0x767)
-    var balPlatformAlignment: Byte by Access(0x3a0)
-    var platformXScroll: Byte by Access(0x3a1)
-    var platformCollisionFlag: Byte by Access(0x3a2)
-    var yPlatformTopYPos: Byte by Access(0x401)
-    var yPlatformCenterYPos: Byte by Access(0x58)
-    var brickCoinTimerFlag: Byte by Access(0x6bc)
-    var starFlagTaskControl: Byte by Access(0x746)
-    val pseudoRandomBitReg = RangeAccess(0x7a7, 8)
-    var warmBootValidation: Boolean by BooleanAccess(0x7ff, trueValue = 0xa5.toByte())
-    var sprShuffleAmtOffset: Byte by Access(0x6e0)
-    val sprShuffleAmt = RangeAccess(0x6e1, 9999)
+    @RamLocation(0x722) var sprite0HitDetectFlag: Boolean = false
+    @RamLocation(0x774) var disableScreenFlag: Boolean = false
+    @RamLocation(0x769) var disableIntermediate: Byte = 0
+    @RamLocation(0x6d4) var colorRotateOffset: Byte = 0
+    @RamLocation(0x727) var terrainControl: Byte = 0
+    @RamLocation(0x733) var areaStyle: Byte = 0
+    @RamLocation(0x741) var foregroundScenery: Byte = 0
+    @RamLocation(0x742) var backgroundScenery: Byte = 0
+    @RamLocation(0x743) var cloudTypeOverride: Byte = 0
+    @RamLocation(0x744) var backgroundColorCtrl: Byte = 0
+    @RamLocation(0x74e) var areaType: Byte = 0
+    @RamLocation(0x74f) var areaAddrsLOffset: Byte = 0
+    @RamLocation(0x750) var areaPointer: Byte = 0
+    @RamLocation(0x710) var playerEntranceCtrl: Byte = 0
+    @RamLocation(0x715) var gameTimerSetting: Byte = 0
+    @RamLocation(0x752) var altEntranceControl: Byte = 0
+    @RamLocation(0x751) var entrancePage: Byte = 0
+    @RamLocation(0x77a) var numberOfPlayers: Byte = 0
+    @RamLocation(0x6d6) var warpZoneControl: Byte = 0
+    @RamLocation(0x6de) var changeAreaTimer: Byte = 0
+    @RamLocation(0x6d9) var multiLoopCorrectCntr: Byte = 0
+    @RamLocation(0x6da) var multiLoopPassCntr: Byte = 0
+    @RamLocation(0x757) var fetchNewGameTimerFlag: Boolean = false
+    @RamLocation(0x759) var gameTimerExpiredFlag: Byte = 0
+    @RamLocation(0x76a) var primaryHardMode: Boolean = false
+    @RamLocation(0x6cc) var secondaryHardMode: Byte = 0
+    @RamLocation(0x76b) var worldSelectNumber: Byte = 0
+    @RamLocation(0x7fc) var worldSelectEnableFlag: Boolean = false
+    @RamLocation(0x7fd) var continueWorld: Byte = 0
+    @RamLocation(0x753) var currentPlayer: Byte = 0
+    @RamLocation(0x754) var playerSize: Byte = 0
+    @RamLocation(0x756) var playerStatus: Byte = 0
+    @RamLocation(0x75a) var onscreenPlayerInfo: Byte = 0
+    @RamLocation(0x75a) var numberofLives: Byte = 0
+    @RamLocation(0x75b) var halfwayPage: Byte = 0
+    @RamLocation(0x75c) var levelNumber: Byte = 0
+    @RamLocation(0x75d) var hidden1UpFlag: Boolean = false
+    @RamLocation(0x75e) var coinTally: Byte = 0
+    @RamLocation(0x75f) var worldNumber: Byte = 0
+    @RamLocation(0x760) var areaNumber: Byte = 0
+    @RamLocation(0x748) var coinTallyFor1Ups: Byte = 0
+    @RamLocation(0x761) var offscreenPlayerInfo: Byte = 0
+    @RamLocation(0x761) var offScrNumberofLives: Byte = 0
+    @RamLocation(0x762) var offScrHalfwayPage: Byte = 0
+    @RamLocation(0x763) var offScrLevelNumber: Byte = 0
+    @RamLocation(0x764) var offScrHidden1UpFlag: Boolean = false
+    @RamLocation(0x765) var offScrCoinTally: Byte = 0
+    @RamLocation(0x766) var offScrWorldNumber: Byte = 0
+    @RamLocation(0x767) var offScrAreaNumber: Byte = 0
+    @RamLocation(0x3a0) var balPlatformAlignment: Byte = 0
+    @RamLocation(0x3a1) var platformXScroll: Byte = 0
+    @RamLocation(0x3a2) var platformCollisionFlag: Byte = 0
+    @RamLocation(0x401) var yPlatformTopYPos: Byte = 0
+    @RamLocation(0x58) var yPlatformCenterYPos: Byte = 0
+    @RamLocation(0x6bc) var brickCoinTimerFlag: Byte = 0
+    @RamLocation(0x746) var starFlagTaskControl: Byte = 0
+    @RamLocation(0x7a7) val pseudoRandomBitReg = ByteArray(8)
+    @RamLocation(0x7ff) var warmBootValidation: Boolean = false // by BooleanAccess(, trueValue = 0xa5.toByte())
+    @RamLocation(0x6e0) var sprShuffleAmtOffset: Byte = 0
+    @RamLocation(0x6e1) val sprShuffleAmt = ByteArray(9999)
 
     // SprDataOffset is a contiguous table of 15 bytes starting at $6E4 used by SpriteShuffler
-    val sprDataOffsets = RangeAccess(0x6e4, 0x0f)
-//    var sprDataOffset: Byte by Access(0x6e4)  // Seems redundant now
+    @RamLocation(0x6e4) val sprDataOffsets = ByteArray(0x0f)
 
-    var playerSprDataOffset: Byte by Access(0x6e4)
-    var enemySprDataOffset: Byte by Access(0x6e5)
-    var blockSprDataOffset: Byte by Access(0x6ec)
-    var altSprDataOffset: Byte by Access(0x6ec)
-    var bubbleSprDataOffset: Byte by Access(0x6ee)
-    var fBallSprDataOffset: Byte by Access(0x6f1)
+    @RamLocation(0x6e4) var playerSprDataOffset: Byte = 0
+    @RamLocation(0x6e5) var enemySprDataOffset: Byte = 0
+    @RamLocation(0x6ec) var blockSprDataOffset: Byte = 0
+    @RamLocation(0x6ec) var altSprDataOffset: Byte = 0
+    @RamLocation(0x6ee) var bubbleSprDataOffset: Byte = 0
+    @RamLocation(0x6f1) var fBallSprDataOffset: Byte = 0
 
     // Misc_SprDataOffset is a contiguous table of 9 bytes starting at $6F3
-    val miscSprDataOffsets = RangeAccess(0x6f3, 9)
-//    var miscSprDataOffset: Byte by Access(0x6f3)  // Seems redundant now
+    @RamLocation(0x6f3) val miscSprDataOffsets = ByteArray(9)
+    @RamLocation(0x6f3) var miscSprDataOffset: Byte = 0
 
-    var sprDataOffsetCtrl: Byte by Access(0x3ee)
-    var playerState: Byte by Access(0x1d)
-    var enemyState: Byte by Access(0x1e)
-    var fireballState: Byte by Access(0x24)
-    var blockState: Byte by Access(0x26)
-    var miscState: Byte by Access(0x2a)
-    var playerMovingDir: Byte by Access(0x45)
-    var enemyMovingDir: Byte by Access(0x46)
-    var sprObjectXSpeed: Byte by Access(0x57)
-    var playerXSpeed: Byte by Access(0x57)
-    var enemyXSpeed: Byte by Access(0x58)
-    var fireballXSpeed: Byte by Access(0x5e)
-    var blockXSpeed: Byte by Access(0x60)
-    var miscXSpeed: Byte by Access(0x64)
-    var jumpspringFixedYPos: Byte by Access(0x58)
-    var jumpspringAnimCtrl: Byte by Access(0x70e)
-    var jumpspringForce: Byte by Access(0x6db)
-    var sprObjectPageLoc: Byte by Access(0x6d)
-    var playerPageLoc: Byte by Access(0x6d)
-    var enemyPageLoc: Byte by Access(0x6e)
-    var fireballPageLoc: Byte by Access(0x74)
-    var blockPageLoc: Byte by Access(0x76)
-    var miscPageLoc: Byte by Access(0x7a)
-    var bubblePageLoc: Byte by Access(0x83)
-    var sprObjectXPosition: Byte by Access(0x86)
-    var playerXPosition: Byte by Access(0x86)
-    var enemyXPosition: Byte by Access(0x87)
-    var fireballXPosition: Byte by Access(0x8d)
-    var blockXPosition: Byte by Access(0x8f)
-    var miscXPosition: Byte by Access(0x93)
-    var bubbleXPosition: Byte by Access(0x9c)
-    var sprObjectYSpeed: Byte by Access(0x9f)
-    var playerYSpeed: Byte by Access(0x9f)
-    var enemyYSpeed: Byte by Access(0xa0)
-    var fireballYSpeed: Byte by Access(0xa6)
-    var blockYSpeed: Byte by Access(0xa8)
-    var miscYSpeed: Byte by Access(0xac)
-    var sprObjectYHighPos: Byte by Access(0xb5)
-    var playerYHighPos: Byte by Access(0xb5)
-    var enemyYHighPos: Byte by Access(0xb6)
-    var fireballYHighPos: Byte by Access(0xbc)
-    var blockYHighPos: Byte by Access(0xbe)
-    var miscYHighPos: Byte by Access(0xc2)
-    var bubbleYHighPos: Byte by Access(0xcb)
-    var sprObjectYPosition: Byte by Access(0xce)
-    var playerYPosition: Byte by Access(0xce)
-    var enemyYPosition: Byte by Access(0xcf)
-    var fireballYPosition: Byte by Access(0xd5)
-    var blockYPosition: Byte by Access(0xd7)
-    var miscYPosition: Byte by Access(0xdb)
-    var bubbleYPosition: Byte by Access(0xe4)
-    var sprObjectRelXPos: Byte by Access(0x3ad)
-    var playerRelXPos: Byte by Access(0x3ad)
-    var enemyRelXPos: Byte by Access(0x3ae)
-    var fireballRelXPos: Byte by Access(0x3af)
-    var bubbleRelXPos: Byte by Access(0x3b0)
-    var blockRelXPos: Byte by Access(0x3b1)
-    var miscRelXPos: Byte by Access(0x3b3)
-    var sprObjectRelYPos: Byte by Access(0x3b8)
-    var playerRelYPos: Byte by Access(0x3b8)
-    var enemyRelYPos: Byte by Access(0x3b9)
-    var fireballRelYPos: Byte by Access(0x3ba)
-    var bubbleRelYPos: Byte by Access(0x3bb)
-    var blockRelYPos: Byte by Access(0x3bc)
-    var miscRelYPos: Byte by Access(0x3be)
-    var sprObjectSprAttrib: Byte by Access(0x3c4)
-    var playerSprAttrib: Byte by Access(0x3c4)
-    var enemySprAttrib: Byte by Access(0x3c5)
-    var sprObjectXMoveForce: Byte by Access(0x400)
-    var enemyXMoveForce: Byte by Access(0x401)
-    var sprObjectYMFDummy: Byte by Access(0x416)
-    var playerYMFDummy: Byte by Access(0x416)
-    var enemyYMFDummy: Byte by Access(0x417)
-    var bubbleYMFDummy: Byte by Access(0x42c)
-    var sprObjectYMoveForce: Byte by Access(0x433)
-    var playerYMoveForce: Byte by Access(0x433)
-    var enemyYMoveForce: Byte by Access(0x434)
-    var blockYMoveForce: Byte by Access(0x43c)
-    var disableCollisionDet: Byte by Access(0x716)
-    var playerCollisionBits: Byte by Access(0x490)
-    var enemyCollisionBits: Byte by Access(0x491)
-    var sprObjBoundBoxCtrl: Byte by Access(0x499)
-    var playerBoundBoxCtrl: Byte by Access(0x499)
-    var enemyBoundBoxCtrl: Byte by Access(0x49a)
-    var fireballBoundBoxCtrl: Byte by Access(0x4a0)
-    var miscBoundBoxCtrl: Byte by Access(0x4a2)
-    var enemyFrenzyBuffer: Byte by Access(0x6cb)
-    var enemyFrenzyQueue: Byte by Access(0x6cd)
-    var enemyFlag: Byte by Access(0xf)
-    var enemyID: Byte by Access(0x16)
-    var playerGfxOffset: Byte by Access(0x6d5)
-    var playerXSpeedAbsolute: Byte by Access(0x700)
-    var frictionAdderHigh: Byte by Access(0x701)
-    var frictionAdderLow: Byte by Access(0x702)
-    var runningSpeed: Byte by Access(0x703)
-    var swimmingFlag: Byte by Access(0x704)
-    var playerXMoveForce: Byte by Access(0x705)
-    var diffToHaltJump: Byte by Access(0x706)
-    var jumpOriginYHighPos: Byte by Access(0x707)
-    var jumpOriginYPosition: Byte by Access(0x708)
-    var verticalForce: Byte by Access(0x709)
-    var verticalForceDown: Byte by Access(0x70a)
-    var playerChangeSizeFlag: Byte by Access(0x70b)
-    var playerAnimTimerSet: Byte by Access(0x70c)
-    var playerAnimCtrl: Byte by Access(0x70d)
-    var deathMusicLoaded: Byte by Access(0x712)
-    var flagpoleSoundQueue: Byte by Access(0x713)
-    var crouchingFlag: Byte by Access(0x714)
-    var maximumLeftSpeed: Byte by Access(0x450)
-    var maximumRightSpeed: Byte by Access(0x456)
-    var sprObjectOffscrBits: Byte by Access(0x3d0)
-    var playerOffscreenBits: Byte by Access(0x3d0)
-    var enemyOffscreenBits: Byte by Access(0x3d1)
-    var fBallOffscreenBits: Byte by Access(0x3d2)
-    var bubbleOffscreenBits: Byte by Access(0x3d3)
-    var blockOffscreenBits: Byte by Access(0x3d4)
-    var miscOffscreenBits: Byte by Access(0x3d6)
-    var enemyOffscrBitsMasked: Byte by Access(0x3d8)
-    var cannonOffset: Byte by Access(0x46a)
-    var cannonPageLoc: Byte by Access(0x46b)
-    var cannonXPosition: Byte by Access(0x471)
-    var cannonYPosition: Byte by Access(0x477)
-    var cannonTimer: Byte by Access(0x47d)
-    var whirlpoolOffset: Byte by Access(0x46a)
-    var whirlpoolPageLoc: Byte by Access(0x46b)
-    var whirlpoolLeftExtent: Byte by Access(0x471)
-    var whirlpoolLength: Byte by Access(0x477)
-    var whirlpoolFlag: Byte by Access(0x47d)
-    var vineFlagOffset: Byte by Access(0x398)
-    var vineHeight: Byte by Access(0x399)
-    var vineObjOffset: Byte by Access(0x39a)
-    var vineStartYPosition: Byte by Access(0x39d)
-    var blockOrigYPos: Byte by Access(0x3e4)
-    var blockBBufLow: Byte by Access(0x3e6)
-    var blockMetatile: Byte by Access(0x3e8)
-    var blockPageLoc2: Byte by Access(0x3ea)
-    var blockRepFlag: Byte by Access(0x3ec)
-    var blockResidualCounter: Byte by Access(0x3f0)
-    var blockOrigXPos: Byte by Access(0x3f1)
-    var boundingBoxULXPos: Byte by Access(0x4ac)
-    var boundingBoxULYPos: Byte by Access(0x4ad)
-    var boundingBoxDRXPos: Byte by Access(0x4ae)
-    var boundingBoxDRYPos: Byte by Access(0x4af)
-    var boundingBoxULCorner: Byte by Access(0x4ac)
-    var boundingBoxLRCorner: Byte by Access(0x4ae)
-    var enemyBoundingBoxCoord: Byte by Access(0x4b0)
-    var powerUpType: Byte by Access(0x39)
-    var fireballBouncingFlag: Byte by Access(0x3a)
-    var fireballCounter: Byte by Access(0x6ce)
-    var fireballThrowingTimer: Byte by Access(0x711)
-    var hammerEnemyOffset: Byte by Access(0x6ae)
-    var jumpCoinMiscOffset: Byte by Access(0x6b7)
-    var blockBuffer1: Byte by Access(0x500)
-    var blockBuffer2: Byte by Access(0x5d0)
-    var hammerThrowingTimer: Byte by Access(0x3a2)
-    var hammerBroJumpTimer: Byte by Access(0x3c)
-    var miscCollisionFlag: Byte by Access(0x6be)
-    var redPTroopaOrigXPos: Byte by Access(0x401)
-    var redPTroopaCenterYPos: Byte by Access(0x58)
-    var xMovePrimaryCounter: Byte by Access(0xa0)
-    var xMoveSecondaryCounter: Byte by Access(0x58)
-    var cheepCheepMoveMFlag: Byte by Access(0x58)
-    var cheepCheepOrigYPos: Byte by Access(0x434)
-    var bitMFilter: Byte by Access(0x6dd)
-    var lakituReappearTimer: Byte by Access(0x6d1)
-    var lakituMoveSpeed: Byte by Access(0x58)
-    var lakituMoveDirection: Byte by Access(0xa0)
-    var firebarSpinStateLow: Byte by Access(0x58)
-    var firebarSpinStateHigh: Byte by Access(0xa0)
-    var firebarSpinSpeed: Byte by Access(0x388)
-    var firebarSpinDirection: Byte by Access(0x34)
-    var duplicateObjOffset: Byte by Access(0x6cf)
-    var numberofGroupEnemies: Byte by Access(0x6d3)
-    var blooperMoveCounter: Byte by Access(0xa0)
-    var blooperMoveSpeed: Byte by Access(0x58)
-    var bowserBodyControls: Byte by Access(0x363)
-    var bowserFeetCounter: Byte by Access(0x364)
-    var bowserMovementSpeed: Byte by Access(0x365)
-    var bowserOrigXPos: Byte by Access(0x366)
-    var bowserFlameTimerCtrl: Byte by Access(0x367)
-    var bowserFrontOffset: Byte by Access(0x368)
-    var bridgeCollapseOffset: Byte by Access(0x369)
-    var bowserGfxFlag: Byte by Access(0x36a)
-    var bowserHitPoints: Byte by Access(0x483)
-    var maxRangeFromOrigin: Byte by Access(0x6dc)
-    var bowserFlamePRandomOfs: Byte by Access(0x417)
-    var piranhaPlantUpYPos: Byte by Access(0x417)
-    var piranhaPlantDownYPos: Byte by Access(0x434)
-    var piranhaPlantYSpeed: Byte by Access(0x58)
-    var piranhaPlantMoveFlag: Byte by Access(0xa0)
-    var fireworksCounter: Byte by Access(0x6d7)
-    var explosionGfxCounter: Byte by Access(0x58)
-    var explosionTimerCounter: Byte by Access(0xa0)
-    var squ2NoteLenBuffer: Byte by Access(0x7b3)
-    var squ2NoteLenCounter: Byte by Access(0x7b4)
-    var squ2EnvelopeDataCtrl: Byte by Access(0x7b5)
-    var squ1NoteLenCounter: Byte by Access(0x7b6)
-    var squ1EnvelopeDataCtrl: Byte by Access(0x7b7)
-    var triNoteLenBuffer: Byte by Access(0x7b8)
-    var triNoteLenCounter: Byte by Access(0x7b9)
-    var noiseBeatLenCounter: Byte by Access(0x7ba)
-    var squ1SfxLenCounter: Byte by Access(0x7bb)
-    var squ2SfxLenCounter: Byte by Access(0x7bd)
-    var sfxSecondaryCounter: Byte by Access(0x7be)
-    var noiseSfxLenCounter: Byte by Access(0x7bf)
-    var pauseSoundQueue: Byte by Access(0xfa)
-    var square1SoundQueue: Byte by Access(0xff)
-    var square2SoundQueue: Byte by Access(0xfe)
-    var noiseSoundQueue: Byte by Access(0xfd)
-    var areaMusicQueue: Byte by Access(0xfb)
-    var eventMusicQueue: Byte by Access(0xfc)
-    var square1SoundBuffer: Byte by Access(0xf1)
-    var square2SoundBuffer: Byte by Access(0xf2)
-    var noiseSoundBuffer: Byte by Access(0xf3)
-    var areaMusicBuffer: Byte by Access(0xf4)
-    var eventMusicBuffer: Byte by Access(0x7b1)
-    var pauseSoundBuffer: Byte by Access(0x7b2)
-    var musicData: Byte by Access(0xf5)
-    var musicDataLow: Byte by Access(0xf5)
-    var musicDataHigh: Byte by Access(0xf6)
-    var musicOffsetSquare2: Byte by Access(0xf7)
-    var musicOffsetSquare1: Byte by Access(0xf8)
-    var musicOffsetTriangle: Byte by Access(0xf9)
-    var musicOffsetNoise: Byte by Access(0x7b0)
-    var noteLenLookupTblOfs: Byte by Access(0xf0)
-    var dACCounter: Byte by Access(0x7c0)
-    var noiseDataLoopbackOfs: Byte by Access(0x7c1)
-    var noteLengthTblAdder: Byte by Access(0x7c4)
-    var areaMusicBufferAlt: Byte by Access(0x7c5)
-    var pauseModeFlag: Byte by Access(0x7c6)
-    var groundMusicHeaderOfs: Byte by Access(0x7c7)
-    var altRegContentFlag: Byte by Access(0x7ca)
+    @RamLocation(0x3ee) var sprDataOffsetCtrl: Byte = 0
+    @RamLocation(0x1d) var playerState: Byte = 0
+    @RamLocation(0x1e) var enemyState: Byte = 0
+    @RamLocation(0x24) var fireballState: Byte = 0
+    @RamLocation(0x26) var blockState: Byte = 0
+    @RamLocation(0x2a) var miscState: Byte = 0
+    @RamLocation(0x45) var playerMovingDir: Byte = 0
+    @RamLocation(0x46) var enemyMovingDir: Byte = 0
+    @RamLocation(0x57) var sprObjectXSpeed: Byte = 0
+    @RamLocation(0x57) var playerXSpeed: Byte = 0
+    @RamLocation(0x58) var enemyXSpeed: Byte = 0
+    @RamLocation(0x5e) var fireballXSpeed: Byte = 0
+    @RamLocation(0x60) var blockXSpeed: Byte = 0
+    @RamLocation(0x64) var miscXSpeed: Byte = 0
+    @RamLocation(0x58) var jumpspringFixedYPos: Byte = 0
+    @RamLocation(0x70e) var jumpspringAnimCtrl: Byte = 0
+    @RamLocation(0x6db) var jumpspringForce: Byte = 0
+    @RamLocation(0x6d) var sprObjectPageLoc: Byte = 0
+    @RamLocation(0x6d) var playerPageLoc: Byte = 0
+    @RamLocation(0x6e) var enemyPageLoc: Byte = 0
+    @RamLocation(0x74) var fireballPageLoc: Byte = 0
+    @RamLocation(0x76) var blockPageLoc: Byte = 0
+    @RamLocation(0x7a) var miscPageLoc: Byte = 0
+    @RamLocation(0x83) var bubblePageLoc: Byte = 0
+    @RamLocation(0x86) var sprObjectXPosition: Byte = 0
+    @RamLocation(0x86) var playerXPosition: Byte = 0
+    @RamLocation(0x87) var enemyXPosition: Byte = 0
+    @RamLocation(0x8d) var fireballXPosition: Byte = 0
+    @RamLocation(0x8f) var blockXPosition: Byte = 0
+    @RamLocation(0x93) var miscXPosition: Byte = 0
+    @RamLocation(0x9c) var bubbleXPosition: Byte = 0
+    @RamLocation(0x9f) var sprObjectYSpeed: Byte = 0
+    @RamLocation(0x9f) var playerYSpeed: Byte = 0
+    @RamLocation(0xa0) var enemyYSpeed: Byte = 0
+    @RamLocation(0xa6) var fireballYSpeed: Byte = 0
+    @RamLocation(0xa8) var blockYSpeed: Byte = 0
+    @RamLocation(0xac) var miscYSpeed: Byte = 0
+    @RamLocation(0xb5) var sprObjectYHighPos: Byte = 0
+    @RamLocation(0xb5) var playerYHighPos: Byte = 0
+    @RamLocation(0xb6) var enemyYHighPos: Byte = 0
+    @RamLocation(0xbc) var fireballYHighPos: Byte = 0
+    @RamLocation(0xbe) var blockYHighPos: Byte = 0
+    @RamLocation(0xc2) var miscYHighPos: Byte = 0
+    @RamLocation(0xcb) var bubbleYHighPos: Byte = 0
+    @RamLocation(0xce) var sprObjectYPosition: Byte = 0
+    @RamLocation(0xce) var playerYPosition: Byte = 0
+    @RamLocation(0xcf) var enemyYPosition: Byte = 0
+    @RamLocation(0xd5) var fireballYPosition: Byte = 0
+    @RamLocation(0xd7) var blockYPosition: Byte = 0
+    @RamLocation(0xdb) var miscYPosition: Byte = 0
+    @RamLocation(0xe4) var bubbleYPosition: Byte = 0
+    @RamLocation(0x3ad) var sprObjectRelXPos: Byte = 0
+    @RamLocation(0x3ad) var playerRelXPos: Byte = 0
+    @RamLocation(0x3ae) var enemyRelXPos: Byte = 0
+    @RamLocation(0x3af) var fireballRelXPos: Byte = 0
+    @RamLocation(0x3b0) var bubbleRelXPos: Byte = 0
+    @RamLocation(0x3b1) var blockRelXPos: Byte = 0
+    @RamLocation(0x3b3) var miscRelXPos: Byte = 0
+    @RamLocation(0x3b8) var sprObjectRelYPos: Byte = 0
+    @RamLocation(0x3b8) var playerRelYPos: Byte = 0
+    @RamLocation(0x3b9) var enemyRelYPos: Byte = 0
+    @RamLocation(0x3ba) var fireballRelYPos: Byte = 0
+    @RamLocation(0x3bb) var bubbleRelYPos: Byte = 0
+    @RamLocation(0x3bc) var blockRelYPos: Byte = 0
+    @RamLocation(0x3be) var miscRelYPos: Byte = 0
+    @RamLocation(0x3c4) var sprObjectSprAttrib: Byte = 0
+    @RamLocation(0x3c4) var playerSprAttrib: Byte = 0
+    @RamLocation(0x3c5) var enemySprAttrib: Byte = 0
+    @RamLocation(0x400) var sprObjectXMoveForce: Byte = 0
+    @RamLocation(0x401) var enemyXMoveForce: Byte = 0
+    @RamLocation(0x416) var sprObjectYMFDummy: Byte = 0
+    @RamLocation(0x416) var playerYMFDummy: Byte = 0
+    @RamLocation(0x417) var enemyYMFDummy: Byte = 0
+    @RamLocation(0x42c) var bubbleYMFDummy: Byte = 0
+    @RamLocation(0x433) var sprObjectYMoveForce: Byte = 0
+    @RamLocation(0x433) var playerYMoveForce: Byte = 0
+    @RamLocation(0x434) var enemyYMoveForce: Byte = 0
+    @RamLocation(0x43c) var blockYMoveForce: Byte = 0
+    @RamLocation(0x716) var disableCollisionDet: Byte = 0
+    @RamLocation(0x490) var playerCollisionBits: Byte = 0
+    @RamLocation(0x491) var enemyCollisionBits: Byte = 0
+    @RamLocation(0x499) var sprObjBoundBoxCtrl: Byte = 0
+    @RamLocation(0x499) var playerBoundBoxCtrl: Byte = 0
+    @RamLocation(0x49a) var enemyBoundBoxCtrl: Byte = 0
+    @RamLocation(0x4a0) var fireballBoundBoxCtrl: Byte = 0
+    @RamLocation(0x4a2) var miscBoundBoxCtrl: Byte = 0
+    @RamLocation(0x6cb) var enemyFrenzyBuffer: Byte = 0
+    @RamLocation(0x6cd) var enemyFrenzyQueue: Byte = 0
+    @RamLocation(0xf) var enemyFlag: Byte = 0
+    @RamLocation(0x16) var enemyID: Byte = 0
+    @RamLocation(0x6d5) var playerGfxOffset: Byte = 0
+    @RamLocation(0x700) var playerXSpeedAbsolute: Byte = 0
+    @RamLocation(0x701) var frictionAdderHigh: Byte = 0
+    @RamLocation(0x702) var frictionAdderLow: Byte = 0
+    @RamLocation(0x703) var runningSpeed: Byte = 0
+    @RamLocation(0x704) var swimmingFlag: Byte = 0
+    @RamLocation(0x705) var playerXMoveForce: Byte = 0
+    @RamLocation(0x706) var diffToHaltJump: Byte = 0
+    @RamLocation(0x707) var jumpOriginYHighPos: Byte = 0
+    @RamLocation(0x708) var jumpOriginYPosition: Byte = 0
+    @RamLocation(0x709) var verticalForce: Byte = 0
+    @RamLocation(0x70a) var verticalForceDown: Byte = 0
+    @RamLocation(0x70b) var playerChangeSizeFlag: Byte = 0
+    @RamLocation(0x70c) var playerAnimTimerSet: Byte = 0
+    @RamLocation(0x70d) var playerAnimCtrl: Byte = 0
+    @RamLocation(0x712) var deathMusicLoaded: Byte = 0
+    @RamLocation(0x713) var flagpoleSoundQueue: Byte = 0
+    @RamLocation(0x714) var crouchingFlag: Byte = 0
+    @RamLocation(0x450) var maximumLeftSpeed: Byte = 0
+    @RamLocation(0x456) var maximumRightSpeed: Byte = 0
+    @RamLocation(0x3d0) var sprObjectOffscrBits: Byte = 0
+    @RamLocation(0x3d0) var playerOffscreenBits: Byte = 0
+    @RamLocation(0x3d1) var enemyOffscreenBits: Byte = 0
+    @RamLocation(0x3d2) var fBallOffscreenBits: Byte = 0
+    @RamLocation(0x3d3) var bubbleOffscreenBits: Byte = 0
+    @RamLocation(0x3d4) var blockOffscreenBits: Byte = 0
+    @RamLocation(0x3d6) var miscOffscreenBits: Byte = 0
+    @RamLocation(0x3d8) var enemyOffscrBitsMasked: Byte = 0
+    @RamLocation(0x46a) var cannonOffset: Byte = 0
+    @RamLocation(0x46b) var cannonPageLoc: Byte = 0
+    @RamLocation(0x471) var cannonXPosition: Byte = 0
+    @RamLocation(0x477) var cannonYPosition: Byte = 0
+    @RamLocation(0x47d) var cannonTimer: Byte = 0
+    @RamLocation(0x46a) var whirlpoolOffset: Byte = 0
+    @RamLocation(0x46b) var whirlpoolPageLoc: Byte = 0
+    @RamLocation(0x471) var whirlpoolLeftExtent: Byte = 0
+    @RamLocation(0x477) var whirlpoolLength: Byte = 0
+    @RamLocation(0x47d) var whirlpoolFlag: Byte = 0
+    @RamLocation(0x398) var vineFlagOffset: Byte = 0
+    @RamLocation(0x399) var vineHeight: Byte = 0
+    @RamLocation(0x39a) var vineObjOffset: Byte = 0
+    @RamLocation(0x39d) var vineStartYPosition: Byte = 0
+    @RamLocation(0x3e4) var blockOrigYPos: Byte = 0
+    @RamLocation(0x3e6) var blockBBufLow: Byte = 0
+    @RamLocation(0x3e8) var blockMetatile: Byte = 0
+    @RamLocation(0x3ea) var blockPageLoc2: Byte = 0
+    @RamLocation(0x3ec) var blockRepFlag: Byte = 0
+    @RamLocation(0x3f0) var blockResidualCounter: Byte = 0
+    @RamLocation(0x3f1) var blockOrigXPos: Byte = 0
+    @RamLocation(0x4ac) var boundingBoxULXPos: Byte = 0
+    @RamLocation(0x4ad) var boundingBoxULYPos: Byte = 0
+    @RamLocation(0x4ae) var boundingBoxDRXPos: Byte = 0
+    @RamLocation(0x4af) var boundingBoxDRYPos: Byte = 0
+    @RamLocation(0x4ac) var boundingBoxULCorner: Byte = 0
+    @RamLocation(0x4ae) var boundingBoxLRCorner: Byte = 0
+    @RamLocation(0x4b0) var enemyBoundingBoxCoord: Byte = 0
+    @RamLocation(0x39) var powerUpType: Byte = 0
+    @RamLocation(0x3a) var fireballBouncingFlag: Byte = 0
+    @RamLocation(0x6ce) var fireballCounter: Byte = 0
+    @RamLocation(0x711) var fireballThrowingTimer: Byte = 0
+    @RamLocation(0x6ae) var hammerEnemyOffset: Byte = 0
+    @RamLocation(0x6b7) var jumpCoinMiscOffset: Byte = 0
+    @RamLocation(0x500) var blockBuffer1: Byte = 0
+    @RamLocation(0x5d0) var blockBuffer2: Byte = 0
+    @RamLocation(0x3a2) var hammerThrowingTimer: Byte = 0
+    @RamLocation(0x3c) var hammerBroJumpTimer: Byte = 0
+    @RamLocation(0x6be) var miscCollisionFlag: Byte = 0
+    @RamLocation(0x401) var redPTroopaOrigXPos: Byte = 0
+    @RamLocation(0x58) var redPTroopaCenterYPos: Byte = 0
+    @RamLocation(0xa0) var xMovePrimaryCounter: Byte = 0
+    @RamLocation(0x58) var xMoveSecondaryCounter: Byte = 0
+    @RamLocation(0x58) var cheepCheepMoveMFlag: Byte = 0
+    @RamLocation(0x434) var cheepCheepOrigYPos: Byte = 0
+    @RamLocation(0x6dd) var bitMFilter: Byte = 0
+    @RamLocation(0x6d1) var lakituReappearTimer: Byte = 0
+    @RamLocation(0x58) var lakituMoveSpeed: Byte = 0
+    @RamLocation(0xa0) var lakituMoveDirection: Byte = 0
+    @RamLocation(0x58) var firebarSpinStateLow: Byte = 0
+    @RamLocation(0xa0) var firebarSpinStateHigh: Byte = 0
+    @RamLocation(0x388) var firebarSpinSpeed: Byte = 0
+    @RamLocation(0x34) var firebarSpinDirection: Byte = 0
+    @RamLocation(0x6cf) var duplicateObjOffset: Byte = 0
+    @RamLocation(0x6d3) var numberofGroupEnemies: Byte = 0
+    @RamLocation(0xa0) var blooperMoveCounter: Byte = 0
+    @RamLocation(0x58) var blooperMoveSpeed: Byte = 0
+    @RamLocation(0x363) var bowserBodyControls: Byte = 0
+    @RamLocation(0x364) var bowserFeetCounter: Byte = 0
+    @RamLocation(0x365) var bowserMovementSpeed: Byte = 0
+    @RamLocation(0x366) var bowserOrigXPos: Byte = 0
+    @RamLocation(0x367) var bowserFlameTimerCtrl: Byte = 0
+    @RamLocation(0x368) var bowserFrontOffset: Byte = 0
+    @RamLocation(0x369) var bridgeCollapseOffset: Byte = 0
+    @RamLocation(0x36a) var bowserGfxFlag: Byte = 0
+    @RamLocation(0x483) var bowserHitPoints: Byte = 0
+    @RamLocation(0x6dc) var maxRangeFromOrigin: Byte = 0
+    @RamLocation(0x417) var bowserFlamePRandomOfs: Byte = 0
+    @RamLocation(0x417) var piranhaPlantUpYPos: Byte = 0
+    @RamLocation(0x434) var piranhaPlantDownYPos: Byte = 0
+    @RamLocation(0x58) var piranhaPlantYSpeed: Byte = 0
+    @RamLocation(0xa0) var piranhaPlantMoveFlag: Byte = 0
+    @RamLocation(0x6d7) var fireworksCounter: Byte = 0
+    @RamLocation(0x58) var explosionGfxCounter: Byte = 0
+    @RamLocation(0xa0) var explosionTimerCounter: Byte = 0
+    @RamLocation(0x7b3) var squ2NoteLenBuffer: Byte = 0
+    @RamLocation(0x7b4) var squ2NoteLenCounter: Byte = 0
+    @RamLocation(0x7b5) var squ2EnvelopeDataCtrl: Byte = 0
+    @RamLocation(0x7b6) var squ1NoteLenCounter: Byte = 0
+    @RamLocation(0x7b7) var squ1EnvelopeDataCtrl: Byte = 0
+    @RamLocation(0x7b8) var triNoteLenBuffer: Byte = 0
+    @RamLocation(0x7b9) var triNoteLenCounter: Byte = 0
+    @RamLocation(0x7ba) var noiseBeatLenCounter: Byte = 0
+    @RamLocation(0x7bb) var squ1SfxLenCounter: Byte = 0
+    @RamLocation(0x7bd) var squ2SfxLenCounter: Byte = 0
+    @RamLocation(0x7be) var sfxSecondaryCounter: Byte = 0
+    @RamLocation(0x7bf) var noiseSfxLenCounter: Byte = 0
+    @RamLocation(0xfa) var pauseSoundQueue: Byte = 0
+    @RamLocation(0xff) var square1SoundQueue: Byte = 0
+    @RamLocation(0xfe) var square2SoundQueue: Byte = 0
+    @RamLocation(0xfd) var noiseSoundQueue: Byte = 0
+    @RamLocation(0xfb) var areaMusicQueue: Byte = 0
+    @RamLocation(0xfc) var eventMusicQueue: Byte = 0
+    @RamLocation(0xf1) var square1SoundBuffer: Byte = 0
+    @RamLocation(0xf2) var square2SoundBuffer: Byte = 0
+    @RamLocation(0xf3) var noiseSoundBuffer: Byte = 0
+    @RamLocation(0xf4) var areaMusicBuffer: Byte = 0
+    @RamLocation(0x7b1) var eventMusicBuffer: Byte = 0
+    @RamLocation(0x7b2) var pauseSoundBuffer: Byte = 0
+    @RamLocation(0xf5) var musicData: Byte = 0
+    @RamLocation(0xf5) var musicDataLow: Byte = 0
+    @RamLocation(0xf6) var musicDataHigh: Byte = 0
+    @RamLocation(0xf7) var musicOffsetSquare2: Byte = 0
+    @RamLocation(0xf8) var musicOffsetSquare1: Byte = 0
+    @RamLocation(0xf9) var musicOffsetTriangle: Byte = 0
+    @RamLocation(0x7b0) var musicOffsetNoise: Byte = 0
+    @RamLocation(0xf0) var noteLenLookupTblOfs: Byte = 0
+    @RamLocation(0x7c0) var dACCounter: Byte = 0
+    @RamLocation(0x7c1) var noiseDataLoopbackOfs: Byte = 0
+    @RamLocation(0x7c4) var noteLengthTblAdder: Byte = 0
+    @RamLocation(0x7c5) var areaMusicBufferAlt: Byte = 0
+    @RamLocation(0x7c6) var pauseModeFlag: Byte = 0
+    @RamLocation(0x7c7) var groundMusicHeaderOfs: Byte = 0
+    @RamLocation(0x7ca) var altRegContentFlag: Byte = 0
 
-    // NES stuff
-    //r    val ppuCtrlReg1: Byte by Access(0x2000)
-    //r    val ppuCtrlReg2: Byte by Access(0x2001)
-    //r    val ppuStatus: Byte by Access(0x2002)
-    //r    val ppuSpraddr: Byte by Access(0x2003)
-    //r    val ppuSprdata: Byte by Access(0x2004)
-    //r    val ppuScrollreg: Byte by Access(0x2005)
-    //r    val ppuAddress: Byte by Access(0x2006)
-    //r    val ppuData: Byte by Access(0x2007)
-    //r    val sndRegister: Byte by Access(0x4000)
-    //r    val sndSquare1reg: Byte by Access(0x4000)
-    //r    val sndSquare2reg: Byte by Access(0x4004)
-    //r    val sndTrianglereg: Byte by Access(0x4008)
-    //r    val sndNoisereg: Byte by Access(0x400c)
-    //r    val sndDeltareg: Byte by Access(0x4010)
-    //r    val sndMasterctrlreg: Byte by Access(0x4015)
-    //r    val sprdma: Byte by Access(0x4014)
-    //r    val joypadPort: Byte by Access(0x4016)
-    //r    val joypadPort1: Byte by Access(0x4016)
-    //r    val joypadPort2: Byte by Access(0x4017)
 }

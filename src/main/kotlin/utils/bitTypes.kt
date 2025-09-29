@@ -184,19 +184,19 @@ value class PpuStatus(val byte: Byte) {
 value class VramBufferControl(val byte: Byte) {
     val drawVertically: Boolean get() = byte.bit(7)
     val repeat: Boolean get() = byte.bit(6)
-    val length: Boolean get() = byte.bit(5)
+    val length: Byte get() = byte.bitRange(0, 5)
     constructor(
         drawVertically: Boolean = false,
         repeat: Boolean = false,
-        length: Boolean = false,
+        length: Byte = 0,
     ): this((
             (if (drawVertically) 0x1 shl 7 else 0) +
                     (if (repeat) 0x1 shl 6 else 0) +
-                    (if (length) 0x1 shl 5 else 0)
+                    (length.toInt() shr 0 and 1.shl(5).minus(1))
             ).toByte())
     fun copy(
         drawVertically: Boolean = this.drawVertically,
         repeat: Boolean = this.repeat,
-        length: Boolean = this.length,
+        length: Byte = this.length,
     ) = VramBufferControl(drawVertically, repeat, length)
 }

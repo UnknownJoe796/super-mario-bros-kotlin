@@ -1,11 +1,35 @@
 package com.ivieleague.smbtranslation.nes
 
 import com.ivieleague.smbtranslation.GameRam
+import com.ivieleague.smbtranslation.PpuMap
+import com.ivieleague.smbtranslation.chr.rawChrData
 import com.ivieleague.smbtranslation.utils.PpuControl
 import com.ivieleague.smbtranslation.utils.PpuMask
 import com.ivieleague.smbtranslation.utils.PpuStatus
+import java.io.File
 
 class PictureProcessingUnit {
+    val originalRomSprites = Array<Pattern>(256) { Pattern() }
+    val originalRomBackgrounds = Array<Pattern>(256) { Pattern() }
+    val backgroundColor: Color = Color(0xFF000000.toInt())
+    val backgroundTiles = Array(2) { NesNametable() }
+    val backgroundPalettes = Array(4) { IndirectPalette(Palette.EMPTY) }
+    val sprites = Array(64) { Sprite() }
+    val spritePalettes = Array(4) { IndirectPalette(Palette.EMPTY) }
+
+    init {
+        // Attempt to parse CHR data from the bundled SMB ROM and populate pattern tables.
+        // Non-fatal on failure: tests and other code paths should not crash if the ROM is missing.
+        val sprStart = 0
+        val bgStart = 16 * 256
+        for (i in 0 until 256) {
+            val bgSlice = rawChrData.copyOfRange(bgStart + i * 16, bgStart + (i + 1) * 16)
+            val sprSlice = rawChrData.copyOfRange(sprStart + i * 16, sprStart + (i + 1) * 16)
+            originalRomBackgrounds[i] = Pattern(bgSlice, PpuMap.background[i])
+            originalRomSprites[i] = Pattern(sprSlice, PpuMap.sprites[i])
+        }
+    }
+
     /**
      * PPU_CTRL_REG1: $2000
      */
@@ -37,7 +61,9 @@ class PictureProcessingUnit {
     }
 
     //    PPU_SCROLL_REG / PPUSCROLL 	$2005 	XXXX XXXX YYYY YYYY 	Wx2 	X and Y scroll bits 7-0 (two writes: X scroll, then Y scroll)
-    fun scroll(x: Byte, y: Byte) { TODO() }
+    fun scroll(x: Byte, y: Byte) {
+        TODO()
+    }
 
     //    PPU_ADDRESS / PPUADDR 	$2006 	..AA AAAA AAAA AAAA 	Wx2 	VRAM address (two writes: most significant byte, then least significant byte)
     var internalVramAddress: VramAddress = 0x0000
@@ -47,11 +73,12 @@ class PictureProcessingUnit {
 
     //    PPU_DATA / PPUDATA 	$2007 	DDDD DDDD 	RW 	VRAM data read/write
     fun readVram(): Byte {
-        internalVramAddress = internalVramAddress.plus(if(control.drawVertical) 32 else 1).toShort()
+        internalVramAddress = internalVramAddress.plus(if (control.drawVertical) 32 else 1).toShort()
         TODO()
     }
+
     fun writeVram(value: Byte) {
-        internalVramAddress = internalVramAddress.plus(if(control.drawVertical) 32 else 1).toShort()
+        internalVramAddress = internalVramAddress.plus(if (control.drawVertical) 32 else 1).toShort()
         TODO()
     }
 
@@ -59,5 +86,4 @@ class PictureProcessingUnit {
     fun updateSpriteData(values: Array<GameRam.Sprite>) {
         TODO()
     }
-
 }

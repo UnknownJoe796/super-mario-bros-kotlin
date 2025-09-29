@@ -47,9 +47,8 @@ fun System.initializeNameTables() {
         //> txa
 
         //> sta VRAM_Buffer1_Offset   ;init vram buffer 1 offset
-        ram.vRAMBuffer1.offset = 0x0
         //> sta VRAM_Buffer1          ;init vram buffer 1
-        ram.vRAMBuffer1.wholeBuffer[0] = 0x0
+        ram.vRAMBuffer1.clear()
 
         repeat(64) {
             //> InitATLoop:   sta PPU_DATA

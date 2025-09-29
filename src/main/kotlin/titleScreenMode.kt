@@ -1,6 +1,10 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.chr.rawChrData
+import com.ivieleague.smbtranslation.nes.PictureProcessingUnit
 import com.ivieleague.smbtranslation.utils.JoypadBits
+import com.ivieleague.smbtranslation.utils.VramBufferControl
+import java.io.File
 import kotlin.experimental.or
 import kotlin.experimental.xor
 
@@ -22,10 +26,6 @@ fun System.titleScreenMode(): Unit {
         else -> throw IllegalStateException()
     }
 }
-
-//> WSelectBufferTemplate:
-//> .db $04, $20, $73, $01, $00, $00
-val wSelectBufferTemplate = byteArrayOf(0x04, 0x20, 0x73, 0x01, 0x00, 0x00).map { it.toByte() }.toByteArray()
 
 fun System.gameMenuRoutine() {
     //> GameMenuRoutine:
@@ -101,6 +101,19 @@ fun System.gameMenuRoutine() {
         }
     }
 }
+
+//> WSelectBufferTemplate:
+//> .db $04, $20, $73, $01, $00, $00
+fun System.wSelectBufferTemplate(worldNumber: Byte) = listOf<BufferedPpuUpdate>(
+    BufferedPpuUpdate.BackgroundPatternRepeat(
+        nametable = 0,
+        x = (0x73 % 0x20).toByte(),
+        y = (0x73 / 0x20).toByte(),
+        repetitions = 1,
+        drawVertically = true,
+        pattern = ppu.originalRomBackgrounds[worldNumber.toInt()]
+    )
+)
 private fun System.incWorldSel() {
     //> IncWorldSel:  ldx WorldSelectNumber       ;increment world select number
     //> inx
@@ -111,19 +124,19 @@ private fun System.incWorldSel() {
     ram.worldSelectNumber = (x and 0x7).toByte()
     //> jsr GoContinue
     goContinue(ram.worldSelectNumber)
-    do {
-        //> UpdateShroom: lda WSelectBufferTemplate,x ;write template for world select in vram buffer
-        //> sta VRAM_Buffer1-1,x        ;do this until all bytes are written
-        ram.vRAMBuffer1.wholeBuffer[x - 1] = wSelectBufferTemplate[x]
-        //> inx
-        x++
-        //> cpx #$06
-        //> bmi UpdateShroom
-    } while(x < 0x06)
+    //> UpdateShroom: lda WSelectBufferTemplate,x ;write template for world select in vram buffer
+    //> sta VRAM_Buffer1-1,x        ;do this until all bytes are written
+    //> inx
+    //> cpx #$06
+    //> bmi UpdateShroom
+    // Copies in the template
     //> ldy WorldNumber             ;get world number from variable and increment for
     //> iny                         ;proper display, and put in blank byte before
     //> sty VRAM_Buffer1+3          ;null terminator
-    ram.vRAMBuffer1.wholeBuffer[3] = (ram.worldNumber + 1).toByte()
+    // Updates the template with the world number
+    // This code rewrites the world number.
+    ram.vRAMBuffer1.clear()
+    ram.vRAMBuffer1.addAll(wSelectBufferTemplate(ram.worldNumber))
     return nullJoypad()  // continue on
 }
 private fun System.nullJoypad() {
@@ -211,19 +224,19 @@ fun System.primaryGameSetup(): Unit = TODO()
 
 //> MushroomIconData:
 //>       .db $07, $22, $49, $83, $ce, $24, $24, $00
-private object MushroomIconData : GameRam.VramBytes {
-    override val offset: Byte = 0x07
-    override val bytes: ByteArray = byteArrayOf(
-        0x07,
-        0x22,
-        0x49,
-        0x83.toByte(),
-        0xCE.toByte(),
-        0x24,
-        0x24,
-        0x00
+val System.mushroomIconData get() = listOf(
+    BufferedPpuUpdate.BackgroundPatternString(
+        nametable = 0,
+        x = (0x249 % 0x20).toByte(),
+        y = (0x249 / 0x20).toByte(),
+        drawVertically = true,
+        patterns = listOf(
+            ppu.originalRomBackgrounds[0xce],
+            ppu.originalRomBackgrounds[0x24],
+            ppu.originalRomBackgrounds[0x24],
+        )
     )
-}
+)
 
 fun System.drawMushroomIcon() {
     //> DrawMushroomIcon:
@@ -232,19 +245,49 @@ fun System.drawMushroomIcon() {
     //>           sta VRAM_Buffer1-1,y    ;1-player game
     //>           dey
     //>           bpl IconDataRead
-    ram.vRAMBuffer1.absorb(MushroomIconData)
+    ram.vRAMBuffer1.addAll(mushroomIconData)
 
     //>           lda NumberOfPlayers     ;check number of players
     //>           beq ExitIcon            ;if set to 1-player game, we're done
     if (ram.numberOfPlayers != 0.toByte()) {
-        //>           lda #$24                ;otherwise, load blank tile in 1-player position
-        //>           sta VRAM_Buffer1+3
-        ram.vRAMBuffer1.wholeBuffer[3] = 0x24
-        //>           lda #$ce                ;then load shroom icon tile in 2-player position
-        //>           sta VRAM_Buffer1+5
-        ram.vRAMBuffer1.wholeBuffer[5] = 0xCE.toByte()
+        ram.vRAMBuffer1[0] = (ram.vRAMBuffer1[0] as BufferedPpuUpdate.BackgroundPatternString).let {
+            it.copy(patterns = listOf(
+            //>           lda #$24                ;otherwise, load blank tile in 1-player position
+            //>           sta VRAM_Buffer1+3
+                ppu.originalRomBackgrounds[0x24],
+                ppu.originalRomBackgrounds[0x24],
+                //>           lda #$ce                ;then load shroom icon tile in 2-player position
+                //>           sta VRAM_Buffer1+5
+                ppu.originalRomBackgrounds[0xce],
+            ))
+        }
     }
     //> ExitIcon:     rts
+}
+
+private val originalRom = File("smb.nes").readBytes()
+fun System.drawTitleScreen() {
+    //> DrawTitleScreen:
+    //> lda OperMode                 ;are we in title screen mode?
+    //> bne IncModeTask_B            ;if not, exit
+    if (ram.operMode != OperMode.TitleScreen) {
+        // IncModeTask_B
+        ram.operModeTask++
+        return
+    }
+
+    // Title screen pattern data lives in CHR at $1EC0
+    val titleScreenDataOffset = 0x1EC0
+    val totalBytes = 0x13A
+
+    // Ensure CHR is loaded (rawChrData returns a zeroed array if ROM missing)
+    val vramBufferBytes = rawChrData.copyOfRange(0x1EC0, 0x1EC0 + 0x13A)
+
+    ram.vRAMBuffer1.clear()
+    ram.vRAMBuffer1.addAll(BufferedPpuUpdate.parseVramBuffer(ppu, vramBufferBytes))
+    println("Instructions: ${ram.vRAMBuffer1.joinToString("\n")}")
+    ram.vRAMBufferAddrCtrl = 5
+    ram.operModeTask++
 }
 
 /**

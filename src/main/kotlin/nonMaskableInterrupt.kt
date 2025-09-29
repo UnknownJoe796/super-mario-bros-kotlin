@@ -87,9 +87,8 @@ fun System.nonMaskableInterrupt() {
         ram.vRAMBuffer1
 
     //> sta VRAM_Buffer1_Offset,x
-    bufferToClear.offset = 0x0
     //> sta VRAM_Buffer1,x
-    bufferToClear.bytes[0] = 0x0
+    bufferToClear.clear()
 
     //> sta VRAM_Buffer_AddrCtrl  ;reinit address control to $0301
     ram.vRAMBufferAddrCtrl = 0x0.toByte()

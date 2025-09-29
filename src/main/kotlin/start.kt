@@ -120,7 +120,8 @@ fun System.initializeMemory(zeroToIndex: Short) {
         //> bcs SkipByte      ;if so, skip write
         if(index !in 0x0160..0x1ff) {
             //> InitByte:     sta ($06),y       ;otherwise, initialize byte with current low byte in Y
-            ram.wholeBlock[index] = 0
+//            ram.wholeBlock[index] = 0
+            TODO("Clear the variables... how?")
         }
         //> SkipByte:     dey
         //> cpy #$ff          ;do this until all bytes in page have been erased

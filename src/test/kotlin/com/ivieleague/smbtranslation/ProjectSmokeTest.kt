@@ -1,9 +1,7 @@
 package com.ivieleague.smbtranslation
 
-import com.ivieleague.smbtranslation.utils.ByteAccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ProjectSmokeTest {
 

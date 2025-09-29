@@ -106,7 +106,7 @@ val types = listOf(
         //                    bits0-5 = length (0..63)
         BitField("drawVertically", 7),
         BitField("repeat", 6),
-        BitField("length", 5),
+        BitRangeField("length", 0, 5),
     )),
 )
 
