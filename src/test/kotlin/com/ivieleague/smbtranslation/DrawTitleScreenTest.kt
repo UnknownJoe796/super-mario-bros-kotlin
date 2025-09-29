@@ -7,6 +7,7 @@ import com.ivieleague.smbtranslation.nes.Palette
 import com.ivieleague.smbtranslation.nes.PictureProcessingUnit
 import com.ivieleague.smbtranslation.nes.PpuRenderer
 import com.ivieleague.smbtranslation.nes.Tile
+import com.ivieleague.smbtranslation.utils.SpriteFlags
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Surface
 import java.nio.file.Files
@@ -37,6 +38,33 @@ class DrawTitleScreenTest {
         system.ppu.backgroundPalettes[0].palette.colors[0] = Color(0x22.toByte()).also { println(it) }
         system.drawTitleScreen()
         system.updateScreen(system.vramAddrTable[5])
+        system.updateScreen(system.mushroomIconData)
+
+        // Let's also draw some sprites real quick.
+        system.ppu.sprites[0].apply {
+            x = 4u
+            y = 4u
+            attributes = SpriteFlags(palette = 0)
+            pattern = system.ppu.originalRomSprites[0x32]
+        }
+        system.ppu.sprites[1].apply {
+            x = 12u
+            y = 4u
+            attributes = SpriteFlags(palette = 0)
+            pattern = system.ppu.originalRomSprites[0x33]
+        }
+        system.ppu.sprites[2].apply {
+            x = 4u
+            y = 12u
+            attributes = SpriteFlags(palette = 0)
+            pattern = system.ppu.originalRomSprites[0x42]
+        }
+        system.ppu.sprites[3].apply {
+            x = 12u
+            y = 12u
+            attributes = SpriteFlags(palette = 0)
+            pattern = system.ppu.originalRomSprites[0x43]
+        }
 
         val pixelWidth = widthTiles * tileSize * scale
         val pixelHeight = heightTiles * tileSize * scale

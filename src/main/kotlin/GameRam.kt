@@ -1,12 +1,9 @@
 package com.ivieleague.smbtranslation
 
-import com.ivieleague.smbtranslation.utils.ByteAccess
 import com.ivieleague.smbtranslation.utils.JoypadBits
 import com.ivieleague.smbtranslation.utils.PpuControl
 import com.ivieleague.smbtranslation.utils.PpuMask
 import com.ivieleague.smbtranslation.utils.SpriteFlags
-import kotlin.properties.ReadWriteProperty
-import kotlin.reflect.KProperty
 
 annotation class RamLocation(val address: Int)
 
@@ -149,8 +146,8 @@ class GameRam {
     @RamLocation(0x70f) var flagpoleCollisionYPos: Byte = 0
     @RamLocation(0x484) var stompChainCounter: Byte = 0
 
-    @RamLocation(0x300) val vRAMBuffer1 = VBuffer()
-    @RamLocation(0x340) val vRAMBuffer2 = VBuffer()
+    @RamLocation(0x300) val vRAMBuffer1 = MutableVBuffer()
+    @RamLocation(0x340) val vRAMBuffer2 = MutableVBuffer()
 
     @RamLocation(0x773) var vRAMBufferAddrCtrl: Byte = 0
 

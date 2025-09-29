@@ -8,8 +8,6 @@ import com.ivieleague.smbtranslation.nes.Color
 import com.ivieleague.smbtranslation.nes.DirectPalette
 import com.ivieleague.smbtranslation.nes.Palette
 import com.ivieleague.smbtranslation.utils.VramBufferControl
-import com.ivieleague.smbtranslation.utils.bit
-import com.ivieleague.smbtranslation.utils.bitRange
 
 private fun applyAttributeCell(ppu: PictureProcessingUnit, nametable: TwoBits, ax: FiveBits, ay: FiveBits, value: Byte) {
     val nt = ppu.backgroundTiles[nametable.toInt() and 0x01]
@@ -197,8 +195,8 @@ sealed class BufferedPpuUpdate {
          *   If writes are misaligned or partial, we fall back to PaletteBytesWrite to preserve intent.
          * - Other ranges are currently not supported and will throw for visibility during development.
          */
-        fun parseVramBuffer(ppu: PictureProcessingUnit, bytes: ByteArray): VBuffer {
-            val out = VBuffer()
+        fun parseVramBuffer(ppu: PictureProcessingUnit, bytes: ByteArray): MutableVBuffer {
+            val out = MutableVBuffer()
             var i = 0 // cursor into the buffer
             while (i < bytes.size) {
                 // Read record header: address high, address low, control
@@ -348,4 +346,5 @@ sealed class BufferedPpuUpdate {
     }
 }
 
-typealias VBuffer = ArrayList<BufferedPpuUpdate>
+typealias MutableVBuffer = ArrayList<BufferedPpuUpdate>
+typealias VBuffer = List<BufferedPpuUpdate>
