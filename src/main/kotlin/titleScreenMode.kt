@@ -219,7 +219,6 @@ private fun System.goContinue(worldNumber: Byte) {
 }
 
 fun System.initializeGame(): Unit = TODO()
-fun System.screenRoutines(): Unit = TODO()
 fun System.primaryGameSetup(): Unit = TODO()
 
 //> MushroomIconData:
@@ -310,8 +309,66 @@ fun System.drawTitleScreen() {
     ram.operModeTask++
 }
 
+
+//> DemoActionData:
+//>       .db $01, $80, $02, $81, $41, $80, $01
+//>       .db $42, $c2, $02, $80, $41, $c1, $41, $c1
+//>       .db $01, $c1, $01, $02, $80, $00
+val demoActionData: List<JoypadBits> = listOf<Byte>(
+    0x01,
+    0x80.toByte(), 0x02, 0x81.toByte(), 0x41, 0x80.toByte(), 0x01,
+    0x42, 0xC2.toByte(), 0x02, 0x80.toByte(), 0x41, 0xC1.toByte(), 0x41, 0xC1.toByte(),
+    0x01, 0xC1.toByte(), 0x01, 0x02, 0x80.toByte(), 0x00
+).map { JoypadBits(it) }
+
+//> DemoTimingData:
+//>       .db $9b, $10, $18, $05, $2c, $20, $24
+//>       .db $15, $5a, $10, $20, $28, $30, $20, $10
+//>       .db $80, $20, $30, $30, $01, $ff, $00
+val demoTimingData: List<Byte> = listOf(
+    0x9B.toByte(), 0x10, 0x18, 0x05, 0x2C.toByte(), 0x20, 0x24,
+    0x15, 0x5A.toByte(), 0x10, 0x20, 0x28, 0x30, 0x20, 0x10,
+    0x80.toByte(), 0x20, 0x30, 0x30, 0x01, 0xFF.toByte(), 0x00
+)
+
 /**
- * @return True if the demo is done
+ * Kotlin translation of DemoEngine.
+ * @return True if the demo is done (carry set in original), false if still running (carry clear)
  */
-fun System.demoEngine(): Boolean = TODO()
+fun System.demoEngine(): Boolean {
+    //> DemoEngine:
+    //>           ldx DemoAction         ;load current demo action
+    var x = ram.demoAction.toInt()
+    //>           lda DemoActionTimer    ;load current action timer
+    //>           bne DoAction           ;if timer still counting down, skip
+    if (ram.demoActionTimer == 0.toByte()) {
+        //>           inx
+        //>           inc DemoAction         ;if expired, increment action, X, and
+        x += 1
+        ram.demoAction = x.toByte()
+        //>           sec                    ;set carry by default for demo over
+        var carry = true
+        //>           lda DemoTimingData-1,x ;get next timer
+        val nextTimer = demoTimingData.getOrNull(x - 1) ?: 0.toByte()
+        //>           sta DemoActionTimer    ;store as current timer
+        ram.demoActionTimer = nextTimer
+        //>           beq DemoOver           ;if timer already at zero, skip
+        if (nextTimer == 0.toByte()) {
+            //> DemoOver: rts
+            return true
+        }
+        // if timer was nonzero, we fall through to DoAction with carry currently set,
+        // but the routine will clear it before returning.
+    }
+
+    //> DoAction: lda DemoActionData-1,x ;get and perform action (current or next)
+    val actionByte = demoActionData.getOrNull(x - 1) ?: JoypadBits(0)
+    //>           sta SavedJoypad1Bits
+    ram.savedJoypad1Bits = actionByte
+    //>           dec DemoActionTimer    ;decrement action timer
+    ram.demoActionTimer = (ram.demoActionTimer - 1).toByte()
+    //>           clc                    ;clear carry if demo still going
+    //> DemoOver: rts
+    return false
+}
 fun System.loadAreaPointer(): Unit = TODO()

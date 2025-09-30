@@ -134,6 +134,9 @@ class GameRam {
     @RamLocation(0x7dd) var playerScoreDisplay: Byte = 0
     @RamLocation(0x7f8) var gameTimerDisplay: Byte = 0
     @RamLocation(0x134) var digitModifier: Byte = 0
+    // Placeholder bookkeeping for score updates triggered by floatey numbers
+    var lastScoreDigitIndex: Byte = 0
+    var lastScoreDigitAdd: Byte = 0
     @RamLocation(0x109) var verticalFlipFlag: Byte = 0
     @RamLocation(0x110) var floateyNumControl: Byte = 0
     @RamLocation(0x125) var shellChainCounter: Byte = 0
@@ -251,7 +254,7 @@ class GameRam {
     @RamLocation(0x7a) var miscPageLoc: Byte = 0
     @RamLocation(0x83) var bubblePageLoc: Byte = 0
     @RamLocation(0x86) var sprObjectXPosition: Byte = 0
-    @RamLocation(0x86) var playerXPosition: Byte = 0
+    @RamLocation(0x86) var playerXPosition: UByte = 0u
     @RamLocation(0x87) var enemyXPosition: Byte = 0
     @RamLocation(0x8d) var fireballXPosition: Byte = 0
     @RamLocation(0x8f) var blockXPosition: Byte = 0

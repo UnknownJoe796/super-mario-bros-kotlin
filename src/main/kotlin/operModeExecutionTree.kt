@@ -19,5 +19,4 @@ fun System.operModeExecutionTree(): Unit {
 }
 
 fun System.gameMode(): Unit = TODO()
-fun System.victoryMode(): Unit = TODO()
 fun System.gameOverMode(): Unit = TODO()
