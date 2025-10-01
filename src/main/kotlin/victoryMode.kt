@@ -219,68 +219,68 @@ private fun System.setEndTimer(carry: Boolean) {
     //> ExitMsgs:      rts                           ;leave
 }
 
-// TODO: Need to check this
-//> PlayerEndWorld:
-//> lda WorldEndTimer          ;check to see if world end timer expired
-//> bne EndExitOne             ;branch to leave if not
-//> ldy WorldNumber            ;check world number
-//> cpy #World8                ;if on world 8, player is done with game,
-//> bcs EndChkBButton          ;thus branch to read controller
-//> lda #$00
-//> sta AreaNumber             ;otherwise initialize area number used as offset
-//> sta LevelNumber            ;and level number control to start at area 1
-//> sta OperMode_Task          ;initialize secondary mode of operation
-//> inc WorldNumber            ;increment world number to move onto the next world
-//> jsr LoadAreaPointer        ;get area address offset for the next area
-//> inc FetchNewGameTimerFlag  ;set flag to load game timer from header
-//> lda #GameModeValue
-//> sta OperMode               ;set mode of operation to game mode
-//> EndExitOne:    rts                        ;and leave
-//> EndChkBButton: lda SavedJoypad1Bits
-//> ora SavedJoypad2Bits       ;check to see if B button was pressed on
-//> and #B_Button              ;either controller
-//> beq EndExitTwo             ;branch to leave if not
-//> lda #$01                   ;otherwise set world selection flag
-//> sta WorldSelectEnableFlag
-//> lda #$ff                   ;remove onscreen player's lives
-//> sta NumberofLives
-//> jsr TerminateGame          ;do sub to continue other player or end game
-//> EndExitTwo:    rts                        ;leave
 private fun System.playerEndWorld() {
+    //> PlayerEndWorld:
     // Check world end timer
+    //> lda WorldEndTimer          ;check to see if world end timer expired
+    //> bne EndExitOne             ;branch to leave if not
     if (ram.worldEndTimer != 0.toByte()) return
 
     // Check world number; if at or beyond World 8, allow B button check
+    //> ldy WorldNumber            ;check world number
+    //> cpy #World8                ;if on world 8, player is done with game,
+    //> bcs EndChkBButton          ;thus branch to read controller
     val world = ram.worldNumber
     if ((world.toInt() and 0xFF) < (World8.toInt() and 0xFF)) {
         // Initialize for next world start at area 1-1
+        //> lda #$00
+        //> sta AreaNumber             ;otherwise initialize area number used as offset
+        //> sta LevelNumber            ;and level number control to start at area 1
+        //> sta OperMode_Task          ;initialize secondary mode of operation
         ram.areaNumber = 0x00
         ram.levelNumber = 0x00
         ram.operModeTask = 0x00
         // increment world number
+        //> inc WorldNumber            ;increment world number to move onto the next world
         ram.worldNumber = ((world.toInt() and 0xFF) + 1).toByte()
         // load next area's pointer
+        //> jsr LoadAreaPointer        ;get area address offset for the next area
         loadAreaPointer()
         // set flag to fetch game timer from header
+        //> inc FetchNewGameTimerFlag  ;set flag to load game timer from header
         ram.fetchNewGameTimerFlag = true
         // set game mode
+        //> lda #GameModeValue
+        //> sta OperMode               ;set mode of operation to game mode
         ram.operMode = OperMode.Game
+        //> EndExitOne:    rts                        ;and leave
         return
     }
 
     // EndChkBButton: check B on either controller
+    //> EndChkBButton: lda SavedJoypad1Bits
+    //> ora SavedJoypad2Bits       ;check to see if B button was pressed on
+    //> and #B_Button              ;either controller
+    //> beq EndExitTwo             ;branch to leave if not
+    // TODO: leave this as joypadbits, stupid
     val either = (ram.savedJoypad1Bits.byte.toInt() or ram.savedJoypad2Bits.byte.toInt()) and 0xFF
     val bPressed = (either and (Constants.B_Button.toInt() and 0xFF)) != 0
     if (!bPressed) return
 
     // Set world selection enable flag
+    //> lda #$01                   ;otherwise set world selection flag
+    //> sta WorldSelectEnableFlag
     ram.worldSelectEnableFlag = true
 
     // Remove onscreen player's lives (NumberofLives/$ff)
+    //> lda #$ff                   ;remove onscreen player's lives
+    //> sta NumberofLives
     ram.numberofLives = 0xFF.toByte()
 
     // Continue other player or end game
+    //> jsr TerminateGame          ;do sub to continue other player or end game
     terminateGame()
+    //> EndExitTwo:    rts                        ;leave
 }
 
 // Continue other player or end game

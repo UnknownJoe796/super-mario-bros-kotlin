@@ -133,16 +133,17 @@ class GameRam {
     @RamLocation(0x7dd) val scoreAndCoinDisplay = ByteArray(0x18)
     @RamLocation(0x7dd) var playerScoreDisplay: Byte = 0
     @RamLocation(0x7f8) var gameTimerDisplay: Byte = 0
-    @RamLocation(0x134) var digitModifier: Byte = 0
+    @RamLocation(0x134) val digitModifier: ByteArray = ByteArray(999)
     // Placeholder bookkeeping for score updates triggered by floatey numbers
     var lastScoreDigitIndex: Byte = 0
     var lastScoreDigitAdd: Byte = 0
     @RamLocation(0x109) var verticalFlipFlag: Byte = 0
-    @RamLocation(0x110) var floateyNumControl: Byte = 0
+    @RamLocation(0x110) val floateyNumControl: ByteArray = ByteArray(ComboInfo.list.size)
+    @RamLocation(0x117) var floateyNumXPos: UByteArray = UByteArray(ComboInfo.list.size)
+    @RamLocation(0x11e) var floateyNumYPos: UByteArray = UByteArray(ComboInfo.list.size)
+    @RamLocation(0x12c) val floateyNumTimer: ByteArray = ByteArray(ComboInfo.list.size)
     @RamLocation(0x125) var shellChainCounter: Byte = 0
-    @RamLocation(0x12c) var floateyNumTimer: Byte = 0
-    @RamLocation(0x117) var floateyNumXPos: Byte = 0
-    @RamLocation(0x11e) var floateyNumYPos: Byte = 0
+
     @RamLocation(0x10d) var flagpoleFNumYPos: Byte = 0
     @RamLocation(0x10e) var flagpoleFNumYMFDummy: Byte = 0
     @RamLocation(0x10f) var flagpoleScore: Byte = 0
@@ -219,9 +220,9 @@ class GameRam {
     @RamLocation(0x6e4) val sprDataOffsets = ByteArray(0x0f)
 
     @RamLocation(0x6e4) var playerSprDataOffset: Byte = 0
-    @RamLocation(0x6e5) var enemySprDataOffset: Byte = 0
+    @RamLocation(0x6e5) val enemySprDataOffset: ByteArray = ByteArray(999)
     @RamLocation(0x6ec) var blockSprDataOffset: Byte = 0
-    @RamLocation(0x6ec) var altSprDataOffset: Byte = 0
+    @RamLocation(0x6ec) val altSprDataOffset: ByteArray = ByteArray(999)
     @RamLocation(0x6ee) var bubbleSprDataOffset: Byte = 0
     @RamLocation(0x6f1) var fBallSprDataOffset: Byte = 0
 
@@ -231,7 +232,7 @@ class GameRam {
 
     @RamLocation(0x3ee) var sprDataOffsetCtrl: Byte = 0
     @RamLocation(0x1d) var playerState: Byte = 0
-    @RamLocation(0x1e) var enemyState: Byte = 0
+    @RamLocation(0x1e) val enemyState = ByteArray(999)
     @RamLocation(0x24) var fireballState: Byte = 0
     @RamLocation(0x26) var blockState: Byte = 0
     @RamLocation(0x2a) var miscState: Byte = 0
@@ -318,7 +319,7 @@ class GameRam {
     @RamLocation(0x6cb) var enemyFrenzyBuffer: Byte = 0
     @RamLocation(0x6cd) var enemyFrenzyQueue: Byte = 0
     @RamLocation(0xf) var enemyFlag: Byte = 0
-    @RamLocation(0x16) var enemyID: Byte = 0
+    @RamLocation(0x16) val enemyID: ByteArray = ByteArray(0x23-0x16)
     @RamLocation(0x6d5) var playerGfxOffset: Byte = 0
     @RamLocation(0x700) var playerXSpeedAbsolute: Byte = 0
     @RamLocation(0x701) var frictionAdderHigh: Byte = 0
