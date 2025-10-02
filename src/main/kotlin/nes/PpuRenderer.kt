@@ -51,7 +51,7 @@ object PpuRenderer {
         // Draw background tiles (CI 0 already covered by bg fill)
         for (ty in 0 until nt.height) {
             for (tx in 0 until nt.width) {
-                val tile: Tile = nt[tx, ty] ?: continue
+                val tile: Tile = nt[tx, ty]
                 for (py in 0 until tileSize) {
                     for (px in 0 until tileSize) {
                         val ci = tile.pattern.colorIndex(px, py) // 0..3

@@ -1,28 +1,45 @@
 package com.ivieleague.smbtranslation
 
-// TODO: Need to check ALL of these.
+import com.ivieleague.smbtranslation.nes.Color
+import com.ivieleague.smbtranslation.nes.DirectPalette
+
 // Screen and intermediate display control tasks translated from SMB disassembly.
 // These functions operate over the high-level PPU abstraction and GameRam state.
 
 fun System.screenRoutines() {
     //> ScreenRoutines:
-    //>       lda ScreenRoutineTask        ;run one of the following subroutines
-    //>       jsr JumpEngine
+    //> lda ScreenRoutineTask        ;run one of the following subroutines
+    //> jsr JumpEngine
     when (ram.screenRoutineTask.toInt() and 0xFF) {
+        //> .dw InitScreen
         0x00 -> initScreen()
+        //> .dw SetupIntermediate
         0x01 -> setupIntermediate()
+        //> .dw WriteTopStatusLine
         0x02 -> writeTopStatusLine()
+        //> .dw WriteBottomStatusLine
         0x03 -> writeBottomStatusLine()
+        //> .dw DisplayTimeUp
         0x04 -> displayTimeUp()
+        //> .dw ResetSpritesAndScreenTimer
         0x05 -> resetSpritesAndScreenTimer()
+        //> .dw DisplayIntermediate
         0x06 -> displayIntermediate()
+        //> .dw ResetSpritesAndScreenTimer
         0x07 -> resetSpritesAndScreenTimer()
+        //> .dw AreaParserTaskControl
         0x08 -> areaParserTaskControl()
+        //> .dw GetAreaPalette
         0x09 -> getAreaPalette()
+        //> .dw GetBackgroundColor
         0x0A -> getBackgroundColor()
+        //> .dw GetAlternatePalette1
         0x0B -> getAlternatePalette1()
+        //> .dw DrawTitleScreen
         0x0C -> drawTitleScreen()
+        //> .dw ClearBuffersDrawIcon
         0x0D -> clearBuffersDrawIcon()
+        //> .dw WriteTopScore
         0x0E -> writeTopScore()
         else -> Unit
     }
@@ -32,19 +49,21 @@ fun System.screenRoutines() {
 
 private fun System.initScreen() {
     //> InitScreen:
-    //>       jsr MoveAllSpritesOffscreen ;initialize all sprites including sprite #0
+    //> jsr MoveAllSpritesOffscreen ;initialize all sprites including sprite #0
     moveAllSpritesOffscreen()
-    //>       jsr InitializeNameTables    ;and erase both name and attribute tables
+    //> jsr InitializeNameTables    ;and erase both name and attribute tables
     initializeNameTables()
-    //>       lda OperMode
-    //>       beq NextSubtask             ;if mode still 0, do not load
+    //> lda OperMode
+    //> beq NextSubtask             ;if mode still 0, do not load
     if (ram.operMode == OperMode.TitleScreen) return nextSubtask()
-    //>       ldx #$03                    ;into buffer pointer
-    //>       jmp SetVRAMAddr_A
+    //> ldx #$03                    ;into buffer pointer
+    //> jmp SetVRAMAddr_A
     // We model SetVRAMAddr_A as selecting which VRAM update buffer address control to use.
     // The original sets a buffer pointer/index to 3 here; reflect by storing to vRAMBufferAddrCtrl.
     ram.vRAMBufferAddrCtrl = 0x03
     // In the original, SetVRAMAddr_A would use X to index a table of addresses; here we just advance the task.
+    //> SetVRAMAddr_A: stx VRAM_Buffer_AddrCtrl ;store offset into buffer control
+    //> NextSubtask:   jmp IncSubtask           ;move onto next task
     return nextSubtask()
 }
 
@@ -52,27 +71,27 @@ private fun System.initScreen() {
 
 private fun System.setupIntermediate() {
     //> SetupIntermediate:
-    //>       lda BackgroundColorCtrl  ;save current background color control
-    //>       pha                      ;and player status to stack
+    //> lda BackgroundColorCtrl  ;save current background color control
+    //> pha                      ;and player status to stack
     val savedBackgroundColorCtrl = ram.backgroundColorCtrl
-    //>       lda PlayerStatus
-    //>       pha
+    //> lda PlayerStatus
+    //> pha
     val savedPlayerStatus = ram.playerStatus
-    //>       lda #$00                 ;set background color to black
-    //>       sta PlayerStatus         ;and player status to not fiery
+    //> lda #$00                 ;set background color to black
+    //> sta PlayerStatus         ;and player status to not fiery
     ram.playerStatus = 0x00
-    //>       lda #$02                 ;this is the ONLY time background color control
-    //>       sta BackgroundColorCtrl  ;is set to less than 4
+    //> lda #$02                 ;this is the ONLY time background color control
+    //> sta BackgroundColorCtrl  ;is set to less than 4
     ram.backgroundColorCtrl = 0x02
-    //>       jsr GetPlayerColors
+    //> jsr GetPlayerColors
     getPlayerColors()
-    //>       pla                      ;we only execute this routine for
-    //>       sta PlayerStatus         ;the intermediate lives display
+    //> pla                      ;we only execute this routine for
+    //> sta PlayerStatus         ;the intermediate lives display
     ram.playerStatus = savedPlayerStatus
-    //>       pla                      ;and once we're done, we return bg
-    //>       sta BackgroundColorCtrl  ;color ctrl and player status from stack
+    //> pla                      ;and once we're done, we return bg
+    //> sta BackgroundColorCtrl  ;color ctrl and player status from stack
     ram.backgroundColorCtrl = savedBackgroundColorCtrl
-    //>       jmp IncSubtask           ;then move onto the next task
+    //> jmp IncSubtask           ;then move onto the next task
     incSubtask()
 }
 
@@ -82,37 +101,42 @@ private fun System.setupIntermediate() {
 
 private fun System.writeTopStatusLine() {
     //> WriteTopStatusLine:
-    //>       lda #$00          ;select main status bar
-    //>       jsr WriteGameText ;output it
+    //> lda #$00          ;select main status bar
+    //> jsr WriteGameText ;output it
     writeGameText(0)
-    //>       jmp IncSubtask    ;onto the next task
+    //> jmp IncSubtask    ;onto the next task
     incSubtask()
 }
 
 private fun System.writeBottomStatusLine() {
     //> WriteBottomStatusLine:
-    //>       jsr GetSBNybbles        ;write player's score and coin tally to screen
+    //> jsr GetSBNybbles        ;write player's score and coin tally to screen
     getSBNybbles()
-    //>       ldx VRAM_Buffer1_Offset
+    //> ldx VRAM_Buffer1_Offset
     // Our high-level model appends directly to vRAMBuffer1; we do not track raw offsets.
-    //>       lda #$20                ;write address for world-area number on screen
-    //>       sta VRAM_Buffer1,x
-    //>       lda #$73
-    //>       sta VRAM_Buffer1+1,x
-    //>       lda #$03                ;write length for it
-    //>       sta VRAM_Buffer1+2,x
+    //> lda #$20                ;write address for world-area number on screen
+    //> sta VRAM_Buffer1,x
+    //> lda #$73
+    //> sta VRAM_Buffer1+1,x
+    //> lda #$03                ;write length for it
+    //> sta VRAM_Buffer1+2,x
     // Compute nametable coordinates for $2073 ($2000 base + row*32 + col).
-    val x = 0x73 % 32 // 19
-    val y = 0x73 / 32 // 3
-    //>       ldy WorldNumber         ;first the world number
-    //>       iny
-    //>       tya
+    val x = 0x73 % 32
+    val y = 0x73 / 32
+    //> ldy WorldNumber         ;first the world number
+    //> iny
+    //> tya
+    //> sta VRAM_Buffer1+3,x
     val worldDigitTile = ((ram.worldNumber.toInt() and 0xFF) + 1).coerceIn(0, 255)
-    //>       lda #$28                ;next the dash
+    //> lda #$28                ;next the dash
+    //> sta VRAM_Buffer1+4,x
     val dashTile = 0x28
-    //>       ldy LevelNumber         ;next the level number
-    //>       iny                     ;increment for proper number display
-    //>       tya
+    //> ldy LevelNumber         ;next the level number
+    //> iny                     ;increment for proper number display
+    //> tya
+    //> sta VRAM_Buffer1+5,x
+    //> lda #$00                ;put null terminator on
+    //> sta VRAM_Buffer1+6,x
     val levelDigitTile = ((ram.levelNumber.toInt() and 0xFF) + 1).coerceIn(0, 255)
     // Emit three background patterns at $2073: [world, '-', level]
     ram.vRAMBuffer1.add(
@@ -128,128 +152,119 @@ private fun System.writeBottomStatusLine() {
             )
         )
     )
-    //>       lda #$00                ;put null terminator on
-    // No-op in high-level buffer model.
-    //>       sta VRAM_Buffer1+6,x
-    //>       txa                     ;move the buffer offset up by 6 bytes
-    //>       clc
-    //>       adc #$06
-    //>       sta VRAM_Buffer1_Offset
-    // Not modeled; subsequent writes will append.
-    //>       jmp IncSubtask
+    //> txa                     ;move the buffer offset up by 6 bytes
+    //> clc
+    //> adc #$06
+    //> sta VRAM_Buffer1_Offset
+    // This would add 6 bytes to the length of the VRAM_Buffer1.
+    // In our stuff, however, we don't need to do that because we model the VRAM Buffer as a list of instructions, rather than just bytes.
+    //> jmp IncSubtask
     incSubtask()
 }
 
 private fun System.displayTimeUp() {
     //> DisplayTimeUp:
-    //>           lda GameTimerExpiredFlag  ;if game timer not expired, increment task
-    //>           beq NoTimeUp              ;control 2 tasks forward, otherwise, stay here
-    if ((ram.gameTimerExpiredFlag.toInt() and 0xFF) != 0) {
-        //>           lda #$00
-        //>           sta GameTimerExpiredFlag  ;reset timer expiration flag
-        ram.gameTimerExpiredFlag = 0
-        //>           lda #$02                  ;output time-up screen to buffer
-        //>           jmp OutputInter
+    //> lda GameTimerExpiredFlag  ;if game timer not expired, increment task
+    //> beq NoTimeUp              ;control 2 tasks forward, otherwise, stay here
+    if (ram.gameTimerExpiredFlag) {
+        //> lda #$00
+        //> sta GameTimerExpiredFlag  ;reset timer expiration flag
+        ram.gameTimerExpiredFlag = false
+        //> lda #$02                  ;output time-up screen to buffer
+        //> jmp OutputInter
         outputInter(0x02)
         return
     }
     //> NoTimeUp: inc ScreenRoutineTask     ;increment control task 2 tasks forward
-    ram.screenRoutineTask = ((ram.screenRoutineTask.toInt() + 1) and 0xFF).toByte()
-    //>           jmp IncSubtask
+    ram.screenRoutineTask++
+    //> jmp IncSubtask
     incSubtask()
 }
 
 private fun System.resetSpritesAndScreenTimer() {
-    //> ResetSpritesAndScreenTimer
-    // For minimal parity, ensure sprites are cleared when entering screens.
+    //> lda ScreenTimer             ;check if screen timer has expired
+    //> bne NoReset                 ;if not, branch to leave
+    if((ram.screenTimer.toInt() and 0xFF) != 0)
+        //> NoReset: rts
+        return
+    //> jsr MoveAllSpritesOffscreen ;otherwise reset sprites now
     moveAllSpritesOffscreen()
 }
 
 private fun System.displayIntermediate() {
     //> DisplayIntermediate:
-    //>                lda OperMode                 ;check primary mode of operation
-    //>                beq NoInter                  ;if in title screen mode, skip this
-    if (ram.operMode == OperMode.TitleScreen) {
-        //> NoInter:       lda #$08                     ;set for specific task and leave
-        //>                sta ScreenRoutineTask
-        ram.screenRoutineTask = 0x08
-        //>                rts
-        return
-    }
-    //>                cmp #GameOverModeValue       ;are we in game over mode?
-    //>                beq GameOverInter            ;if so, proceed to display game over screen
-    if (ram.operMode == OperMode.GameOver) {
-        //> GameOverInter: lda #$12                     ;set screen timer
-        //>                sta ScreenTimer
-        ram.screenTimer = 0x12
-        //>                lda #$03                     ;output game over screen to buffer
-        //>                jsr WriteGameText
-        writeGameText(0x03)
-        //>                jmp IncModeTask_B
-        return incModeTask_B()
-    }
-    //>                lda AltEntranceControl       ;otherwise check for mode of alternate entry
-    //>                bne NoInter                  ;and branch if found
-    if ((ram.altEntranceControl.toInt() and 0xFF) != 0) {
-        ram.screenRoutineTask = 0x08
-        return
-    }
-    //>                ldy AreaType                 ;check if we are on castle level
-    //>                cpy #$03                     ;and if so, branch (possibly residual)
-    //>                beq PlayerInter
-    if ((ram.areaType.toInt() and 0xFF) == 0x03) {
-        // fall-through to PlayerInter
-    } else {
-        //>                lda DisableIntermediate      ;if this flag is set, skip intermediate lives display
-        //>                bne NoInter                  ;and jump to specific task, otherwise
-        if ((ram.disableIntermediate.toInt() and 0xFF) != 0) {
-            ram.screenRoutineTask = 0x08
-            return
-        }
+    //> lda OperMode                 ;check primary mode of operation
+    //> beq NoInter                  ;if in title screen mode, skip this
+    if (ram.operMode == OperMode.TitleScreen) return noInter()
+    //> cmp #GameOverModeValue       ;are we in game over mode?
+    //> beq GameOverInter            ;if so, proceed to display game over screen
+    if (ram.operMode == OperMode.GameOver) return gameOverInter()
+    //> lda AltEntranceControl       ;otherwise check for mode of alternate entry
+    //> bne NoInter                  ;and branch if found
+    if ((ram.altEntranceControl.toInt() and 0xFF) != 0) return noInter()
+    //> ldy AreaType                 ;check if we are on castle level
+    //> cpy #$03                     ;and if so, branch (possibly residual)
+    //> beq PlayerInter
+    if (ram.areaType != 0x03.toByte()) {
+        //> lda DisableIntermediate      ;if this flag is set, skip intermediate lives display
+        //> bne NoInter                  ;and jump to specific task, otherwise
+        if (ram.disableIntermediate) return noInter()
     }
     //> PlayerInter:   jsr DrawPlayer_Intermediate  ;put player in appropriate place for
     drawPlayerIntermediate()
-    //>                lda #$01                     ;lives display, then output lives display to buffer
+    //> lda #$01                     ;lives display, then output lives display to buffer
     //> OutputInter:   jsr WriteGameText
     writeGameText(0x01)
-    //>                jsr ResetScreenTimer
+    //> jsr ResetScreenTimer
     resetScreenTimer()
-    //>                lda #$00
-    //>                sta DisableScreenFlag        ;reenable screen output
+    //> lda #$00
+    //> sta DisableScreenFlag        ;reenable screen output
     ram.disableScreenFlag = false
-    //>                rts
+    //> rts
+}
+private fun System.gameOverInter() {
+    //> GameOverInter: lda #$12                     ;set screen timer
+    //> sta ScreenTimer
+    ram.screenTimer = 0x12
+    //> lda #$03                     ;output game over screen to buffer
+    //> jsr WriteGameText
+    writeGameText(0x03)
+    //> jmp IncModeTask_B
+    return incModeTask_B()
+}
+
+private fun System.noInter() {
+    //> NoInter:       lda #$08                     ;set for specific task and leave
+    //> sta ScreenRoutineTask
+    ram.screenRoutineTask = 0x08
+    //> rts
+    return
 }
 
 private fun System.areaParserTaskControl() {
     //> AreaParserTaskControl:
-    //>            inc DisableScreenFlag     ;turn off screen
+    //> inc DisableScreenFlag     ;turn off screen
     ram.disableScreenFlag = true
-    //> TaskLoop:  jsr AreaParserTaskHandler ;render column set of current area
-    //>            lda AreaParserTaskNum     ;check number of tasks
-    //>            bne TaskLoop              ;if tasks still not all done, do another one
     do {
+        //> TaskLoop:  jsr AreaParserTaskHandler ;render column set of current area
         areaParserTaskHandler()
-    } while ((ram.areaParserTaskNum.toInt() and 0xFF) != 0)
-    //>            dec ColumnSets            ;do we need to render more column sets?
-    //>            bpl OutputCol
-    val colSets = ((ram.columnSets.toInt() and 0xFF) - 1)
-    ram.columnSets = colSets.toByte()
-    if (colSets < 0x80 && colSets >= 0) {
-        //> OutputCol: lda #$06                  ;set vram buffer to output rendered column set
-        //>            sta VRAM_Buffer_AddrCtrl  ;on next NMI
-        ram.vRAMBufferAddrCtrl = 0x06
-        //>            rts
-        return
+        //> lda AreaParserTaskNum     ;check number of tasks
+        //> bne TaskLoop              ;if tasks still not all done, do another one
+    } while (ram.areaParserTaskNum != 0.toByte())
+    //> dec ColumnSets            ;do we need to render more column sets?
+    //> bpl OutputCol
+    if (--ram.columnSets < 0) {
+        //> inc ScreenRoutineTask     ;if not, move on to the next task
+        ram.screenRoutineTask++
     }
-    //>            inc ScreenRoutineTask     ;if not, move on to the next task
-    ram.screenRoutineTask = ((ram.screenRoutineTask.toInt() + 1) and 0xFF).toByte()
     //> OutputCol: lda #$06                  ;set vram buffer to output rendered column set
-    //>            sta VRAM_Buffer_AddrCtrl  ;on next NMI
+    //> sta VRAM_Buffer_AddrCtrl  ;on next NMI
     ram.vRAMBufferAddrCtrl = 0x06
-    //>            rts
+    //> rts
 }
 
 // --- Palette selection/data tables translated from disassembly ---
+// Offsets representing indexes in vramAddrTable
 private val AreaPalette = byteArrayOf(
     0x01, 0x02, 0x03, 0x04
 )
@@ -260,54 +275,49 @@ private val BGColorCtrl_Addr = byteArrayOf(
 )
 
 // First 4: by area type when bg color ctrl not set. Second 4: by background color control when set.
-private val BackgroundColors = byteArrayOf(
-    0x22, 0x22, 0x0f, 0x0f,
-    0x0f, 0x22, 0x0f, 0x0f,
+private val BackgroundColors = arrayOf(
+    Color(0x22), Color(0x22), Color(0x0f), Color(0x0f),
+    Color(0x0f), Color(0x22), Color(0x0f), Color(0x0f),
 )
 
 // Player palettes (Mario, Luigi, Fiery)
-private val PlayerColors = byteArrayOf(
-    0x22, 0x16, 0x27, 0x18, // mario
-    0x22, 0x30, 0x27, 0x19, // luigi
-    0x22, 0x37, 0x27, 0x16, // fiery
-)
+object PlayerPalettes {
+    val mario = DirectPalette(arrayOf(Color(0x22), Color(0x16), Color(0x27), Color(0x18),))
+    val luigi = DirectPalette(arrayOf(Color(0x22), Color(0x30), Color(0x27), Color(0x19),))
+    val fiery = DirectPalette(arrayOf(Color(0x22), Color(0x37), Color(0x27), Color(0x16),))
+}
 
 private fun System.getAreaPalette() {
     //> GetAreaPalette:
-    //>                ldy AreaType             ;select appropriate palette to load
-    //>                ldx AreaPalette,y        ;based on area type
-    val areaType = ram.areaType.toInt() and 0x03
-    val indexFromTable = AreaPalette[areaType]
+    //> ldy AreaType             ;select appropriate palette to load
+    //> ldx AreaPalette,y        ;based on area type
     //> SetVRAMAddr_A: stx VRAM_Buffer_AddrCtrl ;store offset into buffer control
-    ram.vRAMBufferAddrCtrl = indexFromTable
+    ram.vRAMBufferAddrCtrl = AreaPalette[ram.areaType.toInt()]
     //> NextSubtask:   jmp IncSubtask           ;move onto next task
     incSubtask()
 }
 
 private fun System.getBackgroundColor() {
     //> GetBackgroundColor:
-    //>            ldy BackgroundColorCtrl   ;check background color control
-    //>            beq NoBGColor             ;if not set, increment task and fetch palette
-    val bgCtrl = ram.backgroundColorCtrl.toInt() and 0xFF
-    if (bgCtrl == 0) return incSubtask() // NoBGColor
-    //>            lda BGColorCtrl_Addr-4,y  ;put appropriate palette into vram
-    // In the original, valid values for BackgroundColorCtrl are 4..7 when set.
-    val idx = (bgCtrl - 4).coerceIn(0, 3)
-    val value = BGColorCtrl_Addr[idx]
-    //>            sta VRAM_Buffer_AddrCtrl  ;note that if set to 5-7, $0301 will not be read
-    ram.vRAMBufferAddrCtrl = value
+    //> ldy BackgroundColorCtrl   ;check background color control
+    val bgCtrl = ram.backgroundColorCtrl
+    //> beq NoBGColor             ;if not set, increment task and fetch palette
+    if (bgCtrl == 0.toByte()) return incSubtask() // NoBGColor
+    //> lda BGColorCtrl_Addr-4,y  ;put appropriate palette into vram
+    //> sta VRAM_Buffer_AddrCtrl  ;note that if set to 5-7, $0301 will not be read
+    ram.vRAMBufferAddrCtrl = BGColorCtrl_Addr[bgCtrl - 4]
     //> NoBGColor: inc ScreenRoutineTask     ;increment to next subtask and plod on through
     incSubtask()
 }
 
 private fun System.getAlternatePalette1() {
     //> GetAlternatePalette1:
-    //>                lda AreaStyle            ;check for mushroom level style
-    //>                cmp #$01
-    //>                bne NoAltPal
-    //>                lda #$0b                 ;if found, load appropriate palette
-    //> SetVRAMAddr_B: sta VRAM_Buffer_AddrCtrl
-    if ((ram.areaStyle.toInt() and 0xFF) == 0x01) {
+    //> lda AreaStyle            ;check for mushroom level style
+    //> cmp #$01
+    //> bne NoAltPal
+    if (ram.areaStyle == 0x01.toByte()) {
+        //> lda #$0b                 ;if found, load appropriate palette
+        //> SetVRAMAddr_B: sta VRAM_Buffer_AddrCtrl
         ram.vRAMBufferAddrCtrl = 0x0B
     }
     //> NoAltPal:      jmp IncSubtask           ;now onto the next task
@@ -317,67 +327,63 @@ private fun System.getAlternatePalette1() {
 
 private fun System.clearBuffersDrawIcon() {
     //> ClearBuffersDrawIcon:
-    //>              lda OperMode               ;check game mode
-    //>              bne IncModeTask_B          ;if not title screen mode, leave
+    //> lda OperMode               ;check game mode
+    //> bne IncModeTask_B          ;if not title screen mode, leave
     if (ram.operMode != OperMode.TitleScreen) return incModeTask_B()
-    //>              ldx #$00                   ;otherwise, clear buffer space
+    //> ldx #$00                   ;otherwise, clear buffer space
     //> TScrClear:   sta VRAM_Buffer1-1,x
-    //>              sta VRAM_Buffer1-1+$100,x
-    //>              dex
-    //>              bne TScrClear
-    // In the high-level model, just clear both VRAM buffers.
+    // Huh?  The below seems like a really really weird place to write to...
+    // Ram addresses 0x400+ are random useful game data variables.
+    // Is this supposed to somehow be the second VRAM buffer?  I don't think it is...
+    //> sta VRAM_Buffer1-1+$100,x
+    //> dex
+    //> bne TScrClear
     ram.vRAMBuffer1.clear()
-    ram.vRAMBuffer2.clear()
-    //>              jsr DrawMushroomIcon       ;draw player select icon
+    //> jsr DrawMushroomIcon       ;draw player select icon
     drawMushroomIcon()
     //> IncSubtask:  inc ScreenRoutineTask      ;move onto next task
     incSubtask()
+    //> rts
 }
 
-private fun System.writeTopScore() {
-    //> WriteTopScore
-    // TODO: implemented elsewhere in the future
-}
+private fun System.writeTopScore(): Unit = TODO()
 
 //-------------------------------------------------------------------------------------
 // Helpers corresponding to IncSubtask/NextSubtask and GetPlayerColors.
 
 private fun System.incSubtask() {
     //> IncSubtask:  inc ScreenRoutineTask      ;move onto next task
-    ram.screenRoutineTask = ((ram.screenRoutineTask.toInt() + 1) and 0xFF).toByte()
+    ram.screenRoutineTask++
 }
 
-private fun System.nextSubtask() {
-    //> NextSubtask:   jmp IncSubtask           ;move onto next task
-    incSubtask()
-}
+//> NextSubtask:   jmp IncSubtask           ;move onto next task
+private fun System.nextSubtask() = incSubtask()
 
 private fun System.getPlayerColors() {
     //> GetPlayerColors:
-    //>                ldx VRAM_Buffer1_Offset  ;get current buffer offset
-    // We do not model a raw offset; we append to the high-level vRAMBuffer1 list.
-    //>                ldy #$00
-    var paletteOffset = 0 // start with Mario
-    //>                lda CurrentPlayer        ;check which player is on the screen
-    //>                beq ChkFiery
-    //>                ldy #$04                 ;load offset for luigi
-    if ((ram.currentPlayer.toInt() and 0xFF) != 0) paletteOffset = 4
+    //> ldx VRAM_Buffer1_Offset  ;get current buffer offset
+    // We're preparing to append to VRAM Buffer 1.
+    //> ldy #$00
+    var palette = PlayerPalettes.mario // start with Mario
+    //> lda CurrentPlayer        ;check which player is on the screen
+    //> beq ChkFiery
+    if ((ram.currentPlayer.toInt() and 0xFF) != 0) {
+        //> ldy #$04                 ;load offset for luigi
+        palette = PlayerPalettes.luigi
+    }
     //> ChkFiery:      lda PlayerStatus         ;check player status
-    //>                cmp #$02
-    //>                bne StartClrGet          ;if fiery, load alternate offset for fiery player
-    //>                ldy #$08
-    if ((ram.playerStatus.toInt() and 0xFF) == 0x02) paletteOffset = 8
-    // Build the four player colors from the table
-    val p0 = PlayerColors[paletteOffset + 0]
-    val p1 = PlayerColors[paletteOffset + 1]
-    val p2 = PlayerColors[paletteOffset + 2]
-    val p3 = PlayerColors[paletteOffset + 3]
+    //> cmp #$02
+    //> bne StartClrGet          ;if fiery, load alternate offset for fiery player
+    if ((ram.playerStatus.toInt() and 0xFF) == 0x02) {
+        //> ldy #$08
+        palette = PlayerPalettes.fiery
+    }
 
     // Determine background color selection
-    //>                ldx VRAM_Buffer1_Offset  ;load original offset from before
-    //>                ldy BackgroundColorCtrl  ;if this value is four or greater, it will be set
-    //>                bne SetBGColor           ;therefore use it as offset to background color
-    //>                ldy AreaType             ;otherwise use area type bits from area offset as offset
+    //> ldx VRAM_Buffer1_Offset  ;load original offset from before
+    //> ldy BackgroundColorCtrl  ;if this value is four or greater, it will be set
+    //> bne SetBGColor           ;therefore use it as offset to background color
+    //> ldy AreaType             ;otherwise use area type bits from area offset as offset
     val bgIndex = if ((ram.backgroundColorCtrl.toInt() and 0xFF) != 0) {
         // backgroundColorCtrl uses values 4..7 when set
         ram.backgroundColorCtrl.toInt() and 0xFF
@@ -387,62 +393,61 @@ private fun System.getPlayerColors() {
     //> SetBGColor:    lda BackgroundColors,y   ;to background color instead
     val bg = BackgroundColors[bgIndex]
 
-    // Compose final sprite palette bytes, with background color as the first entry.
-    // The original code overwrites the first of the four player colors with background.
-    val colors = listOf(
-        com.ivieleague.smbtranslation.nes.Color(bg),
-        com.ivieleague.smbtranslation.nes.Color(p1),
-        com.ivieleague.smbtranslation.nes.Color(p2),
-        com.ivieleague.smbtranslation.nes.Color(p3),
-    )
-
     // Emit a SpriteSetPalette update for sprite palette index 0 (address $3F10).
     ram.vRAMBuffer1.add(
         BufferedPpuUpdate.SpriteSetPalette(
             index = 0,
-            colors = colors,
+            colors = listOf(bg) + palette.colors.toList().drop(1),
         )
     )
 
-    //>                rts
+    //> rts
 }
 
 private fun System.incModeTask_B() {
-    //> IncModeTask_B: inc OperMode_Task
-    ram.operModeTask = ((ram.operModeTask.toInt() + 1) and 0xFF).toByte()
+    //> IncModeTask_B: inc OperMode_Task  ;move onto next mode
+    ram.operModeTask++
+    //> rts
 }
 
-private fun System.drawPlayerIntermediate() {
-    //> DrawPlayer_Intermediate (high-level stub)
-    // Positioning the player sprite for the intermission is not required yet.
-}
+private fun System.drawPlayerIntermediate(): Unit = TODO()
 
 private fun System.resetScreenTimer() {
-    //> ResetScreenTimer (high-level approximation)
-    ram.screenTimer = 0
+    //> ResetScreenTimer:
+    //> lda #$07                    ;reset timer again
+    //> sta ScreenTimer
+    ram.screenTimer = 0x07
+    //> inc ScreenRoutineTask       ;move onto next task
+    ram.screenRoutineTask++
+    //> NoReset: rts
 }
 
 private fun System.areaParserTaskHandler() {
-    //> AreaParserTaskHandler (high-level stub)
-    // Minimal behavior: count down tasks until zero.
-    val n = ram.areaParserTaskNum.toInt() and 0xFF
-    if (n > 0) ram.areaParserTaskNum = (n - 1).toByte()
+    //> AreaParserTaskHandler:
+    //> ldy AreaParserTaskNum     ;check number of tasks here
+    //> bne DoAPTasks             ;if already set, go ahead
+    //> ldy #$08
+    //> sty AreaParserTaskNum     ;otherwise, set eight by default
+    var areaParserTaskNum = ram.areaParserTaskNum.takeUnless { it == 0.toByte() } ?: 0x08.toByte()
+    //> DoAPTasks:    dey
+    areaParserTaskNum--
+    //> tya
+    //> jsr AreaParserTasks
+    areaParserTasks(areaParserTaskNum)
+    //> dec AreaParserTaskNum     ;if all tasks not complete do not
+    //> bne SkipATRender          ;render attribute table yet
+    if(--ram.areaParserTaskNum == 0.toByte()) {
+        //> jsr RenderAttributeTables
+        renderAttributeTables()
+    }
+    //> SkipATRender: rts
 }
 
 // --- Minimal helper stubs for text/score/intermission writes ---
-private fun System.writeGameText(select: Int) {
-    //> WriteGameText (high-level stub)
-    // For now, we do not render actual glyphs here. The rest of the code draws via buffered templates.
-}
+private fun System.writeGameText(select: Int): Unit = TODO()
 
-private fun System.getSBNybbles() {
-    //> GetSBNybbles (high-level stub)
-    // Score/coin nybble packing is not required for current tests; left as a no-op.
-}
+private fun System.getSBNybbles(): Unit = TODO()
+private fun System.renderAttributeTables(): Unit = TODO()
+private fun System.areaParserTasks(taskNum: Byte): Unit = TODO()
 
-private fun System.outputInter(code: Int) {
-    //> OutputInter (high-level stub)
-    // In the original, this selects an intermission/text block and calls WriteGameText.
-    // Here we simply route to writeGameText to preserve control flow.
-    writeGameText(code)
-}
+private fun System.outputInter(code: Int): Unit = TODO()

@@ -157,7 +157,7 @@ class GameRam {
 
     @RamLocation(0x722) var sprite0HitDetectFlag: Boolean = false
     @RamLocation(0x774) var disableScreenFlag: Boolean = false
-    @RamLocation(0x769) var disableIntermediate: Byte = 0
+    @RamLocation(0x769) var disableIntermediate: Boolean = false
     @RamLocation(0x6d4) var colorRotateOffset: Byte = 0
     @RamLocation(0x727) var terrainControl: Byte = 0
     @RamLocation(0x733) var areaStyle: Byte = 0
@@ -178,7 +178,7 @@ class GameRam {
     @RamLocation(0x6d9) var multiLoopCorrectCntr: Byte = 0
     @RamLocation(0x6da) var multiLoopPassCntr: Byte = 0
     @RamLocation(0x757) var fetchNewGameTimerFlag: Boolean = false
-    @RamLocation(0x759) var gameTimerExpiredFlag: Byte = 0
+    @RamLocation(0x759) var gameTimerExpiredFlag: Boolean = false
     @RamLocation(0x76a) var primaryHardMode: Boolean = false
     @RamLocation(0x6cc) var secondaryHardMode: Byte = 0
     @RamLocation(0x76b) var worldSelectNumber: Byte = 0

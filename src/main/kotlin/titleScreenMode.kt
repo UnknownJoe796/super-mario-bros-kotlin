@@ -268,7 +268,12 @@ private val originalRom = File("smb.nes").readBytes()
 fun System.drawTitleScreen() {
     //> DrawTitleScreen:
     //> lda OperMode                 ;are we in title screen mode?
-    //> bne IncModeTask_B            ;if not, exit
+    if (ram.operMode != OperMode.TitleScreen) {
+        //> bne IncModeTask_B            ;if not, exit
+        //! Inlined
+        ram.operModeTask++
+        return
+    }
     //> lda #>TitleScreenDataOffset  ;load address $1ec0 into
     //> sta PPU_ADDRESS              ;the vram address register
     //> lda #<TitleScreenDataOffset
@@ -290,11 +295,6 @@ fun System.drawTitleScreen() {
     //> bcc OutputTScr               ;if not, loop back and do another
     //> lda #$05                     ;set buffer transfer control to $0300,
     //> jmp SetVRAMAddr_B            ;increment task and exit
-    if (ram.operMode != OperMode.TitleScreen) {
-        // IncModeTask_B
-        ram.operModeTask++
-        return
-    }
 
     // Title screen pattern data lives in CHR at $1EC0
     val titleScreenDataOffset = 0x1EC0
