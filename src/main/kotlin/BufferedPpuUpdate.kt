@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.chr.OriginalRom
 import com.ivieleague.smbtranslation.nes.FiveBits
 import com.ivieleague.smbtranslation.nes.Pattern
 import com.ivieleague.smbtranslation.nes.PictureProcessingUnit
@@ -78,6 +79,7 @@ sealed class BufferedPpuUpdate {
                 if (drawVertically) y++ else x++
             }
         }
+        override fun toString() = "BufferedPpuUpdate.BackgroundPatternString(nametable=$nametable, x=$x, y=$y, drawVertically=$drawVertically, patterns=listOf(${patterns.joinToString { it.source ?: "???" }}))"
     }
 
     data class BackgroundPatternRepeat(
@@ -88,6 +90,7 @@ sealed class BufferedPpuUpdate {
         val pattern: Pattern,
         val repetitions: Int,
     ) : BufferedPpuUpdate() {
+        override fun toString() = "BufferedPpuUpdate.BackgroundPatternRepeat(nametable=$nametable, x=$x, y=$y, drawVertically=$drawVertically, pattern=${pattern.source ?: "???"}, repetitions=$repetitions)"
         override fun invoke(ppu: PictureProcessingUnit) {
             var x = x
             var y = y
@@ -111,6 +114,7 @@ sealed class BufferedPpuUpdate {
         val index: TwoBits,
         val colors: List<Color>
     ): BufferedPpuUpdate() {
+        override fun toString() = "BufferedPpuUpdate.BackgroundSetPalette(index = $index, colors = listOf(${colors.joinToString { "Color(0x${it.argb.toUInt().toString(16)}.toInt())" }}))"
         override fun invoke(ppu: PictureProcessingUnit) {
             ppu.backgroundPalettes[index.toInt() and 0x03].palette = DirectPalette(colors.toTypedArray())
         }
@@ -120,6 +124,7 @@ sealed class BufferedPpuUpdate {
         val index: TwoBits,
         val colors: List<Color>
     ): BufferedPpuUpdate() {
+        override fun toString() = "BufferedPpuUpdate.SpriteSetPalette(index = $index, colors = listOf(${colors.joinToString { "Color(0x${it.argb.toUInt().toString(16)}.toInt())" }}))"
         override fun invoke(ppu: PictureProcessingUnit) {
             ppu.spritePalettes[index.toInt() and 0x03].palette = DirectPalette(colors.toTypedArray())
         }
@@ -137,6 +142,7 @@ sealed class BufferedPpuUpdate {
         val drawVertically: Boolean,
         val values: List<Byte>,
     ) : BufferedPpuUpdate() {
+        override fun toString() = "BufferedPpuUpdate.BackgroundAttributeString(nametable=$nametable, ax=$ax, ay=$ay, drawVertically=$drawVertically, values=listOf(${values.joinToString { "0x" + it.toUByte().toString(16) }}.toByte()))"
         override fun invoke(ppu: PictureProcessingUnit) {
             var ax = ax.toInt() and 0x1F
             var ay = ay.toInt() and 0x1F
@@ -161,6 +167,7 @@ sealed class BufferedPpuUpdate {
         val value: Byte,
         val repetitions: Int,
     ) : BufferedPpuUpdate() {
+        override fun toString() = "BufferedPpuUpdate.BackgroundAttributeRepeat(nametable=$nametable, ax=$ax, ay=$ay, drawVertically=$drawVertically, value=0x${value.toUByte().toString(16)}.toByte(), repetitions=$repetitions)"
         override fun invoke(ppu: PictureProcessingUnit) {
             var ax = this.ax.toInt() and 0x1F
             var ay = this.ay.toInt() and 0x1F
@@ -195,7 +202,7 @@ sealed class BufferedPpuUpdate {
          *   If writes are misaligned or partial, we fall back to PaletteBytesWrite to preserve intent.
          * - Other ranges are currently not supported and will throw for visibility during development.
          */
-        fun parseVramBuffer(ppu: PictureProcessingUnit, bytes: ByteArray): MutableVBuffer {
+        fun parseVramBuffer(bytes: ByteArray): MutableVBuffer {
             val out = MutableVBuffer()
             var i = 0 // cursor into the buffer
             while (i < bytes.size) {
@@ -278,7 +285,7 @@ sealed class BufferedPpuUpdate {
                         val startY = startInNt / 32
                         if (repeat && data.isNotEmpty()) {
                             // Repeat: one tile ID replicated 'length' times along X or Y depending on drawVert
-                            val pat = ppu.originalRomBackgrounds[data[0].toInt() and 0xFF]
+                            val pat = OriginalRom.backgrounds[data[0].toInt() and 0xFF]
                             out.add(
                                 BackgroundPatternRepeat(
                                     nametable = ntIndex.toByte(),
@@ -291,7 +298,7 @@ sealed class BufferedPpuUpdate {
                             )
                         } else if (data.isNotEmpty()) {
                             // Literal: sequence of tile IDs placed across or down depending on drawVert
-                            val patterns = data.map { ppu.originalRomBackgrounds[it.toInt() and 0xFF] }
+                            val patterns = data.map { OriginalRom.backgrounds[it.toInt() and 0xFF] }
                             out.add(
                                 BackgroundPatternString(
                                     nametable = ntIndex.toByte(),

@@ -1,5 +1,7 @@
 package com.ivieleague.smbtranslation.chr
 
+import com.ivieleague.smbtranslation.PpuMap
+import com.ivieleague.smbtranslation.nes.Pattern
 import java.io.File
 
 val rawChrData: ByteArray = run {
@@ -37,4 +39,23 @@ val rawChrData: ByteArray = run {
     if (chrSize <= 0) ByteArray(chrUnitSize)
     else if (data.size < offset + chrSize) ByteArray(chrUnitSize)
     else data.copyOfRange(offset, offset + chrSize)
+}
+
+
+object OriginalRom {
+    val sprites = Array<Pattern>(256) { Pattern() }
+    val backgrounds = Array<Pattern>(256) { Pattern() }
+
+    init {
+        // Attempt to parse CHR data from the bundled SMB ROM and populate pattern tables.
+        // Non-fatal on failure: tests and other code paths should not crash if the ROM is missing.
+        val sprStart = 0
+        val bgStart = 16 * 256
+        for (i in 0 until 256) {
+            val bgSlice = rawChrData.copyOfRange(bgStart + i * 16, bgStart + (i + 1) * 16)
+            val sprSlice = rawChrData.copyOfRange(sprStart + i * 16, sprStart + (i + 1) * 16)
+            backgrounds[i] = Pattern(bgSlice, PpuMap.background[i], "OriginalRom.backgrounds[0x${i.toString(16)}]")
+            sprites[i] = Pattern(sprSlice, PpuMap.sprites[i], "OriginalRom.sprites[0x${i.toString(16)}]")
+        }
+    }
 }

@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation.nes
 
+import com.ivieleague.smbtranslation.chr.OriginalRom
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Surface
 import java.nio.file.Files
@@ -33,7 +34,7 @@ class PpuTests() {
             val x = i % 16
             val y = i / 16
             if (x < widthTiles && y < heightTiles) {
-                nt[x, y] = Tile(ppu.originalRomBackgrounds[i], simplePalette)
+                nt[x, y] = Tile(OriginalRom.backgrounds[i], simplePalette)
             }
         }
 
@@ -42,7 +43,7 @@ class PpuTests() {
             val x = 16 + (i % 16)
             val y = i / 16
             if (x < widthTiles && y < heightTiles) {
-                nt[x, y] = Tile(ppu.originalRomSprites[i], simplePalette)
+                nt[x, y] = Tile(OriginalRom.sprites[i], simplePalette)
             }
         }
 

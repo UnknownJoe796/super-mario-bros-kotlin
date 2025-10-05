@@ -15,7 +15,7 @@ data class Tile(
     val palette: Palette,
 )
 
-class Pattern(val bits: ByteArray = ByteArray(16), val name: String? = null) {
+class Pattern(val bits: ByteArray = ByteArray(16), val name: String? = null, val source: String? = null) {
     // NES 2bpp format: first 8 bytes are bit plane 0 (one byte per row), next 8 are bit plane 1
     // Each pixel's color index is (bit1 << 1) | bit0, with bit 7 being the leftmost pixel
     fun colorIndex(x: Int, y: Int): Int {

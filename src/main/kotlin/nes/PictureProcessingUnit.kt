@@ -9,25 +9,10 @@ import com.ivieleague.smbtranslation.utils.PpuStatus
 import java.io.File
 
 class PictureProcessingUnit {
-    val originalRomSprites = Array<Pattern>(256) { Pattern() }
-    val originalRomBackgrounds = Array<Pattern>(256) { Pattern() }
     val backgroundTiles = Array(2) { NesNametable() }
     val backgroundPalettes = Array(4) { IndirectPalette(Palette.EMPTY, "background $it") }
     val sprites = Array(64) { Sprite() }
     val spritePalettes = Array(4) { IndirectPalette(Palette.EMPTY, "foreground $it") }
-
-    init {
-        // Attempt to parse CHR data from the bundled SMB ROM and populate pattern tables.
-        // Non-fatal on failure: tests and other code paths should not crash if the ROM is missing.
-        val sprStart = 0
-        val bgStart = 16 * 256
-        for (i in 0 until 256) {
-            val bgSlice = rawChrData.copyOfRange(bgStart + i * 16, bgStart + (i + 1) * 16)
-            val sprSlice = rawChrData.copyOfRange(sprStart + i * 16, sprStart + (i + 1) * 16)
-            originalRomBackgrounds[i] = Pattern(bgSlice, PpuMap.background[i])
-            originalRomSprites[i] = Pattern(sprSlice, PpuMap.sprites[i])
-        }
-    }
 
     /**
      * PPU_CTRL_REG1: $2000

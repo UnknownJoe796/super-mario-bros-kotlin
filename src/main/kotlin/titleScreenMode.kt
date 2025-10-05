@@ -1,9 +1,8 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.chr.OriginalRom
 import com.ivieleague.smbtranslation.chr.rawChrData
-import com.ivieleague.smbtranslation.nes.PictureProcessingUnit
 import com.ivieleague.smbtranslation.utils.JoypadBits
-import com.ivieleague.smbtranslation.utils.VramBufferControl
 import java.io.File
 import kotlin.experimental.or
 import kotlin.experimental.xor
@@ -111,7 +110,7 @@ fun System.wSelectBufferTemplate(worldNumber: Byte) = listOf<BufferedPpuUpdate>(
         y = (0x73 / 0x20).toByte(),
         repetitions = 1,
         drawVertically = true,
-        pattern = ppu.originalRomBackgrounds[worldNumber.toInt()]
+        pattern = OriginalRom.backgrounds[worldNumber.toInt()]
     )
 )
 private fun System.incWorldSel() {
@@ -223,16 +222,16 @@ fun System.primaryGameSetup(): Unit = TODO()
 
 //> MushroomIconData:
 //>       .db $07, $22, $49, $83, $ce, $24, $24, $00
-val System.mushroomIconData get() = listOf(
+val mushroomIconData = listOf(
     BufferedPpuUpdate.BackgroundPatternString(
         nametable = 0,
         x = (0x249 % 0x20).toByte(),
         y = (0x249 / 0x20).toByte(),
         drawVertically = true,
         patterns = listOf(
-            ppu.originalRomBackgrounds[0xce],
-            ppu.originalRomBackgrounds[0x24],
-            ppu.originalRomBackgrounds[0x24],
+            OriginalRom.backgrounds[0xce],
+            OriginalRom.backgrounds[0x24],
+            OriginalRom.backgrounds[0x24],
         )
     )
 )
@@ -253,11 +252,11 @@ fun System.drawMushroomIcon() {
             it.copy(patterns = listOf(
             //>           lda #$24                ;otherwise, load blank tile in 1-player position
             //>           sta VRAM_Buffer1+3
-                ppu.originalRomBackgrounds[0x24],
-                ppu.originalRomBackgrounds[0x24],
+                OriginalRom.backgrounds[0x24],
+                OriginalRom.backgrounds[0x24],
                 //>           lda #$ce                ;then load shroom icon tile in 2-player position
                 //>           sta VRAM_Buffer1+5
-                ppu.originalRomBackgrounds[0xce],
+                OriginalRom.backgrounds[0xce],
             ))
         }
     }
@@ -304,7 +303,7 @@ fun System.drawTitleScreen() {
     val vramBufferBytes = rawChrData.copyOfRange(0x1EC0, 0x1EC0 + 0x13A)
 
     ram.vRAMBuffer1.clear()
-    ram.vRAMBuffer1.addAll(BufferedPpuUpdate.parseVramBuffer(ppu, vramBufferBytes))
+    ram.vRAMBuffer1.addAll(BufferedPpuUpdate.parseVramBuffer(vramBufferBytes))
     ram.vRAMBufferAddrCtrl = 5
     ram.operModeTask++
 }

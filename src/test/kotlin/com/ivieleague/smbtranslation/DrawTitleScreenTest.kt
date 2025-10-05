@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.chr.OriginalRom
 import com.ivieleague.smbtranslation.nes.Color
 import com.ivieleague.smbtranslation.nes.DirectPalette
 import com.ivieleague.smbtranslation.nes.NesNametable
@@ -34,36 +35,36 @@ class DrawTitleScreenTest {
         system.ppu.backgroundPalettes[2].palette = simplePalette
         system.ppu.backgroundPalettes[3].palette = simplePalette
 
-        system.updateScreen(system.GroundPaletteData)
+        system.updateScreen(GroundPaletteData)
         system.ppu.backgroundPalettes[0].palette.colors[0] = Color(0x22.toByte()).also { println(it) }
         system.drawTitleScreen()
         system.updateScreen(system.vramAddrTable[5])
-        system.updateScreen(system.mushroomIconData)
+        system.updateScreen(mushroomIconData)
 
         // Let's also draw some sprites real quick.
         system.ppu.sprites[0].apply {
             x = 4u
             y = 4u
             attributes = SpriteFlags(palette = 0)
-            pattern = system.ppu.originalRomSprites[0x32]
+            pattern = OriginalRom.sprites[0x32]
         }
         system.ppu.sprites[1].apply {
             x = 12u
             y = 4u
             attributes = SpriteFlags(palette = 0)
-            pattern = system.ppu.originalRomSprites[0x33]
+            pattern = OriginalRom.sprites[0x33]
         }
         system.ppu.sprites[2].apply {
             x = 4u
             y = 12u
             attributes = SpriteFlags(palette = 0)
-            pattern = system.ppu.originalRomSprites[0x42]
+            pattern = OriginalRom.sprites[0x42]
         }
         system.ppu.sprites[3].apply {
             x = 12u
             y = 12u
             attributes = SpriteFlags(palette = 0)
-            pattern = system.ppu.originalRomSprites[0x43]
+            pattern = OriginalRom.sprites[0x43]
         }
 
         val pixelWidth = widthTiles * tileSize * scale

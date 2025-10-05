@@ -13,7 +13,7 @@ class AttributeWrappingTest {
             0x23, 0xC7.toByte(), 0x03, 0x01, 0x02, 0x03,
             0x00
         )
-        val updates = BufferedPpuUpdate.parseVramBuffer(ppu, bytes)
+        val updates = BufferedPpuUpdate.parseVramBuffer(bytes)
         updates.forEach { it(ppu) }
         val nt = ppu.backgroundTiles[0]
         // (ax,ay) = (7,0) affects tiles starting at x=28,y=0
@@ -32,7 +32,7 @@ class AttributeWrappingTest {
             0x23, 0xF8.toByte(), 0x83.toByte(), 0x01, 0x02, 0x03,
             0x00
         )
-        val updates = BufferedPpuUpdate.parseVramBuffer(ppu, bytes)
+        val updates = BufferedPpuUpdate.parseVramBuffer(bytes)
         updates.forEach { it(ppu) }
         val nt = ppu.backgroundTiles[0]
         // (0,7) -> tiles (0,28)

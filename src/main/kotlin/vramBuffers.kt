@@ -1,31 +1,7 @@
 package com.ivieleague.smbtranslation
 
-val System.vramAddrTable
-    get() = listOf(
-        ram.vRAMBuffer1,
-        WaterPaletteData,
-        GroundPaletteData,
-        UndergroundPaletteData,
-        CastlePaletteData,
-        ram.vRAMBuffer1,
-        ram.vRAMBuffer2,
-        ram.vRAMBuffer2,
-        BowserPaletteData,
-        DaySnowPaletteData,
-        NightSnowPaletteData,
-        MushroomPaletteData,
-        MarioThanksMessage,
-        LuigiThanksMessage,
-        MushroomRetainerSaved,
-        PrincessSaved1,
-        PrincessSaved2,
-        WorldSelectMessage1,
-        WorldSelectMessage2,
-    )
 
-val System.WaterPaletteData
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val WaterPaletteData = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x3f, 0x00, 0x20,
             0x0f, 0x15, 0x12, 0x25,
@@ -39,9 +15,7 @@ val System.WaterPaletteData
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.GroundPaletteData
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val GroundPaletteData = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x3f, 0x00, 0x20,
 
@@ -58,9 +32,7 @@ val System.GroundPaletteData
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.UndergroundPaletteData
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val UndergroundPaletteData = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x3f, 0x00, 0x20,
             0x0f, 0x29, 0x1a, 0x09,
@@ -74,9 +46,7 @@ val System.UndergroundPaletteData
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.CastlePaletteData
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val CastlePaletteData = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x3f, 0x00, 0x20,
             0x0f, 0x30, 0x10, 0x00,
@@ -90,45 +60,35 @@ val System.CastlePaletteData
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.BowserPaletteData
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val BowserPaletteData = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x3f, 0x14, 0x04,
             0x0f, 0x1a, 0x30, 0x27,
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.DaySnowPaletteData
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val DaySnowPaletteData = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x3f, 0x00, 0x04,
             0x22, 0x30, 0x00, 0x10,
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.NightSnowPaletteData
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val NightSnowPaletteData = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x3f, 0x00, 0x04,
             0x0f, 0x30, 0x00, 0x10,
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.MushroomPaletteData
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val MushroomPaletteData = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x3f, 0x00, 0x04,
             0x22, 0x27, 0x16, 0x0f,
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.MarioThanksMessage
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val MarioThanksMessage = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x25, 0x48, 0x10,
             0x1d, 0x11, 0x0a, 0x17, 0x14, 0x24,
@@ -137,9 +97,7 @@ val System.MarioThanksMessage
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.LuigiThanksMessage
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val LuigiThanksMessage = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x25, 0x48, 0x10,
             0x1d, 0x11, 0x0a, 0x17, 0x14, 0x24,
@@ -148,9 +106,7 @@ val System.LuigiThanksMessage
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.MushroomRetainerSaved
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val MushroomRetainerSaved = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x25, 0xc5, 0x16,
             0x0b, 0x1e, 0x1d, 0x24, 0x18, 0x1e, 0x1b, 0x24,
@@ -161,9 +117,7 @@ val System.MushroomRetainerSaved
             0x0c, 0x0a, 0x1c, 0x1d, 0x15, 0x0e, 0x2b, 0x00
         ).map { it.toByte() }.toByteArray(),
     )
-val System.PrincessSaved1
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val PrincessSaved1 = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x25, 0xa7, 0x13,
             0x22, 0x18, 0x1e, 0x1b, 0x24,
@@ -172,9 +126,7 @@ val System.PrincessSaved1
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.PrincessSaved2
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val PrincessSaved2 = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x25, 0xe3, 0x1b,
             0x20, 0x0e, 0x24,
@@ -184,9 +136,7 @@ val System.PrincessSaved2
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.WorldSelectMessage1
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val WorldSelectMessage1 = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x26, 0x4a, 0x0d,
             0x19, 0x1e, 0x1c, 0x11, 0x24,
@@ -194,9 +144,7 @@ val System.WorldSelectMessage1
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
-val System.WorldSelectMessage2
-    get() = BufferedPpuUpdate.parseVramBuffer(
-        ppu = ppu,
+val WorldSelectMessage2 = BufferedPpuUpdate.parseVramBuffer(
         bytes = intArrayOf(
             0x26, 0x88, 0x11,
             0x1d, 0x18, 0x24, 0x1c, 0x0e, 0x15, 0x0e, 0x0c, 0x1d, 0x24,
@@ -204,3 +152,25 @@ val System.WorldSelectMessage2
             0x00,
         ).map { it.toByte() }.toByteArray(),
     )
+
+val System.vramAddrTable get() = listOf(
+    ram.vRAMBuffer1,
+    WaterPaletteData,
+    GroundPaletteData,
+    UndergroundPaletteData,
+    CastlePaletteData,
+    ram.vRAMBuffer1,
+    ram.vRAMBuffer2,
+    ram.vRAMBuffer2,
+    BowserPaletteData,
+    DaySnowPaletteData,
+    NightSnowPaletteData,
+    MushroomPaletteData,
+    MarioThanksMessage,
+    LuigiThanksMessage,
+    MushroomRetainerSaved,
+    PrincessSaved1,
+    PrincessSaved2,
+    WorldSelectMessage1,
+    WorldSelectMessage2,
+)

@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.chr.OriginalRom
 import com.ivieleague.smbtranslation.nes.Color
 import com.ivieleague.smbtranslation.nes.PictureProcessingUnit
 import kotlin.test.Test
@@ -15,7 +16,7 @@ class VramBufferParserTest {
             0x23, 0xC0.toByte(), 0x03, 0x01, 0x02, 0x03,
             0x00
         )
-        val updates = BufferedPpuUpdate.parseVramBuffer(ppu, bytes)
+        val updates = BufferedPpuUpdate.parseVramBuffer(bytes)
         assertEquals(1, updates.size)
         val upd = updates[0] as BufferedPpuUpdate.BackgroundAttributeString
         assertEquals(0, upd.nametable.toInt())
@@ -45,7 +46,7 @@ class VramBufferParserTest {
             0x23, 0xC5.toByte(), 0x44, 0x07,
             0x00
         )
-        val updates = BufferedPpuUpdate.parseVramBuffer(ppu, bytes)
+        val updates = BufferedPpuUpdate.parseVramBuffer(bytes)
         assertEquals(1, updates.size)
         val upd = updates[0] as BufferedPpuUpdate.BackgroundAttributeRepeat
         assertEquals(0, upd.nametable.toInt())
@@ -71,7 +72,7 @@ class VramBufferParserTest {
             0x23, 0xC0.toByte(), 0x83.toByte(), 0x01, 0x02,
             0x00
         )
-        val updates = BufferedPpuUpdate.parseVramBuffer(ppu, bytes)
+        val updates = BufferedPpuUpdate.parseVramBuffer(bytes)
         assertEquals(1, updates.size)
         val upd = updates[0] as BufferedPpuUpdate.BackgroundAttributeString
         assertEquals(true, upd.drawVertically)
@@ -92,15 +93,15 @@ class VramBufferParserTest {
             0x20, 0x00, 0x03, 0x01, 0x02, 0x03,
             0x00
         )
-        val updates = BufferedPpuUpdate.parseVramBuffer(ppu, bytes)
+        val updates = BufferedPpuUpdate.parseVramBuffer(bytes)
         assertEquals(1, updates.size)
         // Apply
         updates.forEach { it(ppu) }
         // Verify patterns written at (0,0), (1,0), (2,0) in nametable 0
         val nt = ppu.backgroundTiles[0]
-        assertEquals(ppu.originalRomBackgrounds[1], nt[0, 0].pattern)
-        assertEquals(ppu.originalRomBackgrounds[2], nt[1, 0].pattern)
-        assertEquals(ppu.originalRomBackgrounds[3], nt[2, 0].pattern)
+        assertEquals(OriginalRom.backgrounds[1], nt[0, 0].pattern)
+        assertEquals(OriginalRom.backgrounds[2], nt[1, 0].pattern)
+        assertEquals(OriginalRom.backgrounds[3], nt[2, 0].pattern)
     }
 
     @Test
@@ -111,12 +112,12 @@ class VramBufferParserTest {
             0x20.toByte(), 0x02, 0x44, 0x07,
             0x00
         )
-        val updates = BufferedPpuUpdate.parseVramBuffer(ppu, bytes)
+        val updates = BufferedPpuUpdate.parseVramBuffer(bytes)
         assertEquals(1, updates.size)
         // Apply
         updates.forEach { it(ppu) }
         val nt = ppu.backgroundTiles[0]
-        val pat = ppu.originalRomBackgrounds[7]
+        val pat = OriginalRom.backgrounds[7]
         assertEquals(pat, nt[2, 0].pattern)
         assertEquals(pat, nt[3, 0].pattern)
         assertEquals(pat, nt[4, 0].pattern)
@@ -128,7 +129,7 @@ class VramBufferParserTest {
 //        ;"THANK YOU MARIO!"
         val ppu = PictureProcessingUnit()
         val bytes = byteArrayOf(0x25, 0x48, 0x10, 0x1d, 0x11, 0x0a, 0x17, 0x14, 0x24, 0x22, 0x18, 0x1e, 0x24, 0x16, 0x0a, 0x1b, 0x12, 0x18, 0x2b, 0x00)
-        val result = BufferedPpuUpdate.parseVramBuffer(ppu, bytes)
+        val result = BufferedPpuUpdate.parseVramBuffer(bytes)
         assertEquals("THANK YOU MARIO!", (result[0] as BufferedPpuUpdate.BackgroundPatternString).patterns.joinToString("") { it.name ?: "*" })
     }
 
@@ -144,7 +145,7 @@ class VramBufferParserTest {
             0x0f, 0x1a, 0x30, 0x27,  // Colors
             0x00  // Closing byte
         )
-        val result = BufferedPpuUpdate.parseVramBuffer(ppu, bytes)
+        val result = BufferedPpuUpdate.parseVramBuffer(bytes)
         assertEquals(BufferedPpuUpdate.SpriteSetPalette(
             index = 1,
             colors = listOf(
@@ -170,7 +171,7 @@ class VramBufferParserTest {
             0x0f, 0x0f, 0x36, 0x17,  // Sprite palette 3
             0x00,
         )
-        val result = BufferedPpuUpdate.parseVramBuffer(ppu, bytes)
+        val result = BufferedPpuUpdate.parseVramBuffer(bytes)
         assertEquals(listOf(0x0f, 0x29, 0x1a, 0x0f).map { Color(it.toByte()) }, (result[0] as BufferedPpuUpdate.BackgroundSetPalette).colors)
         assertEquals(listOf(0x0f, 0x36, 0x17, 0x0f).map { Color(it.toByte()) }, (result[1] as BufferedPpuUpdate.BackgroundSetPalette).colors)
         assertEquals(listOf(0x0f, 0x30, 0x21, 0x0f).map { Color(it.toByte()) }, (result[2] as BufferedPpuUpdate.BackgroundSetPalette).colors)
