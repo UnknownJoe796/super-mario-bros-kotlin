@@ -47,6 +47,9 @@ class BufferTranslation {
               .db $27, $d9, $46, $aa         ; attribute data
               .db $27, $e1, $45, $aa
               .db $ff
+              
+              BlankPalette:
+              .db $3f, $0c, $04, $ff, $ff, $ff, $ff, $00
         """.trimIndent()
 
         val system = System()
