@@ -459,7 +459,6 @@ private fun System.areaParserTaskHandler() {
 
 private fun System.getSBNybbles(): Unit = TODO()
 private fun System.updateNumber(a: Byte): Unit = TODO()
-private fun System.renderAttributeTables(): Unit = TODO()
 private fun System.areaParserTasks(taskNum: Byte): Unit = TODO()
 
 private fun System.outputInter(code: Int): Unit = TODO()

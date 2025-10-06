@@ -71,7 +71,7 @@ class GameRam {
 Each phase will remain its own branch, as each is interesting and usable in its own right.
 
 - Phase 1 - Readable and Running
-  - [ ] Port the assembly (at 1,777 lines out of 16,352 lines, 11%)
+  - [ ] Port the assembly (at 1,9391 lines out of 16,352 lines, 12%)
   - [X] Extract character ROM data
   - [X] Emulate the PPU
     - Seems to be mostly complete, renders to Skiko, probably way too inefficient.  Need to check scroll behaviors.
@@ -79,7 +79,7 @@ Each phase will remain its own branch, as each is interesting and usable in its 
   - [ ] Emulate the Joypads
 - Phase 2 - Organized
   - [ ] Organize the top level functions and game RAM block into classes
-- Phase 3 - Un-NES (RAM-accuracy breaker)
+- Phase 3 - Un-NES
   - [ ] Remove complications that only exist to support the PPU and other limitations of the NES
 
 ## Mod Ideas for when we're done
