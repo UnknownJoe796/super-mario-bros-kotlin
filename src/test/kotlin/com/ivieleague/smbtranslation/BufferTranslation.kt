@@ -3,78 +3,157 @@ package com.ivieleague.smbtranslation
 import kotlin.test.Test
 
 class BufferTranslation {
-    @Test fun test() {
+    @Test
+    fun test() {
         val data = $$"""
             
-            TopStatusBarLine:
-              .db $20, $43, $05, $16, $0a, $1b, $12, $18 ; "MARIO"
-              .db $20, $52, $0b, $20, $18, $1b, $15, $0d ; "WORLD  TIME"
-              .db $24, $24, $1d, $12, $16, $0e
-              .db $20, $68, $05, $00, $24, $24, $2e, $29 ; score trailing digit and coin display
-              .db $23, $c0, $7f, $aa ; attribute table data, clears name table 0 to palette 2
-              .db $23, $c2, $01, $ea ; attribute table data, used for coin icon in status bar
-              .db $ff ; end of data block
+WaterPaletteData:
+  .db $3f, $00, $20
+  .db $0f, $15, $12, $25
+  .db $0f, $3a, $1a, $0f
+  .db $0f, $30, $12, $0f
+  .db $0f, $27, $12, $0f
+  .db $22, $16, $27, $18
+  .db $0f, $10, $30, $27
+  .db $0f, $16, $30, $27
+  .db $0f, $0f, $30, $10
+  .db $00
 
-            WorldLivesDisplay:
-              .db $21, $cd, $07, $24, $24 ; cross with spaces used on
-              .db $29, $24, $24, $24, $24 ; lives display
-              .db $21, $4b, $09, $20, $18 ; "WORLD  - " used on lives display
-              .db $1b, $15, $0d, $24, $24, $28, $24
-              .db $22, $0c, $47, $24 ; possibly used to clear time up
-              .db $23, $dc, $01, $ba ; attribute table data for crown if more than 9 lives
-              .db $ff
+GroundPaletteData:
+  .db $3f, $00, $20
+  .db $0f, $29, $1a, $0f
+  .db $0f, $36, $17, $0f
+  .db $0f, $30, $21, $0f
+  .db $0f, $27, $17, $0f
+  .db $0f, $16, $27, $18
+  .db $0f, $1a, $30, $27
+  .db $0f, $16, $30, $27
+  .db $0f, $0f, $36, $17
+  .db $00
 
-            TwoPlayerTimeUp:
-              .db $21, $cd, $05, $16, $0a, $1b, $12, $18 ; "MARIO"
-            OnePlayerTimeUp:
-              .db $22, $0c, $07, $1d, $12, $16, $0e, $24, $1e, $19 ; "TIME UP"
-              .db $ff
+UndergroundPaletteData:
+  .db $3f, $00, $20
+  .db $0f, $29, $1a, $09
+  .db $0f, $3c, $1c, $0f
+  .db $0f, $30, $21, $1c
+  .db $0f, $27, $17, $1c
+  .db $0f, $16, $27, $18
+  .db $0f, $1c, $36, $17
+  .db $0f, $16, $30, $27
+  .db $0f, $0c, $3c, $1c
+  .db $00
 
-            TwoPlayerGameOver:
-              .db $21, $cd, $05, $16, $0a, $1b, $12, $18 ; "MARIO"
-            OnePlayerGameOver:
-              .db $22, $0b, $09, $10, $0a, $16, $0e, $24 ; "GAME OVER"
-              .db $18, $1f, $0e, $1b
-              .db $ff
+CastlePaletteData:
+  .db $3f, $00, $20
+  .db $0f, $30, $10, $00
+  .db $0f, $30, $10, $00
+  .db $0f, $30, $16, $00
+  .db $0f, $27, $17, $00
+  .db $0f, $16, $27, $18
+  .db $0f, $1c, $36, $17
+  .db $0f, $16, $30, $27
+  .db $0f, $00, $30, $10
+  .db $00
 
-            WarpZoneWelcome:
-              .db $25, $84, $15, $20, $0e, $15, $0c, $18, $16 ; "WELCOME TO WARP ZONE!"
-              .db $0e, $24, $1d, $18, $24, $20, $0a, $1b, $19
-              .db $24, $23, $18, $17, $0e, $2b
-              .db $26, $25, $01, $24         ; placeholder for left pipe
-              .db $26, $2d, $01, $24         ; placeholder for middle pipe
-              .db $26, $35, $01, $24         ; placeholder for right pipe
-              .db $27, $d9, $46, $aa         ; attribute data
-              .db $27, $e1, $45, $aa
-              .db $ff
-              
-              BlankPalette:
-              .db $3f, $0c, $04, $ff, $ff, $ff, $ff, $00
+DaySnowPaletteData:
+  .db $3f, $00, $04
+  .db $22, $30, $00, $10
+  .db $00
+
+NightSnowPaletteData:
+  .db $3f, $00, $04
+  .db $0f, $30, $00, $10
+  .db $00
+
+MushroomPaletteData:
+  .db $3f, $00, $04
+  .db $22, $27, $16, $0f
+  .db $00
+
+BowserPaletteData:
+  .db $3f, $14, $04
+  .db $0f, $1a, $30, $27
+  .db $00
+
+MarioThanksMessage:
+;"THANK YOU MARIO!"
+  .db $25, $48, $10
+  .db $1d, $11, $0a, $17, $14, $24
+  .db $22, $18, $1e, $24
+  .db $16, $0a, $1b, $12, $18, $2b
+  .db $00
+
+LuigiThanksMessage:
+;"THANK YOU LUIGI!"
+  .db $25, $48, $10
+  .db $1d, $11, $0a, $17, $14, $24
+  .db $22, $18, $1e, $24
+  .db $15, $1e, $12, $10, $12, $2b
+  .db $00
+
+MushroomRetainerSaved:
+;"BUT OUR PRINCESS IS IN"
+  .db $25, $c5, $16
+  .db $0b, $1e, $1d, $24, $18, $1e, $1b, $24
+  .db $19, $1b, $12, $17, $0c, $0e, $1c, $1c, $24
+  .db $12, $1c, $24, $12, $17
+;"ANOTHER CASTLE!"
+  .db $26, $05, $0f
+  .db $0a, $17, $18, $1d, $11, $0e, $1b, $24
+  .db $0c, $0a, $1c, $1d, $15, $0e, $2b, $00
+
+PrincessSaved1:
+;"YOUR QUEST IS OVER."
+  .db $25, $a7, $13
+  .db $22, $18, $1e, $1b, $24
+  .db $1a, $1e, $0e, $1c, $1d, $24
+  .db $12, $1c, $24, $18, $1f, $0e, $1b, $af
+  .db $00
+
+PrincessSaved2:
+;"WE PRESENT YOU A NEW QUEST."
+  .db $25, $e3, $1b
+  .db $20, $0e, $24
+  .db $19, $1b, $0e, $1c, $0e, $17, $1d, $24
+  .db $22, $18, $1e, $24, $0a, $24, $17, $0e, $20, $24
+  .db $1a, $1e, $0e, $1c, $1d, $af
+  .db $00
+
+WorldSelectMessage1:
+;"PUSH BUTTON B"
+  .db $26, $4a, $0d
+  .db $19, $1e, $1c, $11, $24
+  .db $0b, $1e, $1d, $1d, $18, $17, $24, $0b
+  .db $00
+
+WorldSelectMessage2:
+;"TO SELECT A WORLD"
+  .db $26, $88, $11
+  .db $1d, $18, $24, $1c, $0e, $15, $0e, $0c, $1d, $24
+  .db $0a, $24, $20, $18, $1b, $15, $0d
+  .db $00
         """.trimIndent()
 
         val system = System()
-        data.lines()
-            .filter { it.isNotBlank() }
-            .split { it.contains(':') }
-            .filter { it.size >= 2 }
-            .forEach {
+        data.lines().filter { it.isNotBlank() }.split { it.contains(':') }.filter { it.size >= 2 }.forEach {
                 val name = it[0].trim().trim(':')
                 val bytes = it.drop(1).flatMap {
-                    it.substringAfter(".db").substringBefore(";").trim().split(',').map { it.trim().trim('$').toInt(16).toByte() }
+                    it.substringAfter(".db").substringBefore(";").trim().split(',')
+                        .filter { it.isNotBlank() }
+                        .map { it.trim().trim('$').toInt(16).toByte() }
                 }.toByteArray()
                 val translated = BufferedPpuUpdate.parseVramBuffer(bytes)
-                println("val System.$name get() = listOf(")
+                println("val $name = listOf(")
                 translated.forEach { println("    $it,") }
                 println(")")
             }
     }
 }
 
-fun <T> List<T>.split(matching: (T)->Boolean): List<List<T>> =
-    fold(listOf(listOf<T>())) { acc, next ->
-        if(matching(next)) {
-            acc + listOf(listOf(next))
-        } else {
-            acc.dropLast(1) + listOf(acc.last() + next)
-        }
+fun <T> List<T>.split(matching: (T) -> Boolean): List<List<T>> = fold(listOf(listOf<T>())) { acc, next ->
+    if (matching(next)) {
+        acc + listOf(listOf(next))
+    } else {
+        acc.dropLast(1) + listOf(acc.last() + next)
     }
+}

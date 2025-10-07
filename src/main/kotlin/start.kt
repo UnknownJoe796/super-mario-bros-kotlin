@@ -97,7 +97,6 @@ fun System.start() {
     //> lda Mirror_PPU_CTRL_REG1
     //> ora #%10000000               ;enable NMIs
     //> jsr WritePPUReg1
-    @InexactBitSetting
     ram.mirrorPPUCTRLREG1 = ram.mirrorPPUCTRLREG1.copy(nmiEnabled = true)
     ppu.control = ram.mirrorPPUCTRLREG1
 

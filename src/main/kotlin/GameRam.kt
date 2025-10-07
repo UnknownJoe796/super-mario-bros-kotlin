@@ -127,13 +127,14 @@ class GameRam {
     // Attribute buffer used during rendering; modeled as a small array of rows.
     @RamLocation(0x3f9) val attributeBuffer: ByteArray = ByteArray(0x20)
     @RamLocation(0x745) var loopCommand: Byte = 0
-    @RamLocation(0x7d7) var displayDigits: Byte = 0
 
     @RamLocation(0x7d7) val topScoreDisplay = ByteArray(6)
-
-    @RamLocation(0x7dd) val scoreAndCoinDisplay = ByteArray(0x18)
-    @RamLocation(0x7dd) var playerScoreDisplay: Byte = 0
-    @RamLocation(0x7f8) var gameTimerDisplay: Byte = 0
+//    @RamLocation(0x7dd) val scoreAndCoinDisplay = ByteArray(0x18)
+    @RamLocation(0x7dd) val playerScoreDisplay = ByteArray(6)
+    @RamLocation(0x7e3) val player2ScoreDisplay = ByteArray(6)
+    @RamLocation(0x7ED) val coinDisplay = ByteArray(2)
+    @RamLocation(0x7f3) val coin2Display = ByteArray(2)
+    @RamLocation(0x7f8) val gameTimerDisplay = ByteArray(3)
     @RamLocation(0x134) val digitModifier: ByteArray = ByteArray(999)
     // Placeholder bookkeeping for score updates triggered by floatey numbers
     var lastScoreDigitIndex: Byte = 0
