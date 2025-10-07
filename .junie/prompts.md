@@ -2,6 +2,8 @@ This project is a Kotlin translation of the original Super Mario Bros disassembl
 
 It is critical to this project that show the original assembly next to its equivalent Kotlin code.  The format we've decided for it is that comments in the format `//> <assembly>` are the assembly equivalent of the code below them.
 
+You should also put effort into making the code as readable as possible, and make it clear how it matches up with the assembly.
+
 A good example:
 
 ```kotlin
