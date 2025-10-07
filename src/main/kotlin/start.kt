@@ -113,22 +113,18 @@ fun System.initializeMemory(zeroToIndex: Short) {
     //> sta $06
     //> InitPageLoop: stx $07
     //> InitByteLoop: cpx #$01          ;check to see if we're on the stack ($0100-$01ff)
-    for(index in 0x0..zeroToIndex.toInt()) {
-        //> bne InitByte      ;if not, go ahead anyway
-        //> cpy #$60          ;otherwise, check to see if we're at $0160-$01ff
-        //> bcs SkipByte      ;if so, skip write
-        if(index !in 0x0160..0x1ff) {
-            //> InitByte:     sta ($06),y       ;otherwise, initialize byte with current low byte in Y
-//            ram.wholeBlock[index] = 0
-            TODO("Clear the variables... how?")
-        }
-        //> SkipByte:     dey
-        //> cpy #$ff          ;do this until all bytes in page have been erased
-        //> bne InitByteLoop
-        //> dex               ;go onto the next page
-        //> bpl InitPageLoop  ;do this until all pages of memory have been erased
-    }
+    //> bne InitByte      ;if not, go ahead anyway
+    //> cpy #$60          ;otherwise, check to see if we're at $0160-$01ff
+    //> bcs SkipByte      ;if so, skip write
+    //> InitByte:     sta ($06),y       ;otherwise, initialize byte with current low byte in Y
+    //> SkipByte:     dey
+    //> cpy #$ff          ;do this until all bytes in page have been erased
+    //> bne InitByteLoop
+    //> dex               ;go onto the next page
+    //> bpl InitPageLoop  ;do this until all pages of memory have been erased
     //> rts
+    ram.reset(0x0..<0x160)
+    ram.reset(0x200..<zeroToIndex)
 }
 
 fun System.moveAllSpritesOffscreen() {

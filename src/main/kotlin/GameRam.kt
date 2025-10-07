@@ -4,10 +4,32 @@ import com.ivieleague.smbtranslation.utils.JoypadBits
 import com.ivieleague.smbtranslation.utils.PpuControl
 import com.ivieleague.smbtranslation.utils.PpuMask
 import com.ivieleague.smbtranslation.utils.SpriteFlags
+import kotlin.reflect.KMutableProperty1
+import kotlin.reflect.full.declaredMemberProperties
+import kotlin.reflect.full.findAnnotation
 
 annotation class RamLocation(val address: Int)
 
 class GameRam {
+    companion object {
+        val clean = GameRam()
+        val props by lazy {
+            GameRam::class.declaredMemberProperties.mapNotNull {
+                val addr = it.findAnnotation<RamLocation>()?.address ?: return@mapNotNull null
+                val prop = it as? KMutableProperty1<GameRam, *> ?: return@mapNotNull null
+                addr to prop
+            }
+        }
+    }
+    fun reset(range: IntRange) {
+        // fugly hacks!
+        props.forEach { (addr, prop) ->
+            prop as KMutableProperty1<GameRam, Any?>
+            if(addr in range) prop.set(this, prop.get(clean))
+        }
+    }
+
+    @RamLocation(0x100)
     val stack = Stack()
 
     inner class Stack {
@@ -113,7 +135,7 @@ class GameRam {
     @RamLocation(0x72b) var areaObjectPageSel: Byte = 0
     @RamLocation(0x72c) var areaDataOffset: Byte = 0
     @RamLocation(0x72d) var areaObjOffsetBuffer: Byte = 0
-    @RamLocation(0x730) var areaObjectLength: Byte = 0
+    @RamLocation(0x730) val areaObjectLength = ByteArray(3)
     @RamLocation(0x734) var staircaseControl: Byte = 0
     @RamLocation(0x735) var areaObjectHeight: Byte = 0
     @RamLocation(0x736) var mushroomLedgeHalfLen: Byte = 0
@@ -425,6 +447,10 @@ class GameRam {
     @RamLocation(0x6d7) var fireworksCounter: Byte = 0
     @RamLocation(0x58) var explosionGfxCounter: Byte = 0
     @RamLocation(0xa0) var explosionTimerCounter: Byte = 0
+
+    @RamLocation(0x7b0) var musicOffsetNoise: Byte = 0
+    @RamLocation(0x7b1) var eventMusicBuffer: Byte = 0
+    @RamLocation(0x7b2) var pauseSoundBuffer: Byte = 0
     @RamLocation(0x7b3) var squ2NoteLenBuffer: Byte = 0
     @RamLocation(0x7b4) var squ2NoteLenCounter: Byte = 0
     @RamLocation(0x7b5) var squ2EnvelopeDataCtrl: Byte = 0
@@ -437,6 +463,14 @@ class GameRam {
     @RamLocation(0x7bd) var squ2SfxLenCounter: Byte = 0
     @RamLocation(0x7be) var sfxSecondaryCounter: Byte = 0
     @RamLocation(0x7bf) var noiseSfxLenCounter: Byte = 0
+    @RamLocation(0x7c0) var dACCounter: Byte = 0
+    @RamLocation(0x7c1) var noiseDataLoopbackOfs: Byte = 0
+    @RamLocation(0x7c4) var noteLengthTblAdder: Byte = 0
+    @RamLocation(0x7c5) var areaMusicBufferAlt: Byte = 0
+    @RamLocation(0x7c6) var pauseModeFlag: Byte = 0
+    @RamLocation(0x7c7) var groundMusicHeaderOfs: Byte = 0
+    @RamLocation(0x7ca) var altRegContentFlag: Byte = 0
+
     @RamLocation(0xfa) var pauseSoundQueue: Byte = 0
     @RamLocation(0xff) var square1SoundQueue: Byte = 0
     @RamLocation(0xfe) var square2SoundQueue: Byte = 0
@@ -447,22 +481,12 @@ class GameRam {
     @RamLocation(0xf2) var square2SoundBuffer: Byte = 0
     @RamLocation(0xf3) var noiseSoundBuffer: Byte = 0
     @RamLocation(0xf4) var areaMusicBuffer: Byte = 0
-    @RamLocation(0x7b1) var eventMusicBuffer: Byte = 0
-    @RamLocation(0x7b2) var pauseSoundBuffer: Byte = 0
     @RamLocation(0xf5) var musicData: Byte = 0
     @RamLocation(0xf5) var musicDataLow: Byte = 0
     @RamLocation(0xf6) var musicDataHigh: Byte = 0
     @RamLocation(0xf7) var musicOffsetSquare2: Byte = 0
     @RamLocation(0xf8) var musicOffsetSquare1: Byte = 0
     @RamLocation(0xf9) var musicOffsetTriangle: Byte = 0
-    @RamLocation(0x7b0) var musicOffsetNoise: Byte = 0
     @RamLocation(0xf0) var noteLenLookupTblOfs: Byte = 0
-    @RamLocation(0x7c0) var dACCounter: Byte = 0
-    @RamLocation(0x7c1) var noiseDataLoopbackOfs: Byte = 0
-    @RamLocation(0x7c4) var noteLengthTblAdder: Byte = 0
-    @RamLocation(0x7c5) var areaMusicBufferAlt: Byte = 0
-    @RamLocation(0x7c6) var pauseModeFlag: Byte = 0
-    @RamLocation(0x7c7) var groundMusicHeaderOfs: Byte = 0
-    @RamLocation(0x7ca) var altRegContentFlag: Byte = 0
 
 }

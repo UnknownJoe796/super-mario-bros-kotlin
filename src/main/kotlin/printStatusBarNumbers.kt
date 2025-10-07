@@ -115,3 +115,140 @@ private fun System.outputNumbers(statusBarIndexMinusOne: Byte) {
     ))
     //> ExitOutputN: rts
 }
+
+fun System.digitsMathRoutine() {
+    //> DigitsMathRoutine:
+    // This parameterless version cannot know which DisplayDigits buffer (score/coins/timer)
+    // was selected by the original caller via the Y register. To preserve safety in our
+    // Kotlin translation when no target is specified, we only perform the reset portion
+    // (EraseDMods) that the routine always executes when in title mode, and provide an
+    // overload below that accepts the concrete display digits buffer and starting index.
+    //> lda OperMode              ;check mode of operation
+    //> cmp #TitleScreenModeValue
+    //> beq EraseDMods            ;if in title screen mode, branch to lock score
+    // With no target buffer we cannot safely do the add/carry/borrow work here.
+    // Fall through to EraseDMods behavior.
+    //> EraseDMods: lda #$00                  ;store zero here
+    //> ldx #$06                  ;start with the last digit
+    //> EraseMLoop: sta DigitModifier-1,x     ;initialize the digit amounts to increment
+    //> dex
+    //> bpl EraseMLoop            ;do this until they're all reset, then leave
+    //> rts
+    for (i in 0..5) ram.digitModifier[i] = 0
+}
+
+fun System.digitsMathRoutine(displayDigits: ByteArray, startIndex: Int = displayDigits.lastIndex) {
+    //> DigitsMathRoutine:
+    // This overload models the original subroutine with Y pointing at the least significant
+    // digit of the selected display buffer. We pass that as 'startIndex'. We then walk X
+    // from 5 down to 0, applying the DigitModifier to each digit with proper borrow/carry.
+    //> lda OperMode              ;check mode of operation
+    //> cmp #TitleScreenModeValue
+    //> beq EraseDMods            ;if in title screen mode, branch to lock score
+    if (ram.operMode == OperMode.TitleScreen) {
+        //> EraseDMods: lda #$00                  ;store zero here
+        //> ldx #$06                  ;start with the last digit
+        //> EraseMLoop: sta DigitModifier-1,x     ;initialize the digit amounts to increment
+        //> dex
+        //> bpl EraseMLoop            ;do this until they're all reset, then leave
+        for (i in 0..5) ram.digitModifier[i] = 0
+        //> rts
+        return
+    }
+
+    //> ldx #$05
+    var y = startIndex
+    for (x in 5 downTo 0) {
+        //> AddModLoop: lda DigitModifier,x       ;load digit amount to increment
+        val addAmount = ram.digitModifier[x].toInt()
+        //> clc
+        //> adc DisplayDigits,y       ;add to current digit
+        var result = (displayDigits[y].toInt() and 0xFF) + addAmount
+        //> bmi BorrowOne             ;if result is a negative number, branch to subtract
+        if (result < 0) {
+            //> BorrowOne:  dec DigitModifier-1,x     ;decrement the previous digit, then put $09 in
+            if (x > 0) ram.digitModifier[x - 1] = (ram.digitModifier[x - 1] - 1).toByte()
+            //> lda #$09                  ;the game timer digit we're currently on to "borrow
+            //> bne StoreNewD             ;the one", then do an unconditional branch back
+            result = 9
+        } else {
+            //> cmp #10
+            //> bcs CarryOne              ;if digit greater than $09, branch to add
+            if (result >= 10) {
+                //> CarryOne:   sec                       ;subtract ten from our digit to make it a
+                //> sbc #10                   ;proper BCD number, then increment the digit
+                result -= 10
+                //> inc DigitModifier-1,x     ;preceding current digit to "carry the one" properly
+                if (x > 0) ram.digitModifier[x - 1] = (ram.digitModifier[x - 1] + 1).toByte()
+                //> jmp StoreNewD             ;go back to just after we branched here
+            }
+        }
+        //> StoreNewD:  sta DisplayDigits,y       ;store as new score or game timer digit
+        displayDigits[y] = result.toByte()
+        //> dey                       ;move onto next digits in score or game timer
+        y = (y - 1).coerceAtLeast(0)
+        //> dex                       ;and digit amounts to increment
+        // loop variable 'x' handled by for
+        //> bpl AddModLoop            ;loop back if we're not done yet
+    }
+
+    // Regardless of branch, original code always performs EraseDMods at the end.
+    //> EraseDMods: lda #$00                  ;store zero here
+    //> ldx #$06                  ;start with the last digit
+    //> EraseMLoop: sta DigitModifier-1,x     ;initialize the digit amounts to increment
+    //> dex
+    //> bpl EraseMLoop            ;do this until they're all reset, then leave
+    for (i in 0..5) ram.digitModifier[i] = 0
+}
+
+// This routine compares each player's 6-digit score (BCD nybbles stored as digits 0..9)
+// against the current top score from least-significant digit to most. If the player's
+// score is greater than or equal to the top score, it overwrites the top score display.
+
+fun System.updateTopScore() {
+    //> UpdateTopScore:
+    //> ldx #$05          ;start with mario's score
+    //> jsr TopScoreCheck
+    topScoreCheck(ram.playerScoreDisplay)
+    //> ldx #$0b          ;now do luigi's score
+    topScoreCheck(ram.player2ScoreDisplay)
+}
+
+private fun System.topScoreCheck(playerDigits: ByteArray) {
+    //> TopScoreCheck:
+    //> ldy #$05                 ;start with the lowest digit
+    //> sec
+    //> GetScoreDiff: lda PlayerScoreDisplay,x ;subtract each player digit from each high score digit
+    //> sbc TopScoreDisplay,y    ;from lowest to highest, if any top score digit exceeds
+    //> dex                      ;any player digit, borrow will be set until a subsequent
+    //> dey                      ;subtraction clears it (player digit is higher than top)
+    //> bpl GetScoreDiff
+
+    // In 6502 terms we keep an SBC borrow that propagates across digits.
+    // Start with carry set (i.e., borrow = 0), scan from least-significant (index 5) to most (index 0).
+    var borrow = 0
+    for (i in 5 downTo 0) {
+        val player = playerDigits[i].toInt() and 0xFF
+        val top = ram.topScoreDisplay[i].toInt() and 0xFF
+        val diff = player - top - borrow
+        borrow = if (diff < 0) 1 else 0
+    }
+
+    //> bcc NoTopSc              ;check to see if borrow is still set, if so, no new high score
+    if (borrow == 1) return
+
+    //> inx                      ;increment X and Y once to the start of the score
+    //> iny
+    //> CopyScore:    lda PlayerScoreDisplay,x ;store player's score digits into high score memory area
+    //> sta TopScoreDisplay,y
+    //> inx
+    //> iny
+    //> cpy #$06                 ;do this until we have stored them all
+    //> bcc CopyScore
+    //> NoTopSc:      rts
+
+    // Copy all six digits from the player into the top score display (most- to least-significant).
+    for (i in 0..5) {
+        ram.topScoreDisplay[i] = playerDigits[i]
+    }
+}

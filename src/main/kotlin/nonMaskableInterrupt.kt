@@ -294,7 +294,6 @@ fun System.pauseRoutine(): Unit {
     ram.gamePauseStatus = (ram.gamePauseStatus.toInt() and 0x7F).toByte()
     //> ExitPause:     rts
 }
-fun System.updateTopScore(): Unit = TODO()
 fun System.moveSpritesOffscreen(): Unit = TODO()
 
 /**

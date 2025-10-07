@@ -196,13 +196,19 @@ private fun System.chkContinue(joypadBits: JoypadBits) {
     ram.demoTimer = 0x00.toByte()
     //> ldx #$17
     //> lda #$00
-    for(x in 0x17 downTo 0) {
-        //> InitScores:   sta ScoreAndCoinDisplay,x   ;clear player scores and coin displays
-        ram.scoreAndCoinDisplay[x] = 0x0
-        //> dex
-        //> bpl InitScores
-    }
+    //> InitScores:   sta ScoreAndCoinDisplay,x   ;clear player scores and coin displays
+    //> dex
+    //> bpl InitScores
+    ram.playerScoreDisplay.zeros()
+    ram.player2ScoreDisplay.zeros()
+    ram.coinDisplay.zeros()
+    ram.coin2Display.zeros()
     //> ExitMenu:     rts
+}
+private fun ByteArray.zeros() {
+    for (i in indices) {
+        this[i] = 0
+    }
 }
 private fun System.goContinue(worldNumber: Byte) {
     //> GoContinue:   sta WorldNumber             ;start both players at the first area
@@ -217,11 +223,33 @@ private fun System.goContinue(worldNumber: Byte) {
     //> rts
 }
 
-fun System.initializeGame(): Unit = TODO()
+fun System.initializeGame() {
+    //> InitializeGame:
+    //> ldy #$6f              ;clear all memory as in initialization procedure,
+    //> jsr InitializeMemory  ;but this time, clear only as far as $076f
+    initializeMemory(0x076f)
+
+    //> ldy #$1f
+    //> ClrSndLoop:  sta SoundMemory,y     ;clear out memory used
+    //> dey                   ;by the sound engines
+    //> bpl ClrSndLoop
+    // Our sound "memory" is modeled by discrete queues/buffers; clear the common ones the engine touches.
+    ram.reset(0x07b0..(0x07b0 + 0x1f))
+
+    //> lda #$18              ;set demo timer
+    //> sta DemoTimer
+    ram.demoTimer = 0x18.toByte()
+    //> jsr LoadAreaPointer
+    loadAreaPointer()
+
+    // After initialization, the original falls through to InitializeArea via the jump table sequencing.
+    // Here we simply advance the mode task to mirror that control flow.
+    ram.operModeTask++
+}
 fun System.primaryGameSetup(): Unit = TODO()
 
 //> MushroomIconData:
-//>       .db $07, $22, $49, $83, $ce, $24, $24, $00
+//> .db $07, $22, $49, $83, $ce, $24, $24, $00
 val mushroomIconData = listOf(
     BufferedPpuUpdate.BackgroundPatternString(
         nametable = 0,
@@ -238,24 +266,24 @@ val mushroomIconData = listOf(
 
 fun System.drawMushroomIcon() {
     //> DrawMushroomIcon:
-    //>           ldy #$07                ;read eight bytes to be read by transfer routine
+    //> ldy #$07                ;read eight bytes to be read by transfer routine
     //> IconDataRead: lda MushroomIconData,y  ;note that the default position is set for a
-    //>           sta VRAM_Buffer1-1,y    ;1-player game
-    //>           dey
-    //>           bpl IconDataRead
+    //> sta VRAM_Buffer1-1,y    ;1-player game
+    //> dey
+    //> bpl IconDataRead
     ram.vRAMBuffer1.addAll(mushroomIconData)
 
-    //>           lda NumberOfPlayers     ;check number of players
-    //>           beq ExitIcon            ;if set to 1-player game, we're done
+    //> lda NumberOfPlayers     ;check number of players
+    //> beq ExitIcon            ;if set to 1-player game, we're done
     if (ram.numberOfPlayers != 0.toByte()) {
         ram.vRAMBuffer1[0] = (ram.vRAMBuffer1[0] as BufferedPpuUpdate.BackgroundPatternString).let {
             it.copy(patterns = listOf(
-            //>           lda #$24                ;otherwise, load blank tile in 1-player position
-            //>           sta VRAM_Buffer1+3
+            //> lda #$24                ;otherwise, load blank tile in 1-player position
+            //> sta VRAM_Buffer1+3
                 OriginalRom.backgrounds[0x24],
                 OriginalRom.backgrounds[0x24],
-                //>           lda #$ce                ;then load shroom icon tile in 2-player position
-                //>           sta VRAM_Buffer1+5
+                //> lda #$ce                ;then load shroom icon tile in 2-player position
+                //> sta VRAM_Buffer1+5
                 OriginalRom.backgrounds[0xce],
             ))
         }
@@ -310,9 +338,9 @@ fun System.drawTitleScreen() {
 
 
 //> DemoActionData:
-//>       .db $01, $80, $02, $81, $41, $80, $01
-//>       .db $42, $c2, $02, $80, $41, $c1, $41, $c1
-//>       .db $01, $c1, $01, $02, $80, $00
+//> .db $01, $80, $02, $81, $41, $80, $01
+//> .db $42, $c2, $02, $80, $41, $c1, $41, $c1
+//> .db $01, $c1, $01, $02, $80, $00
 val demoActionData: List<JoypadBits> = listOf<Byte>(
     0x01,
     0x80.toByte(), 0x02, 0x81.toByte(), 0x41, 0x80.toByte(), 0x01,
@@ -321,9 +349,9 @@ val demoActionData: List<JoypadBits> = listOf<Byte>(
 ).map { JoypadBits(it) }
 
 //> DemoTimingData:
-//>       .db $9b, $10, $18, $05, $2c, $20, $24
-//>       .db $15, $5a, $10, $20, $28, $30, $20, $10
-//>       .db $80, $20, $30, $30, $01, $ff, $00
+//> .db $9b, $10, $18, $05, $2c, $20, $24
+//> .db $15, $5a, $10, $20, $28, $30, $20, $10
+//> .db $80, $20, $30, $30, $01, $ff, $00
 val demoTimingData: List<Byte> = listOf(
     0x9B.toByte(), 0x10, 0x18, 0x05, 0x2C.toByte(), 0x20, 0x24,
     0x15, 0x5A.toByte(), 0x10, 0x20, 0x28, 0x30, 0x20, 0x10,
@@ -336,22 +364,22 @@ val demoTimingData: List<Byte> = listOf(
  */
 fun System.demoEngine(): Boolean {
     //> DemoEngine:
-    //>           ldx DemoAction         ;load current demo action
+    //> ldx DemoAction         ;load current demo action
     var x = ram.demoAction.toInt()
-    //>           lda DemoActionTimer    ;load current action timer
-    //>           bne DoAction           ;if timer still counting down, skip
+    //> lda DemoActionTimer    ;load current action timer
+    //> bne DoAction           ;if timer still counting down, skip
     if (ram.demoActionTimer == 0.toByte()) {
-        //>           inx
-        //>           inc DemoAction         ;if expired, increment action, X, and
+        //> inx
+        //> inc DemoAction         ;if expired, increment action, X, and
         x += 1
         ram.demoAction = x.toByte()
-        //>           sec                    ;set carry by default for demo over
+        //> sec                    ;set carry by default for demo over
         var carry = true
-        //>           lda DemoTimingData-1,x ;get next timer
+        //> lda DemoTimingData-1,x ;get next timer
         val nextTimer = demoTimingData.getOrNull(x - 1) ?: 0.toByte()
-        //>           sta DemoActionTimer    ;store as current timer
+        //> sta DemoActionTimer    ;store as current timer
         ram.demoActionTimer = nextTimer
-        //>           beq DemoOver           ;if timer already at zero, skip
+        //> beq DemoOver           ;if timer already at zero, skip
         if (nextTimer == 0.toByte()) {
             //> DemoOver: rts
             return true
@@ -362,12 +390,113 @@ fun System.demoEngine(): Boolean {
 
     //> DoAction: lda DemoActionData-1,x ;get and perform action (current or next)
     val actionByte = demoActionData.getOrNull(x - 1) ?: JoypadBits(0)
-    //>           sta SavedJoypad1Bits
+    //> sta SavedJoypad1Bits
     ram.savedJoypad1Bits = actionByte
-    //>           dec DemoActionTimer    ;decrement action timer
+    //> dec DemoActionTimer    ;decrement action timer
     ram.demoActionTimer = (ram.demoActionTimer - 1).toByte()
-    //>           clc                    ;clear carry if demo still going
+    //> clc                    ;clear carry if demo still going
     //> DemoOver: rts
     return false
 }
+
+
+fun System.initializeArea() {
+    //> InitializeArea:
+    //> ldy #$4b                 ;clear all memory again, only as far as $074b
+    //> jsr InitializeMemory     ;this is only necessary if branching from
+    initializeMemory(0x074b)
+
+    //> ldx #$21
+    //> lda #$00
+    //> ClrTimersLoop: sta Timers,x             ;clear out memory between
+    //> dex                      ;$0780 and $07a1
+    //> bpl ClrTimersLoop
+    for (i in ram.timers.indices) ram.timers[i] = 0
+
+    //> lda HalfwayPage
+    //> ldy AltEntranceControl   ;if AltEntranceControl not set, use halfway page, if any found
+    //> beq StartPage
+    //> lda EntrancePage         ;otherwise use saved entry page number here
+    val startPage: Byte = if (ram.altEntranceControl == 0.toByte()) ram.halfwayPage else ram.entrancePage
+
+    //> StartPage:     sta ScreenLeft_PageLoc   ;set as value here
+    //> sta CurrentPageLoc       ;also set as current page
+    //> sta BackloadingFlag      ;set flag here if halfway page or saved entry page number found
+    ram.screenLeftPageLoc = startPage
+    ram.currentPageLoc = startPage
+    ram.backloadingFlag = startPage
+
+    //> jsr GetScreenPosition    ;get pixel coordinates for screen borders
+    val rightSideScreenPage = getScreenPosition()
+
+    //> ldy #$20                 ;if on odd numbered page, use $2480 as start of rendering
+    //> and #%00000001           ;otherwise use $2080, this address used later as name table
+    //> beq SetInitNTHigh        ;address for rendering of game area
+    //> ldy #$24
+    //> SetInitNTHigh: sty CurrentNTAddr_High   ;store name table address
+    val rightSideScreenPageModTwo = rightSideScreenPage % 2
+    ram.currentNTAddrHigh = if (rightSideScreenPageModTwo == 1) 0x24.toByte() else 0x20.toByte()
+    //> ldy #$80
+    //> sty CurrentNTAddr_Low
+    ram.currentNTAddrLow = 0x80.toByte()
+
+    //> asl                      ;store LSB of page number in high nybble
+    //> asl                      ;of block buffer column position
+    //> asl
+    //> asl
+    //> sta BlockBufferColumnPos
+    ram.blockBufferColumnPos = (rightSideScreenPageModTwo shl 4).toByte()
+
+    //> dec AreaObjectLength     ;set area object lengths for all empty
+    ram.areaObjectLength[0]--
+    //> dec AreaObjectLength+1
+    ram.areaObjectLength[1]--
+    //> dec AreaObjectLength+2
+    ram.areaObjectLength[2]--
+
+    //> lda #$0b                 ;set value for renderer to update 12 column sets
+    //> sta ColumnSets           ;12 column sets = 24 metatile columns = 1 1/2 screens
+    ram.columnSets = 0x0b
+
+    //> jsr GetAreaDataAddrs     ;get enemy and level addresses and load header
+    getAreaDataAddrs()
+
+    //> lda PrimaryHardMode      ;check to see if primary hard mode has been activated
+    //> bne SetSecHard           ;if so, activate the secondary no matter where we're at
+    val secHard = if (ram.primaryHardMode) true else when {
+        //> lda WorldNumber          ;otherwise check world number
+        //> cmp #World5              ;if less than 5, do not activate secondary
+        //> bcc CheckHalfway
+        ram.worldNumber < Constants.World5 -> false
+        //> bne SetSecHard           ;if not equal to, then world > 5, thus activate
+        ram.worldNumber != Constants.World5 -> true
+        //> lda LevelNumber          ;otherwise, world 5, so check level number
+        //> cmp #Level3              ;if 1 or 2, do not set secondary hard mode flag
+        //> bcc CheckHalfway
+        else -> ram.levelNumber >= Constants.Level3
+    }
+    //> SetSecHard:    inc SecondaryHardMode    ;set secondary hard mode flag for areas 5-3 and beyond
+    if (secHard) ram.secondaryHardMode = (ram.secondaryHardMode + 1).toByte()
+
+    //> CheckHalfway:  lda HalfwayPage
+    //> beq DoneInitArea
+    if (ram.halfwayPage != 0.toByte()) {
+        //> lda #$02                 ;if halfway page set, overwrite start position from header
+        //> sta PlayerEntranceCtrl
+        ram.playerEntranceCtrl = 0x02
+    }
+
+    //> DoneInitArea:  lda #Silence             ;silence music
+    //> sta AreaMusicQueue
+    ram.areaMusicQueue = Constants.Silence
+    //> lda #$01                 ;disable screen output
+    //> sta DisableScreenFlag
+    ram.disableScreenFlag = true
+    //> inc OperMode_Task        ;increment one of the modes
+    ram.operModeTask++
+    //> rts
+}
+
+private fun System.getScreenPosition(): Byte = TODO()
+private fun System.getAreaDataAddrs(): Unit = TODO()
 fun System.loadAreaPointer(): Unit = TODO()
