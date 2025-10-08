@@ -1,9 +1,12 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.ByteAccess
+import com.ivieleague.smbtranslation.utils.ByteArrayAccess
 import com.ivieleague.smbtranslation.utils.JoypadBits
 import com.ivieleague.smbtranslation.utils.PpuControl
 import com.ivieleague.smbtranslation.utils.PpuMask
 import com.ivieleague.smbtranslation.utils.SpriteFlags
+import com.ivieleague.smbtranslation.utils.access
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.findAnnotation
@@ -56,7 +59,7 @@ class GameRam {
     @RamLocation(0xd) var previousABButtons: Byte = 0
     @RamLocation(0xb) var upDownButtons: Byte = 0
     @RamLocation(0xc) var leftRightButtons: Byte = 0
-    @RamLocation(0xe) var gameEngineSubroutine: Byte = 0
+    @RamLocation(0xe) var gameEngineSubroutine: Byte = 0  // TODO: This should be an enum, I think
     var mirrorPPUCTRLREG1: PpuControl = PpuControl(0)
     var mirrorPPUCTRLREG2: PpuMask = PpuMask(0)
     @RamLocation(0x770) var operMode: OperMode = OperMode.TitleScreen
@@ -92,13 +95,20 @@ class GameRam {
     @RamLocation(0x7a1) var worldEndTimer: Byte = 0
     @RamLocation(0x7a2) var demoTimer: Byte = 0
 
-    class Sprite(val offset: Int) {
-        var y: UByte = 0u  // offset
-        var tilenumber: Byte = 0  // offset + 1
-        var attributes: SpriteFlags = SpriteFlags(0)  // offset + 2
-        var x: UByte = 0u  // offset + 3
+    class Sprite(
+        var y: UByte = 0u,  // offset
+        var tilenumber: Byte = 0,  // offset + 1
+        var attributes: SpriteFlags = SpriteFlags(0),  // offset + 2
+        var x: UByte = 0u,  // offset + 3
+    ) {
+        fun set(other: Sprite) {
+            this.y = other.y
+            this.tilenumber = other.tilenumber
+            this.attributes = other.attributes
+            this.x = other.x
+        }
     }
-    @RamLocation(0x200) val sprites = Array(64) { Sprite(it * 4 + 0x200) }
+    @RamLocation(0x200) val sprites = Array(64) { Sprite() }
 
     @RamLocation(0x71a) var screenEdgePageLoc: Byte = 0
     @RamLocation(0x71c) var screenEdgeXPos: Byte = 0
@@ -189,7 +199,7 @@ class GameRam {
     @RamLocation(0x742) var backgroundScenery: Byte = 0
     @RamLocation(0x743) var cloudTypeOverride: Byte = 0
     @RamLocation(0x744) var backgroundColorCtrl: Byte = 0
-    @RamLocation(0x74e) var areaType: Byte = 0
+    @RamLocation(0x74e) var areaType: Byte = 0  // TODO: This should be an enum, I think
     @RamLocation(0x74f) var areaAddrsLOffset: Byte = 0
     @RamLocation(0x750) var areaPointer: Byte = 0
     @RamLocation(0x710) var playerEntranceCtrl: Byte = 0
@@ -241,18 +251,17 @@ class GameRam {
     @RamLocation(0x6e1) val sprShuffleAmt = ByteArray(9999)
 
     // SprDataOffset is a contiguous table of 15 bytes starting at $6E4 used by SpriteShuffler
-    @RamLocation(0x6e4) val sprDataOffsets = ByteArray(0x0f)
+    @RamLocation(0x6e4) val sprDataOffsets = ByteArray(15)
 
-    @RamLocation(0x6e4) var playerSprDataOffset: Byte = 0
-    @RamLocation(0x6e5) val enemySprDataOffset: ByteArray = ByteArray(999)
-    @RamLocation(0x6ec) var blockSprDataOffset: Byte = 0
-    @RamLocation(0x6ec) val altSprDataOffset: ByteArray = ByteArray(999)
-    @RamLocation(0x6ee) var bubbleSprDataOffset: Byte = 0
-    @RamLocation(0x6f1) var fBallSprDataOffset: Byte = 0
+    val playerSprDataOffset: ByteAccess = sprDataOffsets.access(0)  // RamLocation: 0x6e4
+    val enemySprDataOffset: ByteArrayAccess = sprDataOffsets.access(1..7)  // RamLocation: 0x6e5
+    val blockSprDataOffset: ByteArrayAccess = sprDataOffsets.access(8..9)  // RamLocation: 0x6ec
+    val bubbleSprDataOffset: ByteArrayAccess = sprDataOffsets.access(10..11)  // RamLocation: 0x6ee
+    val fBallSprDataOffset: ByteArrayAccess = sprDataOffsets.access(12..14)  // RamLocation: 0x6f1
+    val altSprDataOffset: ByteArrayAccess = sprDataOffsets.access(8..14)  // RamLocation: 0x6ec
 
     // Misc_SprDataOffset is a contiguous table of 9 bytes starting at $6F3
     @RamLocation(0x6f3) val miscSprDataOffsets = ByteArray(9)
-    @RamLocation(0x6f3) var miscSprDataOffset: Byte = 0
 
     @RamLocation(0x3ee) var sprDataOffsetCtrl: Byte = 0
     @RamLocation(0x1d) var playerState: Byte = 0
@@ -299,7 +308,7 @@ class GameRam {
     @RamLocation(0xc2) var miscYHighPos: Byte = 0
     @RamLocation(0xcb) var bubbleYHighPos: Byte = 0
     @RamLocation(0xce) var sprObjectYPosition: Byte = 0
-    @RamLocation(0xce) var playerYPosition: Byte = 0
+    @RamLocation(0xce) var playerYPosition: UByte = 0u
     @RamLocation(0xcf) var enemyYPosition: Byte = 0
     @RamLocation(0xd5) var fireballYPosition: Byte = 0
     @RamLocation(0xd7) var blockYPosition: Byte = 0
@@ -320,7 +329,7 @@ class GameRam {
     @RamLocation(0x3bc) var blockRelYPos: Byte = 0
     @RamLocation(0x3be) var miscRelYPos: Byte = 0
     @RamLocation(0x3c4) var sprObjectSprAttrib: Byte = 0
-    @RamLocation(0x3c4) var playerSprAttrib: Byte = 0
+    @RamLocation(0x3c4) var playerSprAttrib: SpriteFlags = SpriteFlags(0)
     @RamLocation(0x3c5) var enemySprAttrib: Byte = 0
     @RamLocation(0x400) var sprObjectXMoveForce: Byte = 0
     @RamLocation(0x401) var enemyXMoveForce: Byte = 0
@@ -349,7 +358,7 @@ class GameRam {
     @RamLocation(0x701) var frictionAdderHigh: Byte = 0
     @RamLocation(0x702) var frictionAdderLow: Byte = 0
     @RamLocation(0x703) var runningSpeed: Byte = 0
-    @RamLocation(0x704) var swimmingFlag: Byte = 0
+    @RamLocation(0x704) var swimmingFlag: Boolean = false
     @RamLocation(0x705) var playerXMoveForce: Byte = 0
     @RamLocation(0x706) var diffToHaltJump: Byte = 0
     @RamLocation(0x707) var jumpOriginYHighPos: Byte = 0

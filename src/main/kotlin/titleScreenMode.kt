@@ -246,7 +246,19 @@ fun System.initializeGame() {
     // Here we simply advance the mode task to mirror that control flow.
     ram.operModeTask++
 }
-fun System.primaryGameSetup(): Unit = TODO()
+fun System.primaryGameSetup() {
+    //> PrimaryGameSetup:
+    //> lda #$01
+    //> sta FetchNewGameTimerFlag   ;set flag to load game timer from header
+    //> sta PlayerSize              ;set player's size to small
+    ram.fetchNewGameTimerFlag = true
+    ram.playerSize = 0x01
+    //> lda #$02
+    //> sta NumberofLives           ;give each player three lives
+    //> sta OffScr_NumberofLives
+    ram.numberofLives = 0x02
+    ram.offScrNumberofLives = 0x02
+}
 
 //> MushroomIconData:
 //> .db $07, $22, $49, $83, $ce, $24, $24, $00

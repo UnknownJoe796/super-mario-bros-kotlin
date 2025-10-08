@@ -372,7 +372,7 @@ private fun System.incSubtask() {
 //> NextSubtask:   jmp IncSubtask           ;move onto next task
 private fun System.nextSubtask() = incSubtask()
 
-private fun System.getPlayerColors() {
+fun System.getPlayerColors() {
     //> GetPlayerColors:
     //> ldx VRAM_Buffer1_Offset  ;get current buffer offset
     // We're preparing to append to VRAM Buffer 1.

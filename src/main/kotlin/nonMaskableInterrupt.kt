@@ -294,7 +294,6 @@ fun System.pauseRoutine(): Unit {
     ram.gamePauseStatus = (ram.gamePauseStatus.toInt() and 0x7F).toByte()
     //> ExitPause:     rts
 }
-fun System.moveSpritesOffscreen(): Unit = TODO()
 
 /**
  * Mitigate issues with sprites being undrawn because of the NES limitation of 8 sprites per scanline.

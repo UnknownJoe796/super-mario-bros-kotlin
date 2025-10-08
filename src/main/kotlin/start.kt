@@ -2,7 +2,23 @@ package com.ivieleague.smbtranslation
 
 import com.ivieleague.smbtranslation.utils.InexactBitSetting
 import com.ivieleague.smbtranslation.utils.PpuControl
+import com.ivieleague.smbtranslation.utils.SpriteFlags
+import kotlin.experimental.and
+import kotlin.experimental.or
 
+// Default OAM data offset table used to initialize SprDataOffset ($06e4-$06f2)
+private val DefaultSprOffsets: List<Byte> = listOf(
+    0x04, 0x30, 0x48, 0x60, 0x78, 0x90.toByte(), 0xA8.toByte(), 0xC0.toByte(),
+    0xD8.toByte(), 0xE8.toByte(), 0x24, 0xF8.toByte(), 0xFC.toByte(), 0x28, 0x2C
+)
+
+// Sprite #0 setup data: Y, tile, attributes, X
+private val Sprite0Data = GameRam.Sprite(
+    y = 0x18.toUByte(),
+    tilenumber = 0xFF.toByte(),
+    attributes = SpriteFlags(0x23.toByte()),
+    x = 0x58.toUByte(),
+)
 
 fun System.start() {
 
@@ -70,7 +86,7 @@ fun System.start() {
 
     //> lda #%00001111
     //> sta SND_MASTERCTRL_REG       ;enable all sound channels except dmc
-    @InexactBitSetting
+    apu.dmcEnabled = false
     apu.noiseEnabled = true
     apu.triangleEnabled = true
     apu.pulse2Enabled = true
@@ -101,7 +117,6 @@ fun System.start() {
     ppu.control = ram.mirrorPPUCTRLREG1
 
     //> EndlessLoop: jmp EndlessLoop              ;endless loop, need I say more?
-    // TODO: Original looped forever here to wait for an NMI.  What do we do here?
 }
 
 fun System.initializeMemory(zeroToIndex: Short) {
@@ -127,12 +142,93 @@ fun System.initializeMemory(zeroToIndex: Short) {
     ram.reset(0x200..<zeroToIndex)
 }
 
-fun System.moveAllSpritesOffscreen() {
+fun System.secondaryGameSetup() {
+    //> SecondaryGameSetup:
+    //> lda #$00
+    //> sta DisableScreenFlag     ;enable screen output
+    ram.disableScreenFlag = false
 
+    //> tay
+    //> ClearVRLoop: sta VRAM_Buffer1-1,y      ;clear buffer at $0300-$03ff
+    //> iny
+    //> bne ClearVRLoop
+    // In our high-level model, vRAMBuffer1 is a list of buffered PPU updates. Clearing the $0300-$03ff
+    // region corresponds to clearing this buffer.
+    ram.vRAMBuffer1.clear()
+
+    //> sta GameTimerExpiredFlag  ;clear game timer exp flag
+    ram.gameTimerExpiredFlag = false
+    //> sta DisableIntermediate   ;clear skip lives display flag
+    ram.disableIntermediate = false
+    //> sta BackloadingFlag       ;clear value here
+    ram.backloadingFlag = 0x00
+
+    //> lda #$ff
+    //> sta BalPlatformAlignment  ;initialize balance platform assignment flag
+    ram.balPlatformAlignment = 0xFF.toByte()
+
+    //> lda ScreenLeft_PageLoc    ;get left side page location
+    //> lsr Mirror_PPU_CTRL_REG1  ;shift LSB of ppu register #1 mirror out
+    //> and #$01                  ;mask out all but LSB of page location
+    //> ror                       ;rotate LSB of page location into carry then onto mirror
+    //> rol Mirror_PPU_CTRL_REG1  ;this is to set the proper PPU name table
+    // High-level: copy the LSB of ScreenLeft_PageLoc into bit 0 of baseNametableAddress,
+    // preserving bit 1.
+    ram.mirrorPPUCTRLREG1 = ram.mirrorPPUCTRLREG1.copy(
+        baseNametableAddress = (ram.mirrorPPUCTRLREG1.baseNametableAddress and 0x2) or (ram.screenLeftPageLoc and 0x1)
+    )
+
+    //> jsr GetAreaMusic          ;load proper music into queue
+    getAreaMusic()
+
+    //> lda #$38                  ;load sprite shuffle amounts to be used later
+    //> sta SprShuffleAmt+2
+    ram.sprShuffleAmt[2] = 0x38
+    //> lda #$48
+    //> sta SprShuffleAmt+1
+    ram.sprShuffleAmt[1] = 0x48
+    //> lda #$58
+    //> sta SprShuffleAmt
+    ram.sprShuffleAmt[0] = 0x58
+
+    //> ldx #$0e                  ;load default OAM offsets into $06e4-$06f2
+    //> ShufAmtLoop: lda DefaultSprOffsets,x
+    //>             sta SprDataOffset,x
+    //>             dex                       ;do this until they're all set
+    //>             bpl ShufAmtLoop
+    for (i in DefaultSprOffsets.indices) {
+        ram.sprDataOffsets[i] = DefaultSprOffsets[i]
+    }
+
+    //> ldy #$03                  ;set up sprite #0
+    //> ISpr0Loop:   lda Sprite0Data,y
+    //>             sta Sprite_Data,y
+    //>             dey
+    //>             bpl ISpr0Loop
+    // High-level: write sprite #0's Y, tile, attributes, X
+    ram.sprites[0].set(Sprite0Data)
+
+    //> jsr DoNothing2            ;these jsrs doesn't do anything useful
+    //> jsr DoNothing1
+
+    //> inc Sprite0HitDetectFlag  ;set sprite #0 check flag
+    ram.sprite0HitDetectFlag = true
+    //> inc OperMode_Task         ;increment to next task
+    ram.operModeTask++
+    //> rts
+}
+
+
+fun System.moveAllSpritesOffscreen() {
     //> MoveAllSpritesOffscreen:
     //> ldy #$00                ;this routine moves all sprites off the screen
     //> .db $2c                 ;BIT instruction opcode
-    //>
+    // falls through to normal MoveSpritesOffscreen in the assembly
+    for (index in 0 until 64) {
+        ram.sprites[index].y = 0xF8.toUByte()
+    }
+}
+fun System.moveSpritesOffscreen() {
     //> MoveSpritesOffscreen:
     //> ldy #$04                ;this routine moves all but sprite 0
     //> lda #$f8                ;off the screen
@@ -143,7 +239,7 @@ fun System.moveAllSpritesOffscreen() {
     //> iny
     //> bne SprInitLoop
     //> rts
-    for(index in 1 until 64) {
+    for (index in 1 until 64) {
         ram.sprites[index].y = 0xF8.toUByte()
     }
 }

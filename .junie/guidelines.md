@@ -1,130 +1,353 @@
-Project Guidelines (smb-translation)
+### Project overview
+This repository is a line‑by‑line translation of the Super Mario Bros 6502 disassembly into readable, idiomatic Kotlin, while preserving RAM‑level behavior. Every assembly line is kept as an adjacent comment next to its Kotlin translation so future readers can audit accuracy against the original `smbdism.asm`.
 
-This is an attempt to port Super Mario Bros to readable, modifiable, and proper Kotlin, while retaining RAM-level accuracy to the original.
+Key points:
+- Kotlin JVM 2.2.0, JDK 17 (via `kotlin.jvmToolchain` and Foojay resolver)
+- Gradle build with wrapper; tests run on JUnit Platform using `kotlin("test")`
+- Emulator surfaces (PPU/APU/system I/O) are mostly placeholders; focus today is translating pure logic and RAM mutations
 
-The port includes *every single line of the disassembly* as comments, next to their equivalent Kotlin code.
+### Build and run
+- Full build: `./gradlew build`
+- Compile only: `./gradlew compileKotlin`
+- Run tests: `./gradlew test`
 
-One day, when this is runnable, you will be able to use a SMB rom to play the game on your computer.
+Ensure your IDE project SDK is set to JDK 17. The Gradle wrapper pins the toolchain; prefer `./gradlew` to local Gradle.
 
-Audience: Advanced Kotlin/Gradle developers working on this repository.
+### Repository layout
+- `src/main/kotlin`
+    - Core state and simple behavior, e.g., `GameRam.kt`, `start.kt`, `nonMaskableInterrupt.kt`, PPU/APU surface definitions, utilities
+    - In‑progress translated routines mirrored from `smbdism.asm`
+- `src/test/kotlin`
+    - Unit tests targeting pure logic and data manipulation (avoid TODO‑backed emulator surfaces)
+- `smbdism.asm`
+    - Canonical 6502 disassembly; serves as the truth source for comments and behavior
 
-1) Build and Configuration
+### NES package: what exists today
+The `nes` package provides a thin, testable surface for PPU/inputs and a high‑level renderer. These are intentionally partial; most I/O routines are `TODO()` so translated logic should avoid depending on them at runtime.
 
-- Language/Toolchain
-  - Kotlin JVM: 2.2.0 (Gradle Kotlin DSL).
-  - JVM toolchain: 17 (configured via kotlin.jvmToolchain in build.gradle.kts). The project also uses Foojay resolver in settings.gradle.kts to provision JDKs automatically.
-  - Build system: Gradle (wrapper included). Use the provided ./gradlew to ensure consistent versions.
+- PictureProcessingUnit (`nes/PictureProcessingUnit.kt`)
+  - Fields
+    - `control: PpuControl` (PPU $2000) and `mask: PpuMask` (PPU $2001) from `utils` package
+    - `status: PpuStatus` (PPU $2002) — currently a value object, not mutating side‑effects
+    - `backgroundTiles: Array<NesNametable>(2)` — two nametables of 32x30 tiles
+    - `backgroundPalettes: Array<IndirectPalette>(4)` and `spritePalettes: Array<IndirectPalette>(4)`
+    - `sprites: Array<Sprite>(64)` — simple 8x8 sprite model
+    - `oamAddress: Byte` — mirrors OAMADDR ($2003)
+    - `internalVramAddress: VramAddress` — see below for auto‑increment semantics
+  - Methods and side‑effects to preserve
+    - `writeOamAddress(address: Byte)` — mirrors into `oamAddress`
+    - `writeOamData(data: Byte)` — increments `oamAddress` (OAMDATA write side‑effect). The body is `TODO()`; tests should not depend on it.
+    - `setVramAddress(value: VramAddress)` — sets `internalVramAddress`
+    - `readVram()` / `writeVram(value: Byte)` — both increment `internalVramAddress` by 32 if `control.drawVertical` is true, otherwise by 1. Bodies are `TODO()`.
+    - `scroll(x: Byte, y: Byte)` — `TODO()` placeholder for PPUSCROLL behavior.
+    - `updateSpriteData(values: Array<GameRam.Sprite>)` — `TODO()` DMA helper.
 
-- Build Commands
-  - Full build: ./gradlew build
-  - Compile only: ./gradlew compileKotlin
-  - Run tests: ./gradlew test
+- High‑level PPU model (`nes/HighLevelPictureProcessingUnit.kt`)
+  - `NesNametable` stores `Tile(pattern: Pattern, palette: Palette)` with simple 2bpp pattern logic implemented in `Pattern.colorIndex(x, y)`.
+  - `Palette` has `DirectPalette` and `IndirectPalette` implementations; `IndirectPalette` is used for PPU palette slots.
+  - `Sprite` holds `y: UByte`, `pattern: Pattern`, `attributes: utils.SpriteFlags`, `x: UByte`.
 
-- Dependencies
-  - Testing: kotlin("test") with JUnit Platform (JUnit 5 engine).
+- Inputs (`nes/Inputs.kt`)
+  - Typealiases: `VramAddress = Short` (plus TwoBits/ThreeBits etc.)
+  - `Inputs` exposes `joypadPort1`, `joypadPort2` as `utils.JoypadBits`.
 
-- Notes about current code state (important for builds)
-  - The emulator surface (PPU/APU/system routines) is incomplete by design. Many functions intentionally call TODO(). This does not prevent compilation, but will throw if executed at runtime. Avoid calling TODO-backed APIs in tests and sample code.
-  - PictureProcessingUnit
-    - To avoid JVM signature clashes with property setters, use explicit method names for register-like writes instead of “setXxx”. Example: writeOamAddress(address: Byte). Do not add a method named setOamAddress if there is a property oamAddress; the Kotlin compiler will produce a platform declaration clash on the JVM.
-    - VRAM address property name is internalVramAddress (Short). The increment-on-read/write logic in readVram()/writeVram() references this property.
+- Renderer (`nes/PpuRenderer.kt`)
+  - Software renderer for debugging: draws nametable 0 and 8x8 sprites to a Skia `Canvas`.
+  - Honors sprite palette index, horizontal/vertical flip, and behind‑background priority. Does not implement 8x16 sprites, scrolling, emphasis, greyscale, sprite zero hit, or overflow.
+  - Useful for visual tests; avoid coupling translated core logic to it.
 
-2) Testing
+- Audio (`nes/AudioProcessingUnit.kt`)
+  - Structural model of APU registers: pulse1/pulse2, triangle, noise, DMC, and status/frame counter bits.
+  - All synthesis/side‑effects are `TODO()`; use as a typed container only in translations that need to write sound registers.
+  - Channel properties are split into register‑shaped fields (e.g., pulse duty/volume, sweep parameters). Avoid inventing new setters; set the documented fields directly or wrap with `writeXxx` helpers if you need side‑effects later.
 
-- Framework/Runner
-  - kotlin.test API (assertEquals, assertTrue, etc.) running on the JUnit 5 platform. The Gradle test task is already configured with useJUnitPlatform().
+Practical guidance for translators working near the PPU:
+- Prefer calling the PPU surface methods already provided (e.g., `writeOamAddress`, `readVram`/`writeVram`) and keep their auto‑increment/side‑effects intact.
+- Avoid adding JVM‑conflicting setters. Use `writeXxx`/`updateXxx` names as needed.
+- When a routine requires PPUSCROLL/PPUSTATUS semantics not yet implemented, structure the code so tests can skip that path (commonly by checking `OperMode`/frame state first) and leave a clear `TODO()` in the PPU layer.
 
-- Test Layout
-  - Place tests under src/test/kotlin using the same base package com.ivieleague.smbtranslation.
-  - Prefer testing pure Kotlin logic that does not depend on unimplemented emulator subsystems.
+### Core state: GameRam
+GameRam models NES RAM variables with a one‑to‑one mapping to the disassembly using the @RamLocation(address) annotation on Kotlin properties. Key points:
+- Address mapping and aliases
+  - The fields have been initially translated as plain Byte, but as we go, we need to update the types to be more accurate to the meaning.  Booleans for flags, ByteArrays for blocks of memory, and ByteArray windows for indexed memory.
+  - The @RamLocation annotation is used to map the disassembly addresses to the Kotlin properties.
+- Reset behavior
+  - GameRam.clean captures a template instance. GameRam.reset(range) resets only properties whose @RamLocation falls within the given inclusive address range by copying values from clean. Use this to mirror routines that clear RAM pages.
+- Controller/PPU mirrors and mode state
+  - savedJoypadBits/1/2 hold latched controller states; joypadBitMask and joypadOverride are modeled as Bytes.
+  - mirrorPPUCTRLREG1: PpuControl and mirrorPPUCTRLREG2: PpuMask mirror $2000/$2001 state in RAM.
+  - operMode is an OperMode enum; operModeTask, screenRoutineTask, timer/status bytes follow the disassembly layout.
+- Timers block ($780..)
+  - timers is a ByteArray window plus named views (selectTimer, playerAnimTimer, etc.) at specific offsets to match the disassembly. Prefer the named properties in translations for clarity but respect the shared underlying bytes.
+- OAM sprite RAM mirror ($0200..$02FF)
+  - sprites is an Array(64) of GameRam.Sprite mapping the OAM layout: y, tile number, attributes (SpriteFlags), x. These are conveniences for tests/renderer; keep DMA behavior in PPU layer when translating routines that write OAM via $2003/$2004/$4014.
+- Scrolling and column parsing
+  - screenLeft/RightPageLoc/XPos, horizontalScroll, verticalScroll, scrollLock, scrollFractional, and parser state (currentPageLoc/currentColumnPos, areaObjectPageLoc/areaDataOffset, etc.) mirror the parser/scrolling state tightly.
+  - attributeBuffer at $3F9 models the temporary 32‑byte attribute row buffer used by renderer/update routines.
+- VRAM buffering
+  - vRAMBuffer1 at $300 and vRAMBuffer2 at $340 are MutableVBuffer (typealias of ArrayList<BufferedPpuUpdate>), with vRAMBufferAddrCtrl ($773) modeling which buffer/addressing mode is active per frame, mirroring SMB’s double‑buffered VRAM updates.
+- Area/level/session variables
+  - areaType, areaStyle, background/foreground scenery, cloudTypeOverride, backgroundColorCtrl.
+  - Header/entrance fields: playerEntranceCtrl, altEntranceControl, entrancePage, areaPointer/areaAddrsLOffset, gameTimerSetting.
+  - Player/session bookkeeping: currentPlayer, playerSize/status, numberOfPlayers, lives/coin/world/area numbers, hidden1UpFlag, halfwayPage and their offscreen counterparts for 2‑player mode.
+- Misc flags and counters
+  - disableScreenFlag, sprite0HitDetectFlag, fetchNewGameTimerFlag, gameTimerExpiredFlag, brickCoinTimerFlag, hard mode flags, worldSelectEnableFlag, continueWorld, warmBootValidation, etc. Preserve exact byte semantics when matching branches in assembly.
 
-- Writing Tests Against This Codebase
-  - Safe units to test today:
-    - Bit-level delegates in utils/bitops.kt (BitAccess, BitRangeAccess, BitAccess2, BitRangeAccess2).
-    - Data containers and simple behaviors in GameRam (e.g., Stack push/pop, simple fields, RangeAccess bounds, etc.).
-    - Constants in Constants.kt.
-  - Avoid calling TODO-backed APIs (e.g., PictureProcessingUnit.scroll, readVram, writeVram; many APU/PPU behaviors; system routines that eventually touch these) inside tests.
-  - When you must interact with ByteAccess, create a tiny stub: val backing = object : ByteAccess { override var value: Byte = 0 }.
-  - Kotlin Byte arithmetic is signed; use toByte() for literals (0x00.toByte(), etc.) and mask with toInt() when bit-twiddling.
+Practical tips when translating against GameRam:
+- Prefer the Kotlin property names as listed; if the disassembly uses a different alias at the same address, comment it next to the write for auditing.
+- Never introduce new setters with JVM‑conflicting names; use write/update helpers in surfaces. For RAM, direct property assignment is correct.
+- Mask when indexing into arrays derived from RAM bytes; many indices are 0..7 or 0..31 and need `and 0xFF` before modulo.
 
-- Running Tests
-  - All tests: ./gradlew test
-  - Single class: ./gradlew test --tests "com.ivieleague.smbtranslation.ProjectSmokeTest"
-  - Single test: ./gradlew test --tests "com.ivieleague.smbtranslation.ProjectSmokeTest.BitRangeAccess2*"
-  - In IDE: use the gutter/run icons. Ensure the project SDK is set to JDK 17.
+### VRAM buffering and updates (BufferedPpuUpdate)
+BufferedPpuUpdate is a sealed hierarchy representing high‑level PPU mutations that can be applied to PictureProcessingUnit:
+- BackgroundPatternString / BackgroundPatternRepeat
+  - Place 8x8 tile patterns into a nametable across X or down Y depending on drawVertically.
+  - Patterns come from OriginalRom.backgrounds; translations should write tile IDs into the VRAM buffer bytes; the parser resolves IDs to patterns.
+- BackgroundSetPalette / SpriteSetPalette
+  - Replace the 4‑entry palette at a given index (0..3) for background or sprites.
+- BackgroundAttributeString / BackgroundAttributeRepeat
+  - Write attribute bytes; each byte selects palettes per 2x2 tile quadrant within a 4x4 tile cell. Coordinates (ax, ay) are in attribute‑cell space (0..7 x 0..7).
 
-- Adding New Tests
-  - Create a file under src/test/kotlin, declare package com.ivieleague.smbtranslation, and import kotlin.test.*.
-  - Keep emulator-surface interactions mocked/stubbed until those parts are implemented.
-  - Prefer small, deterministic unit tests over integration tests for now; emulator timing/PPU behavior is not implemented yet.
+Parser: BufferedPpuUpdate.parseVramBuffer(bytes)
+- Input format mirrors SMB’s UpdateScreen buffer records: [addr_hi, addr_lo, control, data...], repeated until addr_hi==0.
+- Control byte is utils.VramBufferControl with:
+  - bit7 drawVertically → advance by 32 between writes; else by 1.
+  - bit6 repeat → either replicate a single data byte ‘length’ times, or read literal ‘length’ bytes.
+  - bits0..5 length → masked to 0x3F.
+- Supported address ranges:
+  - $2000‑$23BF/$2400‑$27BF/$2800‑$2BBF/$2C00‑$2FBF (nametable tile area): emits BackgroundPatternString/Repeat.
+  - $23C0‑$23FF (+ mirrors) attribute tables: emits BackgroundAttributeString/Repeat.
+  - $3F00‑$3F1F palette RAM: emits BackgroundSetPalette/SpriteSetPalette for aligned 4‑byte quads; unaligned writes currently throw for visibility during porting.
+- Other ranges throw IllegalArgumentException to catch unexpected data.
 
-- Verified Example Test (as of 2025-09-25)
-  - The following test file was created and executed successfully (2 passing tests) to validate the configuration. It has been removed after verification to keep the repo clean, but you can use this as a template:
+Applying updates
+- Each BufferedPpuUpdate implements operator fun invoke(ppu) to mutate ppu.backgroundTiles, backgroundPalettes/spritePalettes in a high‑level way suitable for tests and the software renderer. This bypasses PPUDATA auto‑increment intentionally in tests; when translating routines that write PPUDATA, you should still build the VRAM buffer bytes in RAM and let the parser apply them in tests.
 
-  ```kotlin
-  class ProjectSmokeTest {
-      @Test
-      fun `GameRam Stack push and pop maintain LIFO order`() {
-          val ram = GameRam()
-          ram.stack.clear()
-          ram.stack.push(0x01)
-          ram.stack.push(0x7F)
-          ram.stack.push(0x00)
-          assertEquals(0x00, ram.stack.pop())
-          assertEquals(0x7F, ram.stack.pop())
-          assertEquals(0x01, ram.stack.pop())
-          assertEquals(0, ram.stack.currentIndex)
-      }
+Related tests and helpers
+- See VramBufferParserTest and AttributeWrappingTest for examples of parsing/applying buffers. The PpuRenderer reads the mutated PPU state for visual verification.
 
-      @Test
-      fun `BitRangeAccess2 correctly sets and gets bit ranges`() {
-          val backing = object : ByteAccess { override var value: Byte = 0 }
-          class Holder(access: ByteAccess) { var field: Byte by BitRangeAccess2(access, 0, 1) }
-          val h = Holder(backing)
+### System container (System.kt)
+System is a simple composition root bundling the emulator surfaces used by translations:
+- Fields: ram: GameRam, ppu: PictureProcessingUnit, apu: AudioProcessingUnit, inputs: Inputs.
+- There is no frame scheduler/stepper yet; translated routines should be written as pure functions that take (ram, ppu, apu, inputs) or System when convenient.
+- Favor dependency injection in tests: construct a fresh System(), set necessary RAM fields, invoke your translated routine, then assert on RAM/PPU changes.
 
-          h.field = 0b10
-          assertEquals(0b10, h.field.toInt())
-          assertEquals(0b10, (backing.value.toInt() and 0b11))
+### What “translation” means here
+The goal is to translate the intent and exact RAM effects of 6502 routines into Kotlin, not to write a 6502 interpreter. Each Kotlin routine:
+- Keeps original assembly as comments inline (one or more asm lines per Kotlin statement where makes sense)
+- Mutates the appropriate fields in `GameRam` (and other modeled components)
+- Preserves data table contents (e.g., `.db`) and index logic
+- Avoids invoking unimplemented PPU/APU/system routines unless explicitly required (those often `TODO()` at runtime)
 
-          h.field = 0b01
-          assertEquals(0b01, h.field.toInt())
-          assertEquals(0b01, (backing.value.toInt() and 0b11))
+### Where to implement translated code
+- If the routine is part of startup or main flow, see `start.kt`, `nonMaskableInterrupt.kt`, `titleScreenMode.kt`
+- Shared state lives in `GameRam.kt` (player fields, timers, collision, page locators, etc.)
+- Bit‑and byte‑level helpers are in `utils/bitTypes.kt` (delegates `BitAccess2` and `BitRangeAccess2`)
+- Data tables (e.g., music selection tables) can be constants near the routine or grouped with related logic; always mirror the `.db` layout
 
-          backing.value = (backing.value.toInt() or (1 shl 7)).toByte()
-          assertTrue(backing.value.toInt() and (1 shl 7) != 0)
+### Kotlin/6502 mapping guide
+- 6502 registers `A`, `X`, `Y` are ephemeral. In translation, they usually become local variables or the values being written/read from `GameRam` fields. You do not emulate the registers unless necessary for clarity.
+- Zero page variables (e.g., `OperMode`, `AreaType`) are modeled as properties in `GameRam`. Use and mutate them directly.
+- Carry/Zero/Negative flags and branches (`bcs`, `bne`, etc.) become explicit Kotlin conditionals using masked integer logic.
+- Addressing modes:
+    - Direct `lda Variable` → read `ram.variable`
+    - Indexed `lda Table,y` → read `table[index]` with masking
+    - Indirect `sta ($06),y` → model the 16‑bit address built from two adjacent bytes at `$06/$07` plus `Y`. In Kotlin, compute an `Int` address and write to your chosen backing array (see “Modeling pointers/indirection”).
 
-          h.field = 0b10
-          assertTrue(backing.value.toInt() and (1 shl 7) != 0)
-          assertEquals(0b10, (backing.value.toInt() and 0b11))
-      }
-  }
-  ```
+#### Byte and bit arithmetic in Kotlin
+- Kotlin `Byte` is signed; always convert to `Int` for bitwise ops and shifts
+    - Example: `(backing.value.toInt() and 0xFF)` to get the unsigned byte value
+- Convert constants explicitly: `0x00.toByte()`, `0xFF.toByte()`
+- Use the provided delegates in `utils/bitTypes.kt` (`BitAccess2`, `BitRangeAccess2`) to implement register bitfields against a `ByteAccess` backing
 
-3) Additional Development Notes
+#### Modeling pointers/indirection
+- When a routine uses zero‑page pointers like `($06),y`, decide the backing memory target:
+    - If it points to a RAM page represented by an array in `GameRam`, compute: `val base = (ram.pointer06.toInt() and 0xFF) or ((ram.pointer07.toInt() and 0xFF) shl 8)`; then `val addr = base + (y.toInt() and 0xFF)` and index into the appropriate `ByteArray`
+    - Keep address arithmetic in `Int`; mask indices to 0–65535 as needed
+- If the target is PPU/OAM/VRAM, prefer calling stubbed methods following the API conventions (e.g., `writeOamAddress`) rather than creating property setters that will clash on JVM
 
-- Code Style
-  - Kotlin official code style is enforced (gradle.properties: kotlin.code.style=official). Use ktlint/Detekt if you want stricter checks; not currently wired into the build.
+### API naming to avoid JVM clashes
+- Do not create `setXxx(T)` methods if there’s a `var xxx` property of that name. Prefer `writeXxx`, `updateXxx`, `loadXxx` for side‑effectful operations. Example: `writeOamAddress(address: Byte)` instead of `setOamAddress`.
+- PPU’s VRAM address is `internalVramAddress: VramAddress` (typealias of `Short` declared in `nes/Inputs.kt`). The `readVram()/writeVram()` methods in `nes/PictureProcessingUnit.kt` already auto‑increment `internalVramAddress` by 32 if `control.drawVertical` is true, or by 1 otherwise; preserve this behavior if you touch these methods.
+- `writeOamData(data: Byte)` in `PictureProcessingUnit` currently increments `oamAddress`; keep this side effect consistent with NES behavior.
 
-- Byte/Bit Manipulation Patterns
-  - The code uses property delegates to model hardware register bitfields. This keeps call sites idiomatic (ppu.control.backgroundTableOffset = true) while mapping onto a backing ByteAccess.
-  - When adding new bitfields, prefer the existing delegates (BitAccess2/BitRangeAccess2) over ad-hoc masking.
+### Data tables and constants
+- `.db` sequences become Kotlin `byteArrayOf(...)` for raw bytes or typed arrays for domain values
+- Keep ordering and values exact; mask when indexing with `Y`/`X`: `table[(y.toInt() and 0xFF)]`
 
-- API Conventions to Avoid JVM Clashes
-  - Do not introduce “setXxx” methods alongside var properties of the same semantic name. On JVM they will both map to setXxx(T) and clash. Prefer verbs like writeXxx, loadXxx, updateXxx for side-effectful register-style operations.
-  - Example fixed here: writeOamAddress(Byte) instead of setOamAddress(Byte).
+Example (from the music selection area in `smbdism.asm`):
+```kotlin
+// MusicSelectData:
+private val MusicSelectData = byteArrayOf(
+    WaterMusic, GroundMusic, UndergroundMusic, CastleMusic,
+    CloudMusic, PipeIntroMusic
+)
+```
 
-- Emulator Surfaces
-  - Many PPU/APU/System functions are placeholders. Keep business logic (e.g., RAM manipulation, math, bit ops) testable without invoking these until the emulator layers are implemented.
-  - For scroll/VRAM operations, tests should target state transitions (e.g., backing properties) via stubs, not real I/O.
+### Example translation workflow (step‑by‑step)
+Suppose you want to translate the `GetAreaMusic` routine around lines 2793–2811 in `smbdism.asm` (excerpt shown in your recent context):
 
-- Repository Layout
-  - src/main/kotlin: production sources (System, GameRam, PPU/APU definitions, utilities, and the in-progress ported routines like start(), nonMaskableInterrupt(), initializeNameTables()).
-  - smbdism.asm: reference disassembly for contextual comments.
+1) Locate the routine in `smbdism.asm`
+- Copy the label and immediate surrounding `.db` tables if they are only used here.
 
-- Known Sharp Edges
-  - Kotlin Byte vs Int literals: use toByte() for byte-typed APIs (e.g., 0x00.toByte()).
-  - Signedness: Kotlin Byte is signed; masking to Int is often necessary before shifting or comparing.
-  - Some long-running original loops (e.g., NMI wait) have been left as TODOs or commented; do not replicate busy-waits in unit tests.
+2) Identify RAM symbols used
+- `OperMode`, `AltEntranceControl`, `PlayerEntranceCtrl`, `AreaType`, `CloudTypeOverride`, `AreaMusicQueue`
+- Verify/introduce corresponding fields in `GameRam` if they exist; otherwise add appropriately (in this project, many already exist)
 
-Housekeeping
-- This document (.junie/guidelines.md) is the only artifact added by this task. Any temporary tests used to validate the instructions were removed after verification.
+3) Create a Kotlin function in a relevant file (e.g., `start.kt` if it’s part of area init), and mirror logic with inline assembly comments
+```kotlin
+fun System.getAreaMusic() {
+    //> GetAreaMusic:
+    //> lda OperMode           ;if in title screen mode, leave
+    //> beq ExitGetM
+    if (ram.operMode == OperMode.TitleScreen) return
+
+    //> lda AltEntranceControl ;check for specific alternate mode of entry
+    //> cmp #$02               ;if found, branch without checking starting position
+    //> beq ChkAreaType        ;from area object data header
+    var indexY: Byte = 0
+    if (ram.altEntranceControl != 0x02.toByte()) {
+        //> ldy #$05               ;select music for pipe intro scene by default
+        indexY = 0x05
+        //> lda PlayerEntranceCtrl ;check value from level header for certain values
+        //> cmp #$06
+        //> beq StoreMusic         ;load music for pipe intro scene if header
+        //> cmp #$07               ;start position either value $06 or $07
+        //> beq StoreMusic
+        val pec = ram.playerEntranceCtrl.toInt() and 0xFF
+        if (pec == 0x06 || pec == 0x07) {
+            // fall through to StoreMusic with indexY=5 (PipeIntro)
+        } else {
+            //> ChkAreaType: ldy AreaType           ;load area type as offset for music bit
+            indexY = ram.areaType
+            //> lda CloudTypeOverride
+            //> beq StoreMusic         ;check for cloud type override
+            //> ldy #$04               ;select music for cloud type level if found
+            if ((ram.cloudTypeOverride.toInt() and 0xFF) != 0) indexY = 0x04
+        }
+    } else {
+        // Using area type path directly
+        //> ChkAreaType: ldy AreaType           ;load area type as offset for music bit
+        indexY = ram.areaType
+        //> lda CloudTypeOverride
+        //> beq StoreMusic         ;check for cloud type override
+        //> ldy #$04               ;select music for cloud type level if found
+        if ((ram.cloudTypeOverride.toInt() and 0xFF) != 0) indexY = 0x04
+    }
+
+    //> StoreMusic:  lda MusicSelectData,y  ;otherwise select appropriate music for level type
+    //> sta AreaMusicQueue     ;store in queue and leave
+    val music: Byte = MusicSelectData[indexY.toInt()]
+    ram.areaMusicQueue = music
+    //> ExitGetM:    rts
+}
+```
+
+4) Verify behavior with a focused unit test (see Testing section)
+
+5) Keep comments one‑to‑one with assembly blocks so reviewers can compare easily
+
+### Example: translating a state‑setup routine
+Consider the `Entrance_GameTimerSetup` snippet in your context (lines ~2833–2848). A Kotlin translation might look like:
+```kotlin
+fun System.entranceGameTimerSetup() {
+    //> Entrance_GameTimerSetup:
+    //> lda ScreenLeft_PageLoc      ;set current page for area objects
+    //> sta Player_PageLoc          ;as page location for player
+    ram.playerPageLoc = ram.screenLeftPageLoc
+
+    //> lda #$28                    ;store value here
+    //> sta VerticalForceDown       ;for fractional movement downwards if necessary
+    ram.verticalForceDown = 0x28
+
+    //> lda #$01                    ;set high byte of player position and
+    //> sta PlayerFacingDir         ;set facing direction so that player faces right
+    //> sta Player_Y_HighPos
+    ram.playerFacingDir = 0x01
+    ram.playerYHighPos = 0x01
+
+    //> lda #$00                    ;set player state to on the ground by default
+    //> sta Player_State
+    ram.playerState = 0x00
+
+    //> dec Player_CollisionBits    ;initialize player's collision bits
+    ram.playerCollisionBits--
+
+    //> ldy #$00                    ;initialize halfway page
+    //> sty HalfwayPage
+    ram.halfwayPage = 0x00
+
+    //> lda AreaType                ;check area type
+    //> bne ChkStPos                ;if water type, set swimming flag, otherwise do not set
+    //> iny
+    //> ChkStPos: sty SwimmingFlag
+    ram.swimmingFlag = ram.areaType == 0x0.toByte()
+    
+    //...
+}
+```
+Fill in the remaining branches and side‑effects based on the subsequent assembly lines; keep all lines commented.
+
+### Testing strategy for translated sections
+- Test only pure Kotlin logic and RAM mutations that don’t require touching TODO‑backed emulator subsystems (PPU/APU/VRAM). If you must use a `ByteAccess`, create a tiny stub:
+```kotlin
+val backing = object : ByteAccess { override var value: Byte = 0 }
+```
+- Suggested test layout:
+    - Package: `com.ivieleague.smbtranslation`
+    - File under `src/test/kotlin`
+    - Use `kotlin.test.*`
+
+Example structure (adapt from the verified smoke tests):
+```kotlin
+class GetAreaMusicTest {
+    @Test
+    fun selectsPipeIntroForEntrance6or7() {
+        val system = System()
+        system.ram.OperMode = 1
+        system.ram.AltEntranceControl = 0
+        system.ram.PlayerEntranceCtrl = 0x06
+        system.getAreaMusic()
+        // Expect PipeIntroMusic at index 5
+        assertEquals(MusicSelectData[5], ram.AreaMusicQueue)
+    }
+}
+```
+Run with: `./gradlew test` or in IDE via the gutter.
+
+### Conventions and sharp edges
+- Byte/int mixing: always mask bytes when comparing or indexing: `b.toInt() and 0xFF`
+- Shifts: only shift `Int`s; convert back to `Byte` at writes
+- Tables: when `.db` packs bitfields, consider `BitRangeAccess2`/`BitAccess2` to avoid manual masking at call sites
+- Avoid busy‑wait loops or real‑time behavior in tests; emulator timing is not implemented yet
+- Follow official Kotlin code style (enforced by `kotlin.code.style=official`)
+
+### Working with PPU/APU/system placeholders
+- Many functions are `TODO()` by design. If a routine interacts with them:
+    - Keep the call in place but structure your code so tests can avoid executing that path (e.g., guard on state flags)
+    - If needed for compile‑time references, define stubs that do not execute in tests
+
+### Checklist for translating a routine
+- [ ] Find the label in `smbdism.asm` and read surrounding comments/data tables
+- [ ] List all referenced RAM variables, constants, and tables
+- [ ] Verify/define corresponding fields in `GameRam` or appropriate component
+- [ ] Decide where the routine fits (file/module) and create a Kotlin function
+- [ ] Port logic line‑by‑line, preserving original comments next to Kotlin code
+- [ ] Carefully handle byte math, flags, and branches using masked `Int`s
+- [ ] Port `.db` tables as `byteArrayOf(...)` (or domain arrays) with exact values/order
+- [ ] Add unit tests that exercise only pure logic and RAM mutations
+- [ ] Confirm build/test pass with `./gradlew build` and `./gradlew test`
+
+### Useful files during translation
+- `smbdism.asm` — the authoritative reference for labels, tables, and semantics
+- `GameRam.kt` — where most state lives; inspect before adding new fields
+- `utils/bitTypes.kt` — delegates for bitfield access; use them to keep Kotlin idiomatic
+- `start.kt`, `nonMaskableInterrupt.kt`, `titleScreenMode.kt` — exemplars of how routines are being ported and organized
+- `build.gradle.kts` — build configuration and toolchain setup
+
+### Final advice
+- Keep diffs reviewable: small, self‑contained routine translations with tests
+- Be consistent with naming and comment style; the 1:1 asm‑to‑comment mapping is your friend when auditing behavior
+- When in doubt about 6502 behavior (carry/overflow on adds, page boundary effects), write a minimal test for the suspected edge and encode the expected RAM mutation
+
+With this setup and workflow, you can confidently pick any well‑scoped section from `smbdism.asm`, translate it into Kotlin next to faithful comments, and validate it via unit tests without depending on unimplemented emulator surfaces.
