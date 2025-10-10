@@ -511,4 +511,6 @@ fun System.initializeArea() {
 
 private fun System.getScreenPosition(): Byte = TODO()
 private fun System.getAreaDataAddrs(): Unit = TODO()
-fun System.loadAreaPointer(): Unit = TODO()
+fun System.loadAreaPointer(): Unit {
+    // TODO: translate
+}

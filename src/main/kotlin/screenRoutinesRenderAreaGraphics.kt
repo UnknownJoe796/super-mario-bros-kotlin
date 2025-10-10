@@ -13,7 +13,7 @@ import com.ivieleague.smbtranslation.chr.OriginalRom
 //> ;$07 - metatile graphics table address high
 
 // I won't pretend to have reviewed this one from the AI too well, but it looks right to me.
-private fun System.renderAreaGraphics() {
+fun System.renderAreaGraphics() {
     //> RenderAreaGraphics:
     //> lda CurrentColumnPos         ;store LSB of where we're at
     //> and #$01

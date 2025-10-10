@@ -435,27 +435,6 @@ private fun System.resetScreenTimer() {
     //> NoReset: rts
 }
 
-private fun System.areaParserTaskHandler() {
-    //> AreaParserTaskHandler:
-    //> ldy AreaParserTaskNum     ;check number of tasks here
-    //> bne DoAPTasks             ;if already set, go ahead
-    //> ldy #$08
-    //> sty AreaParserTaskNum     ;otherwise, set eight by default
-    if (ram.areaParserTaskNum == 0.toByte()) {
-        ram.areaParserTaskNum = 0x08.toByte()
-    }
-    //> DoAPTasks:    dey
-    //> tya
-    //> jsr AreaParserTasks
-    areaParserTasks((ram.areaParserTaskNum - 1).toByte())
-    //> dec AreaParserTaskNum     ;if all tasks not complete do not
-    //> bne SkipATRender          ;render attribute table yet
-    if(--ram.areaParserTaskNum == 0.toByte()) {
-        //> jsr RenderAttributeTables
-        renderAttributeTables()
-    }
-    //> SkipATRender: rts
-}
 
 private fun System.getSBNybbles(): Unit = TODO()
 private fun System.updateNumber(a: Byte): Unit = TODO()
