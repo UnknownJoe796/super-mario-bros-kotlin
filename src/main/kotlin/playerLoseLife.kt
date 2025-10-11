@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.Constants.Silence
 import kotlin.experimental.xor
 
@@ -73,7 +74,7 @@ fun System.playerLoseLife() {
     //> lsr
     //> lsr
     //> MaskHPNyb:   and #%00001111           ;mask out all but lower nybble
-    val halfNyb = HalfwayPageNybbles[ram.worldNumber.toInt()][ram.levelNumber.toInt()]
+    val halfNyb = HalfwayPageNybbles[ram.worldNumber][ram.levelNumber]
 
     //> cmp ScreenLeft_PageLoc
     //> beq SetHalfway           ;left side of screen must be at the halfway page,

@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.nes.Color
 import kotlin.experimental.and
 
@@ -76,7 +77,7 @@ fun System.colorRotation() {
     //> dec $00                  ;decrement counter
     //> bpl GetAreaPal           ;do this until the palette is all copied
     paletteToAdd = paletteToAdd.copy(
-        colors = palette3Data[ram.areaType.toInt()]
+        colors = palette3Data[ram.areaType]
     )
 
     //> ldx VRAM_Buffer1_Offset  ;get current vram buffer offset
@@ -85,7 +86,7 @@ fun System.colorRotation() {
     //> sta VRAM_Buffer1+4,x     ;get and store current color in second slot of palette
     paletteToAdd = paletteToAdd.copy(
         colors = paletteToAdd.colors.toMutableList().apply {
-            this[1] = colorRotatePalette[ram.colorRotateOffset.toInt()]
+            this[1] = colorRotatePalette[ram.colorRotateOffset]
         }
     )
 

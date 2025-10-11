@@ -2,7 +2,11 @@ package com.ivieleague.smbtranslation.chr
 
 import com.ivieleague.smbtranslation.PpuMap
 import com.ivieleague.smbtranslation.nes.Pattern
+import com.ivieleague.smbtranslation.utils.shl
+import com.ivieleague.smbtranslation.utils.shr
 import java.io.File
+import kotlin.experimental.and
+import kotlin.experimental.or
 
 val rawChrData: ByteArray = run {
 
@@ -16,19 +20,19 @@ val rawChrData: ByteArray = run {
     // --- Minimal iNES parsing helpers (local to PPU to avoid external deps) ---
     if (data.size < 16) return@run ByteArray(chrUnitSize)
     if (!(data[0] == 'N'.code.toByte() && data[1] == 'E'.code.toByte() && data[2] == 'S'.code.toByte() && data[3] == 0x1A.toByte())) return@run ByteArray(chrUnitSize)
-    val prgUnits = data[4].toInt() and 0xFF
-    val chrUnits = data[5].toInt() and 0xFF
-    val flag6 = data[6].toInt() and 0xFF
-    val flag7 = data[7].toInt() and 0xFF
-    val hasTrainer = (flag6 and 0x04) != 0
-    val isNes2 = (flag7 and 0x0C) == 0x08
+    val prgUnits = data[4]
+    val chrUnits = data[5]
+    val flag6 = data[6]
+    val flag7 = data[7]
+    val hasTrainer = (flag6 and 0x04) != 0.toByte()
+    val isNes2 = (flag7 and 0x0C) == 0x08.toByte()
 
     var prgSize = prgUnits * prgUnitSize
     var chrSize = chrUnits * chrUnitSize
-    if (isNes2 && data.size >= 16) {
-        val sizeMsb = data[9].toInt() and 0xFF
+    if (isNes2) {
+        val sizeMsb = data[9]
         val prgMsb = sizeMsb and 0x0F
-        val chrMsb = (sizeMsb ushr 4) and 0x0F
+        val chrMsb = (sizeMsb.toUByte() shr 4).toByte() and 0x0F
         prgSize = ((prgMsb shl 8) or prgUnits) * prgUnitSize
         chrSize = ((chrMsb shl 8) or chrUnits) * chrUnitSize
     }

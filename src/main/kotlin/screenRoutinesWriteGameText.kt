@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.chr.OriginalRom
 import kotlin.collections.listOf
 import kotlin.experimental.and
@@ -58,7 +59,7 @@ object GameTexts {
             ax = 0,
             ay = 0,
             drawVertically = false,
-            value = 0xaa.toByte(),  //ground tile?
+            value = 0xaa.toUByte(),  //ground tile?
             repetitions = 63
         ),
         BufferedPpuUpdate.BackgroundAttributeString(
@@ -66,7 +67,7 @@ object GameTexts {
             ax = 2,
             ay = 0,
             drawVertically = false,
-            values = listOf(0xea.toByte())  // ground tile?
+            values = listOf(0xea.toUByte())  // ground tile?
         ),
     )
     val WorldLivesDisplay = listOf(
@@ -115,7 +116,7 @@ object GameTexts {
             ax = 4,
             ay = 3,
             drawVertically = false,
-            values = listOf(0xba.toByte())
+            values = listOf(0xba.toUByte())
         ),
     )
     val TwoPlayerTimeUp = listOf(
@@ -240,7 +241,7 @@ object GameTexts {
             ax = 1,
             ay = 3,
             drawVertically = false,
-            value = 0xaa.toByte(),
+            value = 0xaa.toUByte(),
             repetitions = 6
         ),
         BufferedPpuUpdate.BackgroundAttributeRepeat(
@@ -248,7 +249,7 @@ object GameTexts {
             ax = 1,
             ay = 4,
             drawVertically = false,
-            value = 0xaa.toByte(),
+            value = 0xaa.toUByte(),
             repetitions = 5
         ),
     )

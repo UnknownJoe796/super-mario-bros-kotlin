@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.chr.OriginalRom
 import com.ivieleague.smbtranslation.chr.rawChrData
 import com.ivieleague.smbtranslation.utils.JoypadBits
@@ -110,7 +111,7 @@ fun System.wSelectBufferTemplate(worldNumber: Byte) = listOf<BufferedPpuUpdate>(
         y = (0x73 / 0x20).toByte(),
         repetitions = 1,
         drawVertically = true,
-        pattern = OriginalRom.backgrounds[worldNumber.toInt()]
+        pattern = OriginalRom.backgrounds[worldNumber]
     )
 )
 private fun System.incWorldSel() {

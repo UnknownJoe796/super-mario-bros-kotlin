@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalUnsignedTypes::class)
+
 package com.ivieleague.smbtranslation.utils
 
 fun Byte.bit(index: Int): Boolean = (this.toInt() and (1 shl index)) != 0
@@ -23,61 +25,64 @@ fun Byte.bitRange(start: Int, endInclusive: Int, value: Byte): Byte {
     val valueMask = (1 shl width) - 1
     val rangeMask = valueMask shl start
     val valueShifted = (value.toInt() and valueMask) shl start
-    val cleared = (this.toInt() and 0xFF) and rangeMask.inv()
+    val cleared = this.toInt() and rangeMask.inv()
     return (cleared or valueShifted).toByte()
 }
 
-infix fun Byte.bytePlus(other: Byte): Byte = ((this.toInt() and 0xFF) + (other.toInt() and 0xFF)).toByte()
+typealias IndexingByte = UByte
+typealias NumericalByte = Byte
+typealias ScreenPositionByte = UByte
+typealias DataBitsByte = Byte
+
+infix fun Byte.bytePlus(other: Byte): Byte = ((this) + (other)).toByte()
+infix fun Byte.shr(other: Byte): Byte = (this.toInt() shr other.toInt()).toByte()
+infix fun Byte.shr(other: Int): Byte = (this.toInt() shr other).toByte()
+infix fun Byte.shl(other: Byte): Byte = (this.toInt() shl other.toInt()).toByte()
+infix fun Byte.shl(other: Int): Byte = (this.toInt() shl other).toByte()
+operator fun ByteArray.get(index: Byte): Byte = this[index.toUByte().toInt()]
+operator fun ByteArray.set(index: Byte, value: Byte) { this[index.toUByte().toInt()] = value }
+operator fun UByteArray.get(index: Byte): UByte = this[index.toUByte().toInt()]
+operator fun UByteArray.set(index: Byte, value: UByte) { this[index.toUByte().toInt()] = value }
+operator fun IntArray.get(index: Byte): Int = this[index.toUByte().toInt()]
+operator fun IntArray.set(index: Byte, value: Int) { this[index.toUByte().toInt()] = value }
+operator fun UIntArray.get(index: Byte): UInt = this[index.toUByte().toInt()]
+operator fun UIntArray.set(index: Byte, value: UInt) { this[index.toUByte().toInt()] = value }
+operator fun ShortArray.get(index: Byte): Short = this[index.toUByte().toInt()]
+operator fun ShortArray.set(index: Byte, value: Short) { this[index.toUByte().toInt()] = value }
+operator fun UShortArray.get(index: Byte): UShort = this[index.toUByte().toInt()]
+operator fun UShortArray.set(index: Byte, value: UShort) { this[index.toUByte().toInt()] = value }
+operator fun <T> Array<T>.get(index: Byte): T = this[index.toUByte().toInt()]
+operator fun <T> Array<T>.set(index: Byte, value: T) { this[index.toUByte().toInt()] = value }
+operator fun <T> List<T>.get(index: Byte): T = this[index.toUByte().toInt()]
+operator fun <T> MutableList<T>.set(index: Byte, value: T) { this[index.toUByte().toInt()] = value }
+
+infix fun UByte.bytePlus(other: UByte): UByte = ((this) + (other)).toUByte()
+infix fun UByte.shr(other: UByte): UByte = (this.toInt() ushr other.toInt()).toUByte()
+infix fun UByte.shr(other: Int): UByte = (this.toInt() ushr other).toUByte()
+infix fun UByte.shl(other: UByte): UByte = (this.toInt() shl other.toInt()).toUByte()
+infix fun UByte.shl(other: Int): UByte = (this.toInt() shl other).toUByte()
+operator fun ByteArray.get(index: UByte): Byte = this[index.toInt()]
+operator fun ByteArray.set(index: UByte, value: Byte) { this[index.toInt()] = value }
+operator fun UByteArray.get(index: UByte): UByte = this[index.toInt()]
+operator fun UByteArray.set(index: UByte, value: UByte) { this[index.toInt()] = value }
+operator fun IntArray.get(index: UByte): Int = this[index.toInt()]
+operator fun IntArray.set(index: UByte, value: Int) { this[index.toInt()] = value }
+operator fun UIntArray.get(index: UByte): UInt = this[index.toInt()]
+operator fun UIntArray.set(index: UByte, value: UInt) { this[index.toInt()] = value }
+operator fun ShortArray.get(index: UByte): Short = this[index.toInt()]
+operator fun ShortArray.set(index: UByte, value: Short) { this[index.toInt()] = value }
+operator fun UShortArray.get(index: UByte): UShort = this[index.toInt()]
+operator fun UShortArray.set(index: UByte, value: UShort) { this[index.toInt()] = value }
+operator fun <T> Array<T>.get(index: UByte): T = this[index.toInt()]
+operator fun <T> List<T>.get(index: UByte): T = this[index.toInt()]
+operator fun <T> MutableList<T>.set(index: UByte, value: T) { this[index.toInt()] = value }
+
+operator fun ByteArrayAccess.get(index: Byte): Byte = this[index.toInt()]
+operator fun ByteArrayAccess.set(index: Byte, value: Byte) { this[index.toInt()] = value }
 
 
-/**
- * Proposed replacement to using Byte - enables modders to later use larger numbers without trouble.
- */
-@JvmInline
-value class NesNumber(val int: Int): Comparable<NesNumber> {
-    companion object {
-        val signedRange = Byte.MIN_VALUE.toInt()..Byte.MAX_VALUE.toInt()
-        val unsignedRange = UByte.MIN_VALUE.toInt()..UByte.MAX_VALUE.toInt()
-    }
-    private fun assertInSignedRange(): NesNumber {
-        if (int !in signedRange) throw IllegalArgumentException("Expected result to stay in signed range")
-        return this
-    }
-    private fun assertInUnsignedRange(): NesNumber {
-        if (int !in unsignedRange) throw IllegalArgumentException("Expected result to stay in signed range")
-        return this
-    }
-    fun coerceInSignedRange(): NesNumber = NesNumber(int.coerceIn(signedRange))
-    fun coerceInUnsignedRange(): NesNumber = NesNumber(int.coerceIn(unsignedRange))
-    operator fun plus(other: NesNumber) = NesNumber(this.int.plus(other.int))
-    operator fun minus(other: NesNumber) = NesNumber(this.int.minus(other.int))
-    operator fun times(other: NesNumber) = NesNumber(this.int.times(other.int))
-    operator fun div(other: NesNumber) = NesNumber(this.int.div(other.int))
-    operator fun rem(other: NesNumber) = NesNumber(this.int.rem(other.int))
-    override fun compareTo(other: NesNumber): Int = this.int.compareTo(other.int)
-    operator fun inc() = NesNumber(this.int.inc())
-    operator fun dec() = NesNumber(this.int.dec())
-    operator fun unaryMinus() = NesNumber(this.int.unaryMinus())
-    infix fun and(other: NesNumber) = NesNumber(this.int and other.int)
-    infix fun or(other: NesNumber) = NesNumber(this.int or other.int)
-    infix fun xor(other: NesNumber) = NesNumber(this.int xor other.int)
-    infix fun shl(other: NesNumber) = NesNumber(this.int shl other.int)
-    infix fun shr(other: NesNumber) = NesNumber(this.int shr other.int)
-    fun toByte(): Byte = int.toByte()
-    fun toUByte(): UByte = int.toUByte()
-    override fun toString(): String = "0x" + int.toString(16)
-
-    fun addWithCarry(other: NesNumber, carry: Boolean): Pair<NesNumber, Boolean> {
-        val sum = this + other + (if(carry) NesNumber(1) else NesNumber(0))
-        val carry = sum.int !in signedRange
-        return sum.coerceInSignedRange() to carry
-    }
-    fun subtractWithCarry(other: NesNumber, carry: Boolean): Pair<NesNumber, Boolean> {
-        val sum = this - other - (if(carry) NesNumber(0) else NesNumber(-1))
-        val carry = sum.int !in signedRange
-        return sum.coerceInSignedRange() to carry
-    }
+fun test() {
+    val x = 0.toByte()
+    val y = 1.toByte()
+    val z = x bytePlus y
 }
-
-operator fun <T> List<T>.get(index: NesNumber) = this[index.int]
-operator fun <T> MutableList<T>.set(index: NesNumber, value: T) { this[index.int] = value }

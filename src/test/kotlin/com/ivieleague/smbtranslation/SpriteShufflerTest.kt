@@ -36,24 +36,24 @@ class SpriteShufflerTest {
 
         // Validate SprDataOffset modifications
         // 0x27 < 0x28 => unchanged
-        assertEquals(0x27, ram.sprDataOffsets[0].toInt() and 0xFF)
+        assertEquals(0x27, ram.sprDataOffsets[0])
         // 0x28 + 0x10 => 0x38
-        assertEquals(0x38, ram.sprDataOffsets[1].toInt() and 0xFF)
+        assertEquals(0x38, ram.sprDataOffsets[1])
         // 0xF5 + 0x10 => 0x05 with carry, then +0x28 => 0x2D
-        assertEquals(0x2D, ram.sprDataOffsets[2].toInt() and 0xFF)
+        assertEquals(0x2D, ram.sprDataOffsets[2])
 
         // Validate SprShuffleAmtOffset cycles by +1 modulo 3
-        assertEquals(0x02, ram.sprShuffleAmtOffset.toInt() and 0xFF)
+        assertEquals(0x02, ram.sprShuffleAmtOffset)
 
         // Validate Misc_SprDataOffset layout based on sprDataOffsets[5..7] after shuffle
         // Note sprDataOffsets[7] has been updated by shuffle: 0x30 + 0x10 => 0x40
-        val expectedMisc = intArrayOf(
+        val expectedMisc = byteArrayOf(
             0x10, 0x18, 0x20, // from index 5
             0x20, 0x28, 0x30, // from index 6
             0x40, 0x48, 0x50  // from index 7 (post-shuffle)
         )
         for (i in expectedMisc.indices) {
-            assertEquals(expectedMisc[i], ram.miscSprDataOffsets[i].toInt() and 0xFF, "miscSprDataOffsets[$i]")
+            assertEquals(expectedMisc[i], ram.miscSprDataOffsets[i], "miscSprDataOffsets[$i]")
         }
     }
 }

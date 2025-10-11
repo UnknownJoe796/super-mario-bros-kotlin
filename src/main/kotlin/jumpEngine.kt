@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 //> JumpEngine:
 //> asl          ;shift bit from contents of A
 //> tay

@@ -24,19 +24,19 @@ class BitOps2Test {
 
         // Set bit 0 -> only bit 0 and 4 should be set
         b = b.bit(0, true)
-        assertEquals(0b0001_0001, b.toInt() and 0xFF)
+        assertEquals(0b0001_0001, b)
         assertTrue(b.bit(4))
         assertTrue(b.bit(0))
 
         // Clear bit 4 -> only bit 0 remains
         b = b.bit(4, false)
-        assertEquals(0b0000_0001, b.toInt() and 0xFF)
+        assertEquals(0b0000_0001, b)
         assertFalse(b.bit(4))
         assertTrue(b.bit(0))
 
         // Set bit 7 -> high bit set alongside bit 0
         b = b.bit(7, true)
-        assertEquals(0b1000_0001, b.toInt() and 0xFF)
+        assertEquals(0b1000_0001.toByte(), b)
         assertTrue(b.bit(7))
         assertTrue(b.bit(0))
     }
@@ -61,18 +61,18 @@ class BitOps2Test {
 
         // Write 0b011 into bits [1..3] -> expect bits 1..3 = 011; others unchanged
         b = b.bitRange(1, 3, 0b011)
-        assertEquals(0b1010_0110, b.toInt() and 0xFF)
+        assertEquals(0b1010_0110.toByte(), b)
 
         // Write overflow value 0b1111 into [4..6] (width=3) -> only low 3 bits (0b111) used
         b = b.bitRange(4, 6, 0b1111)
-        assertEquals(0b1111_0110, b.toInt() and 0xFF)
+        assertEquals(0b1111_0110.toByte(), b)
 
         // Clear a high single bit range [7..7]
         b = b.bitRange(7, 7, 0b0)
-        assertEquals(0b0111_0110, b.toInt() and 0xFF)
+        assertEquals(0b0111_0110, b)
 
         // Set lowest single bit range [0..0]
         b = b.bitRange(0, 0, 0b1)
-        assertEquals(0b0111_0111, b.toInt() and 0xFF)
+        assertEquals(0b0111_0111, b)
     }
 }

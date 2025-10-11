@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalUnsignedTypes::class)
+
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.utils.ByteAccess
 import com.ivieleague.smbtranslation.utils.ByteArrayAccess
 import com.ivieleague.smbtranslation.utils.JoypadBits
@@ -152,12 +155,12 @@ class GameRam {
     @RamLocation(0x739) var enemyDataOffset: Byte = 0
     @RamLocation(0x73a) var enemyObjectPageLoc: Byte = 0
     @RamLocation(0x73b) var enemyObjectPageSel: Byte = 0
-    @RamLocation(0x6a1) val metatileBuffer: ByteArray = ByteArray(0x0d)
+    @RamLocation(0x6a1) val metatileBuffer: UByteArray = UByteArray(0x0d)
     @RamLocation(0x6a0) var blockBufferColumnPos: Byte = 0
     @RamLocation(0x721) var currentNTAddrLow: Byte = 0
     @RamLocation(0x720) var currentNTAddrHigh: Byte = 0
     // Attribute buffer used during rendering; modeled as a small array of rows.
-    @RamLocation(0x3f9) val attributeBuffer: ByteArray = ByteArray(0x20)
+    @RamLocation(0x3f9) val attributeBuffer: UByteArray = UByteArray(0x20)
     @RamLocation(0x745) var loopCommand: Byte = 0
 
     @RamLocation(0x7d7) val topScoreDisplay = ByteArray(6)

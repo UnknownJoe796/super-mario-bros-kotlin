@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 
 fun System.updateScreen(bufferToWrite: VBuffer) {
     bufferToWrite.forEach {

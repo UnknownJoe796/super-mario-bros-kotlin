@@ -1,6 +1,10 @@
 package com.ivieleague.smbtranslation.nes
 
 import com.ivieleague.smbtranslation.utils.SpriteFlags
+import com.ivieleague.smbtranslation.utils.shl
+import com.ivieleague.smbtranslation.utils.shr
+import kotlin.experimental.and
+import kotlin.experimental.or
 
 class NesNametable(val width: Int = 32, val height: Int = 30) {
     private val rawTiles = Array<Tile>(width * height) { Tile(Pattern.EMPTY, Palette.EMPTY) }
@@ -18,10 +22,10 @@ data class Tile(
 class Pattern(val bits: ByteArray = ByteArray(16), val name: String? = null, val source: String? = null) {
     // NES 2bpp format: first 8 bytes are bit plane 0 (one byte per row), next 8 are bit plane 1
     // Each pixel's color index is (bit1 << 1) | bit0, with bit 7 being the leftmost pixel
-    fun colorIndex(x: Int, y: Int): Int {
+    fun colorIndex(x: Int, y: Int): Byte {
         require(x in 0..7 && y in 0..7) { "x/y out of range for 8x8 pattern" }
-        val plane0 = bits[y].toInt() and 0xFF
-        val plane1 = bits[8 + y].toInt() and 0xFF
+        val plane0 = bits[y]
+        val plane1 = bits[8 + y]
         val shift = 7 - (x and 7)
         val b0 = (plane0 shr shift) and 1
         val b1 = (plane1 shr shift) and 1
@@ -143,12 +147,15 @@ value class Color(val argb: Int) {
         )
     }
 
-    constructor(byte: Byte) : this(
-        nesPaletteLookup[byte.toInt() and 0x3F] + 0xFF000000.toInt(),
-    )
 
     override fun toString(): String = "#${argb.toHexString().padStart(8, '0')}"
 }
+@JvmName("colorByte") fun Color(byte: Byte) = Color(
+    Color.nesPaletteLookup[byte.toInt() and 0x3F] + 0xFF000000.toInt(),
+)
+@JvmName("colorUByte") fun Color(byte: UByte) = Color(
+    Color.nesPaletteLookup[byte.toInt() and 0x3F] + 0xFF000000.toInt(),
+)
 
 class Sprite {
     var y: UByte = 0U

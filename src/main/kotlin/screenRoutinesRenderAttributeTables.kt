@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import kotlin.experimental.and
 import kotlin.experimental.or
 import kotlin.experimental.xor
@@ -80,7 +81,7 @@ fun System.renderAttributeTables() {
                 repetitions = 1,
             )
         )
-        ram.attributeBuffer[x] = 0
+        ram.attributeBuffer[x] = 0u
         //> iny                      ;increment buffer offset by 4 bytes
         //> iny
         //> iny

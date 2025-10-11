@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.chr.OriginalRom
 import com.ivieleague.smbtranslation.nes.FiveBits
 import com.ivieleague.smbtranslation.nes.Pattern
@@ -8,9 +9,9 @@ import com.ivieleague.smbtranslation.nes.TwoBits
 import com.ivieleague.smbtranslation.nes.Color
 import com.ivieleague.smbtranslation.nes.DirectPalette
 import com.ivieleague.smbtranslation.nes.Palette
-import com.ivieleague.smbtranslation.utils.VramBufferControl
+import com.ivieleague.smbtranslation.utils.*
 
-private fun applyAttributeCell(ppu: PictureProcessingUnit, nametable: TwoBits, ax: FiveBits, ay: FiveBits, value: Byte) {
+private fun applyAttributeCell(ppu: PictureProcessingUnit, nametable: TwoBits, ax: FiveBits, ay: FiveBits, value: UByte) {
     val nt = ppu.backgroundTiles[nametable.toInt() and 0x01]
     val baseX = (ax.toInt() and 0x1F) * 4
     val baseY = (ay.toInt() and 0x1F) * 4
@@ -140,7 +141,7 @@ sealed class BufferedPpuUpdate {
         val ax: FiveBits,
         val ay: FiveBits,
         val drawVertically: Boolean,
-        val values: List<Byte>,
+        val values: List<UByte>,
     ) : BufferedPpuUpdate() {
         override fun toString() = "BufferedPpuUpdate.BackgroundAttributeString(nametable=$nametable, ax=$ax, ay=$ay, drawVertically=$drawVertically, values=listOf(${values.joinToString { "0x" + it.toUByte().toString(16) }}.toByte()))"
         override fun invoke(ppu: PictureProcessingUnit) {
@@ -164,7 +165,7 @@ sealed class BufferedPpuUpdate {
         val ax: FiveBits,
         val ay: FiveBits,
         val drawVertically: Boolean,
-        val value: Byte,
+        val value: UByte,
         val repetitions: Int,
     ) : BufferedPpuUpdate() {
         override fun toString() = "BufferedPpuUpdate.BackgroundAttributeRepeat(nametable=$nametable, ax=$ax, ay=$ay, drawVertically=$drawVertically, value=0x${value.toUByte().toString(16)}.toByte(), repetitions=$repetitions)"
@@ -221,14 +222,14 @@ sealed class BufferedPpuUpdate {
                 val repeat = ctrl.repeat
 
                 // Fetch data payload according to repeat flag
-                fun readDataBlock(): ByteArray {
+                fun readDataBlock(): UByteArray {
                     return if (repeat) {
                         // Repeat mode: replicate the single following byte 'length' times.
-                        if (i >= bytes.size) byteArrayOf() else ByteArray(length) { bytes[i] }
+                        if (i >= bytes.size) ubyteArrayOf() else UByteArray(length) { bytes[i].toUByte() }
                     } else {
                         // Literal mode: copy the next 'length' bytes.
                         val end = (i + length).coerceAtMost(bytes.size)
-                        bytes.copyOfRange(i, end)
+                        bytes.copyOfRange(i, end).toUByteArray()
                     }
                 }
 
@@ -285,7 +286,7 @@ sealed class BufferedPpuUpdate {
                         val startY = startInNt / 32
                         if (repeat && data.isNotEmpty()) {
                             // Repeat: one tile ID replicated 'length' times along X or Y depending on drawVert
-                            val pat = OriginalRom.backgrounds[data[0].toInt() and 0xFF]
+                            val pat = OriginalRom.backgrounds[data[0]]
                             out.add(
                                 BackgroundPatternRepeat(
                                     nametable = ntIndex.toByte(),
@@ -298,7 +299,7 @@ sealed class BufferedPpuUpdate {
                             )
                         } else if (data.isNotEmpty()) {
                             // Literal: sequence of tile IDs placed across or down depending on drawVert
-                            val patterns = data.map { OriginalRom.backgrounds[it.toInt() and 0xFF] }
+                            val patterns = data.map { OriginalRom.backgrounds[it] }
                             out.add(
                                 BackgroundPatternString(
                                     nametable = ntIndex.toByte(),

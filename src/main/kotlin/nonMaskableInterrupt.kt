@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.utils.ByteAccess
 import com.ivieleague.smbtranslation.utils.PpuControl
 import com.ivieleague.smbtranslation.utils.PpuMask
@@ -71,7 +72,7 @@ fun System.nonMaskableInterrupt() {
     //> lda VRAM_AddrTable_High,x
     //> sta $01
     //> jsr UpdateScreen          ;update screen with buffer contents
-    updateScreen(vramAddrTable[ram.vRAMBufferAddrCtrl.toInt()]!!)
+    updateScreen(vramAddrTable[ram.vRAMBufferAddrCtrl])
 
     //> ldy #$00
     //> ldx VRAM_Buffer_AddrCtrl  ;check for usage of $0341
@@ -81,7 +82,7 @@ fun System.nonMaskableInterrupt() {
     //> InitBuffer:    ldx VRAM_Buffer_Offset,y
     //> lda #$00                  ;clear buffer header at last location
     // This whole freaking block's purpose is literally just to choose which buffer to clear.
-    val bufferToClear = if (vramAddrTable[ram.vRAMBufferAddrCtrl.toInt()] == ram.vRAMBuffer2)
+    val bufferToClear = if (vramAddrTable[ram.vRAMBufferAddrCtrl] == ram.vRAMBuffer2)
         ram.vRAMBuffer2
     else
         ram.vRAMBuffer1
@@ -317,14 +318,14 @@ fun System.spriteShuffler(): Unit {
         //> bcc NextSprOffset           ;if less, skip this part
         if (a.toUInt() >= preset) {
             //> ldy SprShuffleAmtOffset     ;get current offset to preset value we want to add
-            val y = (ram.sprShuffleAmtOffset.toInt() and 0xFF)
+            val y = (ram.sprShuffleAmtOffset)
             //> clc
             //> adc SprShuffleAmt,y         ;get shuffle amount, add to current sprite offset
             //> bcc StrSprOffset            ;if not exceeded $ff, skip second add
             val add = ram.sprShuffleAmt[y].toUByte()
             val sum = a.toUInt() + add.toUInt()
             val carry = sum > 0xFFu
-            var updated = (sum and 0xFFu).toUByte()
+            var updated = sum.toUByte()
             if (carry) {
                 //> clc
                 //> adc $00                     ;otherwise add preset value $28 to offset
@@ -339,7 +340,7 @@ fun System.spriteShuffler(): Unit {
     }
 
     //> ldx SprShuffleAmtOffset     ;load offset
-    var amtOff = (ram.sprShuffleAmtOffset.toInt() and 0xFF)
+    var amtOff = (ram.sprShuffleAmtOffset)
     //> inx
     amtOff++
     //> cpx #$03                    ;check if offset + 1 goes to 3

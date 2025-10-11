@@ -1,8 +1,11 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.Constants.EndOfCastleMusic
 import com.ivieleague.smbtranslation.Constants.VictoryMusic
 import com.ivieleague.smbtranslation.Constants.World8
+import kotlin.experimental.and
+import kotlin.experimental.or
 
 /**
  * Kotlin translation of VictoryMode and related routines.
@@ -127,7 +130,7 @@ private fun System.printVictoryMessages() {
         //> cmp #$09                  ;if at 9 or above, branch elsewhere (this comparison
         //> bcs IncMsgCounter         ;is residual code, counter never reaches 9)
         // According to the disassembly comments, this can't happen.
-        if ((ram.primaryMsgCounter.toInt() and 0xFF) >= 9) return incMsgCounter()
+        if ((ram.primaryMsgCounter) >= 9) return incMsgCounter()
 
         //> ldy WorldNumber           ;check world number
         //> cpy #World8
@@ -231,7 +234,7 @@ private fun System.playerEndWorld() {
     //> cpy #World8                ;if on world 8, player is done with game,
     //> bcs EndChkBButton          ;thus branch to read controller
     val world = ram.worldNumber
-    if ((world.toInt() and 0xFF) < (World8.toInt() and 0xFF)) {
+    if (world < World8) {
         // Initialize for next world start at area 1-1
         //> lda #$00
         //> sta AreaNumber             ;otherwise initialize area number used as offset
@@ -242,7 +245,7 @@ private fun System.playerEndWorld() {
         ram.operModeTask = 0x00
         // increment world number
         //> inc WorldNumber            ;increment world number to move onto the next world
-        ram.worldNumber = ((world.toInt() and 0xFF) + 1).toByte()
+        ram.worldNumber = world.inc()
         // load next area's pointer
         //> jsr LoadAreaPointer        ;get area address offset for the next area
         loadAreaPointer()
@@ -263,8 +266,8 @@ private fun System.playerEndWorld() {
     //> and #B_Button              ;either controller
     //> beq EndExitTwo             ;branch to leave if not
     // TODO: leave this as joypadbits, stupid
-    val either = (ram.savedJoypad1Bits.byte.toInt() or ram.savedJoypad2Bits.byte.toInt()) and 0xFF
-    val bPressed = (either and (Constants.B_Button.toInt() and 0xFF)) != 0
+    val either = (ram.savedJoypad1Bits.byte or ram.savedJoypad2Bits.byte)
+    val bPressed = either and Constants.B_Button != 0.toByte()
     if (!bPressed) return
 
     // Set world selection enable flag

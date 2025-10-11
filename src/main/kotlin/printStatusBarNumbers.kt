@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.chr.OriginalRom
 
 //> ;-------------------------------------------------------------------------------------
@@ -98,7 +99,7 @@ private fun System.outputNumbers(statusBarIndexMinusOne: Byte) {
     //> iny
     //> dec $03                  ;do this until all the digits are written
     //> bne DigitPLoop
-    val patterns = toDisplay.map { OriginalRom.backgrounds[it.toInt()] }
+    val patterns = toDisplay.map { OriginalRom.backgrounds[it] }
 
     //> lda #$00                 ;put null terminator at end
     //> sta VRAM_Buffer1+3,x
@@ -163,7 +164,7 @@ fun System.digitsMathRoutine(displayDigits: ByteArray, startIndex: Int = display
         val addAmount = ram.digitModifier[x].toInt()
         //> clc
         //> adc DisplayDigits,y       ;add to current digit
-        var result = (displayDigits[y].toInt() and 0xFF) + addAmount
+        var result = (displayDigits[y]) + addAmount
         //> bmi BorrowOne             ;if result is a negative number, branch to subtract
         if (result < 0) {
             //> BorrowOne:  dec DigitModifier-1,x     ;decrement the previous digit, then put $09 in
@@ -228,8 +229,8 @@ private fun System.topScoreCheck(playerDigits: ByteArray) {
     // Start with carry set (i.e., borrow = 0), scan from least-significant (index 5) to most (index 0).
     var borrow = 0
     for (i in 5 downTo 0) {
-        val player = playerDigits[i].toInt() and 0xFF
-        val top = ram.topScoreDisplay[i].toInt() and 0xFF
+        val player = playerDigits[i]
+        val top = ram.topScoreDisplay[i]
         val diff = player - top - borrow
         borrow = if (diff < 0) 1 else 0
     }

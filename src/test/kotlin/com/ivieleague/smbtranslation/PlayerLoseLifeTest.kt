@@ -41,7 +41,7 @@ class PlayerLoseLifeTest {
         system.ram.levelNumber = Constants.Level1 // 0
         system.ram.screenLeftPageLoc = 5 // equal -> set
         system.playerLoseLife()
-        assertEquals(1, system.ram.numberofLives.toInt() and 0xFF) // decremented
+        assertEquals(1, system.ram.numberofLives) // decremented
         assertEquals(5.toByte(), system.ram.halfwayPage)
 
         // Level -2 (1): use low nybble of first byte ($56 & 0x0F = 6)
@@ -51,7 +51,7 @@ class PlayerLoseLifeTest {
         system2.ram.levelNumber = Constants.Level2 // 1
         system2.ram.screenLeftPageLoc = 4 // 6 > 4 -> start at beginning
         system2.playerLoseLife()
-        assertEquals(4, system2.ram.numberofLives.toInt() and 0xFF)
+        assertEquals(4, system2.ram.numberofLives)
         assertEquals(0.toByte(), system2.ram.halfwayPage)
 
         // Level -3 (2): second byte for world 1 is $40 -> high nybble 4
@@ -61,7 +61,7 @@ class PlayerLoseLifeTest {
         system3.ram.levelNumber = Constants.Level3 // 2
         system3.ram.screenLeftPageLoc = 7 // 4 <= 7 -> set 4
         system3.playerLoseLife()
-        assertEquals(8, system3.ram.numberofLives.toInt() and 0xFF)
+        assertEquals(8, system3.ram.numberofLives)
         assertEquals(4.toByte(), system3.ram.halfwayPage)
     }
 }

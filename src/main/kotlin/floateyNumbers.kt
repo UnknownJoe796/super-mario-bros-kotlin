@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.utils.SpriteFlags
 
 
@@ -51,7 +52,7 @@ data class ComboInfo(val leftTileIndex: Byte, val rightTileIndex: Byte, val digi
 fun System.floateyNumbersRoutine(comboNumber: Byte) {
     //> FloateyNumbersRoutine:
     //> lda FloateyNum_Control,x     ;load control for floatey number
-    var control = ram.floateyNumControl[comboNumber.toInt()]
+    var control = ram.floateyNumControl[comboNumber]
     //> beq EndExitOne               ;if zero, branch to leave
     if (control == 0.toByte()) return
     //> cmp #$0b                     ;if less than $0b, branch
@@ -60,20 +61,20 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
         //> lda #$0b                     ;otherwise set to $0b, thus keeping
         //> sta FloateyNum_Control,x     ;it in range
         control = ComboInfo.list.lastIndex.toByte()
-        ram.floateyNumControl[comboNumber.toInt()] = control
+        ram.floateyNumControl[comboNumber] = control
     }
     //> ChkNumTimer:  tay                          ;use as Y
     //> lda FloateyNum_Timer,x       ;check value here
-    val currentTimer = ram.floateyNumTimer[comboNumber.toInt()]
+    val currentTimer = ram.floateyNumTimer[comboNumber]
     //> bne DecNumTimer              ;if nonzero, branch ahead
     if(currentTimer == 0.toByte()) {
         //> sta FloateyNum_Control,x     ;initialize floatey number control and leave
-        ram.floateyNumControl[comboNumber.toInt()] = 0
+        ram.floateyNumControl[comboNumber] = 0
         //> rts
         return
     }
     //> DecNumTimer:  dec FloateyNum_Timer,x       ;decrement value here
-    ram.floateyNumTimer[comboNumber.toInt()]--
+    ram.floateyNumTimer[comboNumber]--
     //> cmp #$2b                     ;if not reached a certain point, branch
     //> bne ChkTallEnemy
     if (currentTimer == 0x2b.toByte()) {
@@ -95,8 +96,8 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
         //> lda ScoreUpdateData,y        ;load again and this time
         //> and #%00001111               ;mask out the high nybble
         //> sta DigitModifier,x          ;store as amount to add to the digit
-        val data = ComboInfo.list[control.toInt()]
-        ram.digitModifier[data.digitIndex.toInt()] = data.amount
+        val data = ComboInfo.list[control]
+        ram.digitModifier[data.digitIndex] = data.amount
         //> jsr AddToScore               ;update the score accordingly
         addToScore()
     }
@@ -133,7 +134,7 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
     if(useAltOffset) {
         //> GetAltOffset: ldx SprDataOffset_Ctrl       ;load some kind of control bit
         //> ldy Alt_SprDataOffset,x      ;get alternate OAM data offset
-        y = ram.altSprDataOffset[ram.sprDataOffsetCtrl.toInt()]
+        y = ram.altSprDataOffset[ram.sprDataOffsetCtrl]
         //> ldx ObjectOffset             ;get enemy object offset again
         x = ram.objectOffset.toInt()
     }
@@ -153,7 +154,7 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
     dumpTwoSpr(y.toInt(), (ram.floateyNumYPos[x] - 0x8u).toUByte())
     //> lda FloateyNum_X_Pos,x       ;get horizontal coordinate
     //> sta Sprite_X_Position,y      ;store into X coordinate of left sprite
-    ram.sprites[y.toInt()].x = ram.floateyNumXPos[x]
+    ram.sprites[y].x = ram.floateyNumXPos[x]
     //> clc
     //> adc #$08                     ;add eight pixels and store into X
     //> sta Sprite_X_Position+4,y    ;coordinate of right sprite
@@ -161,8 +162,8 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
     //> lda #$02
     //> sta Sprite_Attributes,y      ;set palette control in attribute bytes
     //> sta Sprite_Attributes+4,y    ;of left and right sprites
-    ram.sprites[y.toInt()].attributes = SpriteFlags(palette = 2)
-    ram.sprites[y.toInt()+1].attributes = SpriteFlags(palette = 2)
+    ram.sprites[y].attributes = SpriteFlags(palette = 2)
+    ram.sprites[y+1].attributes = SpriteFlags(palette = 2)
     //> lda FloateyNum_Control,x
     //> asl                          ;multiply our floatey number control by 2
     //> tax                          ;and use as offset for look-up table
@@ -170,9 +171,9 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
     //> sta Sprite_Tilenumber,y      ;display first half of number of points
     //> lda FloateyNumTileData+1,x
     //> sta Sprite_Tilenumber+4,y    ;display the second half
-    val entry = ComboInfo.list[control.toInt()]
-    ram.sprites[y.toInt()].tilenumber = entry.leftTileIndex
-    ram.sprites[y.toInt() + 1].tilenumber = entry.rightTileIndex
+    val entry = ComboInfo.list[control]
+    ram.sprites[y].tilenumber = entry.leftTileIndex
+    ram.sprites[y+1].tilenumber = entry.rightTileIndex
     //> ldx ObjectOffset             ;get enemy object offset and leave
     //> rts
     return

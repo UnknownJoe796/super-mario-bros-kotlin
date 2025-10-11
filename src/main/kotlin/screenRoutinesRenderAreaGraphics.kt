@@ -1,6 +1,10 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.chr.OriginalRom
+import kotlin.experimental.and
+import kotlin.experimental.or
+import kotlin.experimental.xor
 
 //> ;-------------------------------------------------------------------------------------
 //> ;$00 - temp vram buffer offset
@@ -29,7 +33,7 @@ fun System.renderAreaGraphics() {
     //> lda CurrentNTAddr_High
     //> sta VRAM_Buffer2,y
     // Translate current NT address into nametable/x/y for high-level PPU API
-    val ntAddr = ((ram.currentNTAddrHigh.toInt() and 0xFF) shl 8) or (ram.currentNTAddrLow.toInt() and 0xFF)
+    val ntAddr = ((ram.currentNTAddrHigh) shl 8) or (ram.currentNTAddrLow)
     val ntIndex = ((ntAddr - 0x2000) / 0x400) and 0x03
     val startInNt = (ntAddr - 0x2000) % 0x400
     val startX = startInNt % 32
@@ -53,16 +57,16 @@ fun System.renderAreaGraphics() {
         //> DrawMTLoop: stx $01                      ;store init value of 0 or incremented offset for buffer
         val currentRowOffset = metatileBufOffset // $01
         //> lda MetatileBuffer,x         ;get first metatile number, and mask out all but 2 MSB
-        val metatileVal = ram.metatileBuffer.getOrNull(metatileBufOffset)?.toInt()?.and(0xFF) ?: 0
+        val metatileVal = ram.metatileBuffer.getOrNull(metatileBufOffset)?.and(0xFFu) ?: 0u
         //> and #%11000000
-        var attribBits = (metatileVal and 0xC0) // $03 stores raw bits before rotation
+        var attribBits = (metatileVal and 0xC0u) // $03 stores raw bits before rotation
         //> sta $03                      ;store attribute table bits here
         var attribWork = attribBits // $03
         //> asl                          ;note that metatile format is:
         //> rol                          ;%xx000000 - attribute table bits,
         //> rol                          ;%00xxxxxx - metatile number
         //> tay                          ;rotate bits to d1-d0 and use as offset here
-        val attributeGroup = ((attribBits shl 2) and 0xFF) ushr 6 // bring bits into d1-d0 -> 0..3
+        val attributeGroup = attribBits shl 2 shr 6 // bring bits into d1-d0 -> 0..3
 
         //> lda MetatileGraphics_Low,y   ;get address to graphics table from here
         //> sta $06
@@ -73,7 +77,7 @@ fun System.renderAreaGraphics() {
         //> lda MetatileBuffer,x         ;get metatile number again
         //> asl                          ;multiply by 4 and use as tile offset
         //> asl
-        val tileBaseOffset = ((metatileVal and 0x3F) shl 2) and 0xFF
+        val tileBaseOffset = metatileVal and 0x3Fu shl 2
         //> sta $02
         var tileOffset = tileBaseOffset // $02
         //> lda AreaParserTaskNum        ;get current task number for level processing and
@@ -81,18 +85,18 @@ fun System.renderAreaGraphics() {
         //> eor #%00000001               ;to get the correct column position in the metatile,
         //> asl                          ;then add to the tile offset so we can draw either side
         //> adc $02                      ;of the metatiles
-        val columnSide = (((ram.areaParserTaskNum.toInt() and 0x01) xor 0x01) shl 1) and 0x02
-        tileOffset = (tileOffset + columnSide) and 0xFF
+        val columnSide = (((ram.areaParserTaskNum and 0x01) xor 0x01) shl 1) and 0x02
+        tileOffset = (tileOffset bytePlus columnSide.toUByte())
         //> tay
         //> ldx $00                      ;use vram buffer offset from before as X
         // We keep vramBuf2Offset only conceptually.
 
         // Resolve tile numbers for this metatile half-column
         // mtVal layout: %aabbcccc where aa=attribute group, cccc=metatile index low bits
-        val attributeBits = (metatileVal ushr 6) and 0x03
-        val metatileIndex = metatileVal and 0x3F
+        val attributeBits = (metatileVal shr 6) and 0x03u
+        val metatileIndex = metatileVal and 0x3Fu
         val metatile = metatileGraphics[attributeBits][metatileIndex]
-        val metatileUsesLeft = columnSide ushr 1 == 0
+        val metatileUsesLeft = columnSide shr 1 == 0.toByte()
         val tileTop = if(metatileUsesLeft) metatile.topLeft else metatile.topRight
         val tileBottom = if(metatileUsesLeft) metatile.bottomLeft else metatile.bottomRight
         //> lda ($06),y
@@ -118,15 +122,13 @@ fun System.renderAreaGraphics() {
                 //> rol $03                      ;thus in d1-d0, for upper left square
                 //> rol $03
                 // Place attribute bits into bits 0-1
-                val bits = (attributeGroup and 0x03)
-                attribWork = bits
+                attribWork = (attributeGroup and 0x03u)
                 //> jmp SetAttrib
             } else {
                 //> LLeft:      lsr $03                      ;shift attribute bits 2 to the right
                 //> lsr $03                      ;thus in d5-d4 for lower left square
                 // Place into bits 4-5
-                val bits = (attributeGroup and 0x03) shl 4
-                attribWork = bits
+                attribWork = (attributeGroup and 0x03u) shl 4
                 //> NextMTRow:  inc $04                      ;move onto next attribute row
                 attribRow += 1
             }
@@ -142,13 +144,13 @@ fun System.renderAreaGraphics() {
                 //> lsr $03
                 //> jmp SetAttrib
                 // Place into bits 2-3
-                val bits = (attributeGroup and 0x03) shl 2
+                val bits = (attributeGroup and 0x03u) shl 2
                 attribWork = bits
             } else {
                 //> LLeft:      lsr $03                      ;shift attribute bits 2 to the right
                 //> lsr $03                      ;thus in d5-d4 for lower left square
                 // bottom-right -> bits 6-7
-                val bits = (attributeGroup and 0x03) shl 6
+                val bits = (attributeGroup and 0x03u) shl 6
                 attribWork = bits
                 //> NextMTRow:  inc $04                      ;move onto next attribute row
                 attribRow += 1
@@ -156,11 +158,11 @@ fun System.renderAreaGraphics() {
         }
 
         //> SetAttrib:  lda AttributeBuffer,y        ;get previously saved bits from before
-        val prevAttrib = ram.attributeBuffer.getOrNull(attribRow) ?: 0
+        val prevAttrib = ram.attributeBuffer.getOrNull(attribRow) ?: 0u
         //> ora $03                      ;if any, and put new bits, if any, onto
-        val combined = (prevAttrib.toInt() or (attribWork and 0xFF)) and 0xFF
+        val combined = prevAttrib or attribWork
         //> sta AttributeBuffer,y        ;the old, and store
-        if (attribRow in ram.attributeBuffer.indices) ram.attributeBuffer[attribRow] = combined.toByte()
+        if (attribRow in ram.attributeBuffer.indices) ram.attributeBuffer[attribRow] = combined
 
         //> inc $00                      ;increment vram buffer offset by 2
         //> inc $00
@@ -178,7 +180,7 @@ fun System.renderAreaGraphics() {
 
     // Now emit the VRAM updates for the column: address ntAddr, vertical stepping, len=0x1A
     if (patternIds.isNotEmpty()) {
-        val patterns = patternIds.map { id -> OriginalRom.backgrounds[id and 0xFF] }
+        val patterns = patternIds.map { id -> OriginalRom.backgrounds[id] }
         ram.vRAMBuffer2.add(
             BufferedPpuUpdate.BackgroundPatternString(
                 nametable = ntIndex.toByte(),

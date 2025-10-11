@@ -1,6 +1,8 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.chr.OriginalRom
+import kotlin.experimental.or
 
 /**
  * Translation of the block-metatile VRAM update helpers around RemoveCoin_Axe and friends.
@@ -21,7 +23,7 @@ import com.ivieleague.smbtranslation.chr.OriginalRom
 //> ;$06, $07 - block buffer address low/high
 
 // A compact representation for the 2x2 tile graphics used by the various block metatiles in this routine.
-private data class BlockQuad(val topLeft: Int, val topRight: Int, val bottomLeft: Int, val bottomRight: Int)
+private data class BlockQuad(val topLeft: UByte, val topRight: UByte, val bottomLeft: UByte, val bottomRight: UByte)
 
 //> BlockGfxData:
 //> .db $45, $45, $47, $47
@@ -30,18 +32,18 @@ private data class BlockQuad(val topLeft: Int, val topRight: Int, val bottomLeft
 //> .db $24, $24, $24, $24
 //> .db $26, $26, $26, $26
 private val blockGfxData: List<BlockQuad> = listOf(
-    BlockQuad(0x45, 0x45, 0x47, 0x47),
-    BlockQuad(0x47, 0x47, 0x47, 0x47),
-    BlockQuad(0x57, 0x58, 0x59, 0x5a),
-    BlockQuad(0x24, 0x24, 0x24, 0x24), // default blank metatile
-    BlockQuad(0x26, 0x26, 0x26, 0x26), // water blank metatile
+    BlockQuad(0x45u, 0x45u, 0x47u, 0x47u),
+    BlockQuad(0x47u, 0x47u, 0x47u, 0x47u),
+    BlockQuad(0x57u, 0x58u, 0x59u, 0x5au),
+    BlockQuad(0x24u, 0x24u, 0x24u, 0x24u), // default blank metatile
+    BlockQuad(0x26u, 0x26u, 0x26u, 0x26u), // water blank metatile
 )
 
 /**
  * High-level helper to actually emit the two 2-tile rows for a block metatile into vRAMBuffer1.
  * This corresponds to the write performed inside PutBlockMetatile's VRAM writes.
  */
-private fun System.emitBlockQuadAtCurrentNT(topLeft: Int, topRight: Int, bottomLeft: Int, bottomRight: Int) {
+private fun System.emitBlockQuadAtCurrentNT(topLeft: UByte, topRight: UByte, bottomLeft: UByte, bottomRight: UByte) {
     // Translate CurrentNTAddr into nametable and (x,y)
     val ntAddr = ((ram.currentNTAddrHigh.toInt() and 0xFF) shl 8) or (ram.currentNTAddrLow.toInt() and 0xFF)
     val ntIndex = ((ntAddr - 0x2000) / 0x400).coerceIn(0, 3)
@@ -57,8 +59,8 @@ private fun System.emitBlockQuadAtCurrentNT(topLeft: Int, topRight: Int, bottomL
             y = startY.toByte(),
             drawVertically = false,
             patterns = listOf(
-                OriginalRom.backgrounds[topLeft and 0xFF],
-                OriginalRom.backgrounds[topRight and 0xFF],
+                OriginalRom.backgrounds[topLeft],
+                OriginalRom.backgrounds[topRight],
             )
         )
     )
@@ -70,8 +72,8 @@ private fun System.emitBlockQuadAtCurrentNT(topLeft: Int, topRight: Int, bottomL
             y = (startY + 1).toByte(),
             drawVertically = false,
             patterns = listOf(
-                OriginalRom.backgrounds[bottomLeft and 0xFF],
-                OriginalRom.backgrounds[bottomRight and 0xFF],
+                OriginalRom.backgrounds[bottomLeft],
+                OriginalRom.backgrounds[bottomRight],
             )
         )
     )
@@ -89,7 +91,7 @@ fun System.removeCoinOrAxe() {
     //> ldx AreaType             ;check area type
     //> bne WriteBlankMT         ;if not water type, use offset
     //> lda #$04                 ;otherwise load offset for blank metatile used in water
-    if ((ram.areaType.toInt() and 0xFF) == 0) {
+    if ((ram.areaType) == 0.toByte()) {
         blockIndex = 0x04
     }
     //> WriteBlankMT: jsr PutBlockMetatile     ;do a sub to write blank metatile to vram buffer

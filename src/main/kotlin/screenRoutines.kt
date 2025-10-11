@@ -1,9 +1,11 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.chr.OriginalRom
 import com.ivieleague.smbtranslation.nes.Color
 import com.ivieleague.smbtranslation.nes.DirectPalette
 import kotlin.collections.listOf
+import kotlin.experimental.and
 
 // Screen and intermediate display control tasks translated from SMB disassembly.
 // These functions operate over the high-level PPU abstraction and GameRam state.
@@ -12,37 +14,37 @@ fun System.screenRoutines() {
     //> ScreenRoutines:
     //> lda ScreenRoutineTask        ;run one of the following subroutines
     //> jsr JumpEngine
-    when (ram.screenRoutineTask.toInt() and 0xFF) {
+    when (ram.screenRoutineTask) {
         //> .dw InitScreen
-        0x00 -> initScreen()
+        0x00.toByte() -> initScreen()
         //> .dw SetupIntermediate
-        0x01 -> setupIntermediate()
+        0x01.toByte() -> setupIntermediate()
         //> .dw WriteTopStatusLine
-        0x02 -> writeTopStatusLine()
+        0x02.toByte() -> writeTopStatusLine()
         //> .dw WriteBottomStatusLine
-        0x03 -> writeBottomStatusLine()
+        0x03.toByte() -> writeBottomStatusLine()
         //> .dw DisplayTimeUp
-        0x04 -> displayTimeUp()
+        0x04.toByte() -> displayTimeUp()
         //> .dw ResetSpritesAndScreenTimer
-        0x05 -> resetSpritesAndScreenTimer()
+        0x05.toByte() -> resetSpritesAndScreenTimer()
         //> .dw DisplayIntermediate
-        0x06 -> displayIntermediate()
+        0x06.toByte() -> displayIntermediate()
         //> .dw ResetSpritesAndScreenTimer
-        0x07 -> resetSpritesAndScreenTimer()
+        0x07.toByte() -> resetSpritesAndScreenTimer()
         //> .dw AreaParserTaskControl
-        0x08 -> areaParserTaskControl()
+        0x08.toByte() -> areaParserTaskControl()
         //> .dw GetAreaPalette
-        0x09 -> getAreaPalette()
+        0x09.toByte() -> getAreaPalette()
         //> .dw GetBackgroundColor
-        0x0A -> getBackgroundColor()
+        0x0A.toByte() -> getBackgroundColor()
         //> .dw GetAlternatePalette1
-        0x0B -> getAlternatePalette1()
+        0x0B.toByte() -> getAlternatePalette1()
         //> .dw DrawTitleScreen
-        0x0C -> drawTitleScreen()
+        0x0C.toByte() -> drawTitleScreen()
         //> .dw ClearBuffersDrawIcon
-        0x0D -> clearBuffersDrawIcon()
+        0x0D.toByte() -> clearBuffersDrawIcon()
         //> .dw WriteTopScore
-        0x0E -> writeTopScore()
+        0x0E.toByte() -> writeTopScore()
         else -> Unit
     }
 }
@@ -129,7 +131,7 @@ private fun System.writeBottomStatusLine() {
     //> iny
     //> tya
     //> sta VRAM_Buffer1+3,x
-    val worldDigitTile = ((ram.worldNumber.toInt() and 0xFF) + 1).coerceIn(0, 255)
+    val worldDigitTile = ((ram.worldNumber) + 1).coerceIn(0, 255)
     //> lda #$28                ;next the dash
     //> sta VRAM_Buffer1+4,x
     val dashTile = 0x28.toByte()
@@ -139,7 +141,7 @@ private fun System.writeBottomStatusLine() {
     //> sta VRAM_Buffer1+5,x
     //> lda #$00                ;put null terminator on
     //> sta VRAM_Buffer1+6,x
-    val levelDigitTile = ((ram.levelNumber.toInt() and 0xFF) + 1).coerceIn(0, 255)
+    val levelDigitTile = ((ram.levelNumber) + 1).coerceIn(0, 255)
     // Emit three background patterns at $2073: [world, '-', level]
     ram.vRAMBuffer1.add(
         BufferedPpuUpdate.BackgroundPatternString(
@@ -149,7 +151,7 @@ private fun System.writeBottomStatusLine() {
             drawVertically = false,
             patterns = listOf(
                 OriginalRom.backgrounds[worldDigitTile],
-                OriginalRom.backgrounds[dashTile.toInt() and 0xFF],
+                OriginalRom.backgrounds[dashTile],
                 OriginalRom.backgrounds[levelDigitTile],
             )
         )
@@ -186,7 +188,7 @@ private fun System.displayTimeUp() {
 private fun System.resetSpritesAndScreenTimer() {
     //> lda ScreenTimer             ;check if screen timer has expired
     //> bne NoReset                 ;if not, branch to leave
-    if((ram.screenTimer.toInt() and 0xFF) != 0)
+    if((ram.screenTimer) != 0.toByte())
         //> NoReset: rts
         return
     //> jsr MoveAllSpritesOffscreen ;otherwise reset sprites now
@@ -203,7 +205,7 @@ private fun System.displayIntermediate() {
     if (ram.operMode == OperMode.GameOver) return gameOverInter()
     //> lda AltEntranceControl       ;otherwise check for mode of alternate entry
     //> bne NoInter                  ;and branch if found
-    if ((ram.altEntranceControl.toInt() and 0xFF) != 0) return noInter()
+    if ((ram.altEntranceControl) != 0.toByte()) return noInter()
     //> ldy AreaType                 ;check if we are on castle level
     //> cpy #$03                     ;and if so, branch (possibly residual)
     //> beq PlayerInter
@@ -297,7 +299,7 @@ private fun System.getAreaPalette() {
     //> ldy AreaType             ;select appropriate palette to load
     //> ldx AreaPalette,y        ;based on area type
     //> SetVRAMAddr_A: stx VRAM_Buffer_AddrCtrl ;store offset into buffer control
-    ram.vRAMBufferAddrCtrl = AreaPalette[ram.areaType.toInt()]
+    ram.vRAMBufferAddrCtrl = AreaPalette[ram.areaType]
     //> NextSubtask:   jmp IncSubtask           ;move onto next task
     incSubtask()
 }
@@ -380,14 +382,14 @@ fun System.getPlayerColors() {
     var palette = PlayerPalettes.mario // start with Mario
     //> lda CurrentPlayer        ;check which player is on the screen
     //> beq ChkFiery
-    if ((ram.currentPlayer.toInt() and 0xFF) != 0) {
+    if ((ram.currentPlayer) != 0.toByte()) {
         //> ldy #$04                 ;load offset for luigi
         palette = PlayerPalettes.luigi
     }
     //> ChkFiery:      lda PlayerStatus         ;check player status
     //> cmp #$02
     //> bne StartClrGet          ;if fiery, load alternate offset for fiery player
-    if ((ram.playerStatus.toInt() and 0xFF) == 0x02) {
+    if ((ram.playerStatus) == 0x02.toByte()) {
         //> ldy #$08
         palette = PlayerPalettes.fiery
     }
@@ -397,11 +399,11 @@ fun System.getPlayerColors() {
     //> ldy BackgroundColorCtrl  ;if this value is four or greater, it will be set
     //> bne SetBGColor           ;therefore use it as offset to background color
     //> ldy AreaType             ;otherwise use area type bits from area offset as offset
-    val bgIndex = if ((ram.backgroundColorCtrl.toInt() and 0xFF) != 0) {
+    val bgIndex = if (ram.backgroundColorCtrl != 0.toByte()) {
         // backgroundColorCtrl uses values 4..7 when set
-        ram.backgroundColorCtrl.toInt() and 0xFF
+        ram.backgroundColorCtrl
     } else {
-        ram.areaType.toInt() and 0x03
+        ram.areaType and 0x03.toByte()
     }
     //> SetBGColor:    lda BackgroundColors,y   ;to background color instead
     val bg = BackgroundColors[bgIndex]

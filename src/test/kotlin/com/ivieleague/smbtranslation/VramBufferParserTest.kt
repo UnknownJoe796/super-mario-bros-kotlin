@@ -23,7 +23,7 @@ class VramBufferParserTest {
         assertEquals(0, upd.ax.toInt())
         assertEquals(0, upd.ay.toInt())
         assertEquals(false, upd.drawVertically)
-        assertEquals(listOf(0x01, 0x02, 0x03).map { it.toByte() }, upd.values)
+        assertEquals(listOf(0x01, 0x02, 0x03).map { it.toUByte() }, upd.values)
 
         // Apply and verify palettes applied to the correct 4x4 tile blocks (ax 0,1,2 on ay 0)
         updates.forEach { it(ppu) }
@@ -54,7 +54,7 @@ class VramBufferParserTest {
         assertEquals(0, upd.ay.toInt())
         assertEquals(false, upd.drawVertically)
         assertEquals(4, upd.repetitions)
-        assertEquals(0x07.toByte(), upd.value)
+        assertEquals(0x07.toUByte(), upd.value)
 
         // Apply and verify a couple of affected tiles (e.g., (20,0) in tiles since ax=5 -> x=20)
         updates.forEach { it(ppu) }

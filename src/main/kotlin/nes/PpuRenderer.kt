@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation.nes
 
+import com.ivieleague.smbtranslation.utils.get
 import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
@@ -45,7 +46,7 @@ object PpuRenderer {
             val ix = px % tileSize
             val iy = py % tileSize
             val tile: Tile = nt[tx, ty] ?: return 0
-            return tile.pattern.colorIndex(ix, iy)
+            return tile.pattern.colorIndex(ix, iy).toInt()
         }
 
         // Draw background tiles (CI 0 already covered by bg fill)
@@ -55,9 +56,9 @@ object PpuRenderer {
                 for (py in 0 until tileSize) {
                     for (px in 0 until tileSize) {
                         val ci = tile.pattern.colorIndex(px, py) // 0..3
-                        if (ci == 0) continue // already bg color
+                        if (ci == 0.toByte()) continue // already bg color
                         val colorIdx = ci
-                        val argb = tile.palette.colors.getOrNull(colorIdx)?.argb ?: 0xFFFFFFFF.toInt()
+                        val argb = tile.palette.colors[colorIdx].argb
                         paint.color = argb
                         val x = (tx * tileSize + px) * scale
                         val y = (ty * tileSize + py) * scale
@@ -70,8 +71,8 @@ object PpuRenderer {
         // Draw sprites
         for (i in 0 until ppu.sprites.size) {
             val spr = ppu.sprites[i]
-            val xBase = spr.x.toInt() and 0xFF
-            val yBase = spr.y.toInt() and 0xFF
+            val xBase = spr.x.toInt()
+            val yBase = spr.y.toInt()
             val flags = spr.attributes
             val paletteIndex = (flags.palette.toInt() and 0x03)
             val palette = ppu.spritePalettes.getOrNull(paletteIndex)
@@ -90,7 +91,7 @@ object PpuRenderer {
                     val x = xBase + px
 
                     val ci = spr.pattern.colorIndex(srcX, srcY)
-                    if (ci == 0) continue // transparent sprite pixel
+                    if (ci == 0.toByte()) continue // transparent sprite pixel
 
                     if (behind) {
                         // If behind background, only draw where background is CI 0
@@ -99,7 +100,7 @@ object PpuRenderer {
                     }
 
                     val colorIdx = ci
-                    val argb = palette.colors.getOrNull(colorIdx)?.argb ?: 0xFFFFFFFF.toInt()
+                    val argb = palette.colors[colorIdx].argb
                     paint.color = argb
                     canvas.drawRect(
                         Rect.Companion.makeXYWH((x * scale).toFloat(), (y * scale).toFloat(), scale.toFloat(), scale.toFloat()),

@@ -2,6 +2,7 @@
 
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.utils.SpriteFlags
 
 /**
@@ -89,8 +90,8 @@ fun System.getAreaMusic() {
         //> beq StoreMusic         ;load music for pipe intro scene if header
         //> cmp #$07               ;start position either value $06 or $07
         //> beq StoreMusic
-        val pec = ram.playerEntranceCtrl.toInt() and 0xFF
-        if (pec == 0x06 || pec == 0x07) {
+        val pec = ram.playerEntranceCtrl
+        if (pec == 0x06.toByte() || pec == 0x07.toByte()) {
             // fall through to StoreMusic with indexY=5 (PipeIntro)
         } else {
             //> ChkAreaType: ldy AreaType           ;load area type as offset for music bit
@@ -98,7 +99,7 @@ fun System.getAreaMusic() {
             //> lda CloudTypeOverride
             //> beq StoreMusic         ;check for cloud type override
             //> ldy #$04               ;select music for cloud type level if found
-            if ((ram.cloudTypeOverride.toInt() and 0xFF) != 0) indexY = 0x04
+            if ((ram.cloudTypeOverride) != 0.toByte()) indexY = 0x04
         }
     } else {
         // Using area type path directly
@@ -107,12 +108,12 @@ fun System.getAreaMusic() {
         //> lda CloudTypeOverride
         //> beq StoreMusic         ;check for cloud type override
         //> ldy #$04               ;select music for cloud type level if found
-        if ((ram.cloudTypeOverride.toInt() and 0xFF) != 0) indexY = 0x04
+        if ((ram.cloudTypeOverride) != 0.toByte()) indexY = 0x04
     }
 
     //> StoreMusic:  lda MusicSelectData,y  ;otherwise select appropriate music for level type
     //> sta AreaMusicQueue     ;store in queue and leave
-    val music: Byte = MusicSelectData[indexY.toInt()]
+    val music: Byte = MusicSelectData[indexY]
     ram.areaMusicQueue = music
     //> ExitGetM:    rts
 }
@@ -168,15 +169,15 @@ fun System.entranceGameTimerSetup() {
 
     //> SetStPos: lda PlayerStarting_X_Pos,y  ;load appropriate horizontal position
     //> sta Player_X_Position       ;and vertical positions for the player, using
-    ram.playerXPosition = PlayerStarting_X_Pos[ram.altEntranceControl.toInt()]
+    ram.playerXPosition = PlayerStarting_X_Pos[ram.altEntranceControl]
 
     //> lda PlayerStarting_Y_Pos,x  ;AltEntranceControl as offset for horizontal and either $0710
     //> sta Player_Y_Position       ;or value that overwrote $0710 as offset for vertical
-    ram.playerYPosition = PlayerStarting_Y_Pos[playerEntranceCtrl.toInt()]
+    ram.playerYPosition = PlayerStarting_Y_Pos[playerEntranceCtrl]
 
     //> lda PlayerBGPriorityData,x
     //> sta Player_SprAttrib        ;set player sprite attributes using offset in X
-    ram.playerSprAttrib = PlayerBGPriorityData[playerEntranceCtrl.toInt()]
+    ram.playerSprAttrib = PlayerBGPriorityData[playerEntranceCtrl]
 
     //> jsr GetPlayerColors         ;get appropriate player palette
     getPlayerColors()
@@ -189,7 +190,7 @@ fun System.entranceGameTimerSetup() {
     if (gts != 0.toByte() && ram.fetchNewGameTimerFlag) {
         //> lda GameTimerData,y         ;if game timer is set and game timer flag is also set,
         //> sta GameTimerDisplay        ;use value of game timer control for first digit of game timer
-        ram.gameTimerDisplay[0] = GameTimerData[gts.toInt()]
+        ram.gameTimerDisplay[0] = GameTimerData[gts]
         //> lda #$01
         //> sta GameTimerDisplay+2      ;set last digit of game timer to 1
         ram.gameTimerDisplay[2] = 0x01

@@ -1,5 +1,6 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.Constants.World8
 import com.ivieleague.smbtranslation.utils.bytePlus
 import kotlin.experimental.and
@@ -29,7 +30,7 @@ fun System.areaParserTasks() {
     //> AreaParserTasks:
     //> jsr JumpEngine
 
-    when(ram.operModeTask) {
+    when(ram.areaParserTaskNum) {
         //> .dw IncrementColumnPos
         0.toByte() -> Unit //TODO: incrementColumnPos()
         //> .dw RenderAreaGraphics
@@ -256,7 +257,7 @@ fun System.areaParserTasks() {
 //        //> tax
 //        var x = a
 //        //> lda BackSceneryData,x      ;load data from sum of offsets
-//        a = BackSceneryData[x.toInt()]
+//        a = BackSceneryData[x]
 //        //> beq RendFore               ;if zero, no scenery for that part
 //        if (a != 0.toByte()) {
 //            //> pha
@@ -309,7 +310,7 @@ fun System.areaParserTasks() {
 //    //> beq RendTerr               ;if not, skip this part
 //    if (ram.foregroundScenery != 0.toByte()) {
 //        //> ldy FSceneDataOffsets-1,x  ;load offset from location offset by header value, then
-//        var y = FSceneDataOffsets[(ram.foregroundScenery.toInt() and 0xFF) - 1].toInt() and 0xFF
+//        var y = FSceneDataOffsets[(ram.foregroundScenery) - 1]
 //        //> ldx #$00                   ;reinit X
 //        var x = 0
 //        //> SceLoop2: lda ForeSceneryData,y      ;load data until counter expires
@@ -341,11 +342,11 @@ fun System.areaParserTasks() {
 //        aTerrain = 0x62
 //    } else {
 //        //> TerMTile: lda TerrainMetatiles,y     ;otherwise get appropriate metatile for area type
-//        aTerrain = TerrainMetatiles[ram.areaType.toInt() and 0xFF].toInt() and 0xFF
+//        aTerrain = TerrainMetatiles[ram.areaType]
 //        //> ldy CloudTypeOverride      ;check for cloud type override
 //        //> beq StoreMT                ;if not set, keep value otherwise
 //        //> lda #$88                   ;use cloud block terrain
-//        if ((ram.cloudTypeOverride.toInt() and 0xFF) != 0) aTerrain = 0x88
+//        if ((ram.cloudTypeOverride) != 0) aTerrain = 0x88
 //    }
 //    //> StoreMT:  sta $07                    ;store value here
 //    var zp07 = aTerrain and 0xFF
@@ -354,11 +355,11 @@ fun System.areaParserTasks() {
 //    //> lda TerrainControl         ;use yet another value from the header
 //    //> asl                        ;multiply by 2 and use as yet another offset
 //    //> tay
-//    var y = ((ram.terrainControl.toInt() and 0xFF) shl 1) and 0xFF
+//    var y = ((ram.terrainControl) shl 1) and 0xFF
 //    // We will emulate two passes: ceiling byte then floor byte
 //    repeat(2) { passIndex ->
 //        //> TerrLoop: lda TerrainRenderBits,y    ;get one of the terrain rendering bit data
-//        var zp00 = TerrainRenderBits[y].toInt() and 0xFF
+//        var zp00 = TerrainRenderBits[y]
 //        //> sta $00
 //        // (already in zp00)
 //        //> iny                        ;increment Y and use as offset next time around
@@ -372,7 +373,7 @@ fun System.areaParserTasks() {
 //        //> lda $00                    ;if not, mask out all but d3
 //        //> and #%00001000
 //        //> sta $00
-//        if ((ram.cloudTypeOverride.toInt() and 0xFF) != 0 && passIndex != 0) {
+//        if ((ram.cloudTypeOverride) != 0 && passIndex != 0) {
 //            zp00 = zp00 and 0b00001000
 //        }
 //        //> NoCloud2: ldy #$00                   ;start at beginning of bitmasks
@@ -396,7 +397,7 @@ fun System.areaParserTasks() {
 //        //> cpy #$08
 //        //> bne TerrBChk               ;if not all bits checked, loop back
 //        while (true) {
-//            val mask = Bitmasks[bitY].toInt() and 0xFF
+//            val mask = Bitmasks[bitY]
 //            if ((zp00 and mask) != 0) {
 //                if (x in ram.metatileBuffer.indices) ram.metatileBuffer[x] = (zp07 and 0xFF).toByte()
 //            }
@@ -443,7 +444,7 @@ fun System.areaParserTasks() {
 //        a = ram.metatileBuffer.getOrNull(x)?.toInt()?.and(0xFF) ?: 0
 //        //> cmp BlockBuffLowBounds,y   ;check for certain values depending on bits set
 //        //> bcs StrBlock               ;if equal or greater, branch
-//        if (a < (BlockBuffLowBounds[yAttr].toInt() and 0xFF)) {
+//        if (a < (BlockBuffLowBounds[yAttr])) {
 //            //> lda #$00                   ;if less, init value before storing
 //            a = 0
 //        }
