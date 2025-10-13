@@ -71,7 +71,7 @@ class GameRam {
 Each phase will remain its own branch, as each is interesting and usable in its own right.
 
 - Phase 1 - Readable and Running
-  - [ ] Port the assembly (at 3,301 lines out of 16,352 lines, 20%)
+  - [ ] Port the assembly (at 3,368 lines out of 16,352 lines, 20%)
   - [X] Extract character ROM data
   - [X] Emulate the PPU
     - Seems to be mostly complete, renders to Skiko, probably way too inefficient.  Need to check scroll behaviors.

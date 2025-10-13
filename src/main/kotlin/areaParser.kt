@@ -220,7 +220,7 @@ private fun System.areaParserCore() {
     //> AreaParserCore:
     //> lda BackloadingFlag       ;check to see if we are starting right of start
     //> beq RenderSceneryTerrain  ;if not, go ahead and render background, foreground and terrain
-    if (ram.backloadingFlag != 0.toByte()) {
+    if (ram.backloadingFlag) {
         //> jsr ProcessAreaData       ;otherwise skip ahead and load level data
         processAreaData()
         // fall through to render anyway per structure (next part renders after ProcessAreaData too)
@@ -491,7 +491,124 @@ private fun System.getBlockBufferAddr(a: Byte): Pair<ByteArray, Byte> {
 }
 
 private fun System.processAreaData() {
-    // Placeholder translation hook for ProcessAreaData
+    //> ;$00 - used to store area object identifier
+    //> ;$07 - used as adder to find proper area object code
+
+    //> ProcessAreaData:
+    //> ldx #$02                 ;start at the end of area object buffer
+    var x = 2.toByte()
+    do {
+        //> ProcADLoop: stx ObjectOffset
+        ram.objectOffset = x
+        //> lda #$00                 ;reset flag
+        //> sta BehindAreaParserFlag
+        ram.behindAreaParserFlag = false
+
+        //> ldy AreaDataOffset       ;get offset of area data pointer
+        var y = ram.areaDataOffset
+        //> lda (AreaData),y         ;get first byte of area object
+        //> cmp #$fd                 ;if end-of-area, skip all this crap
+        //> beq RdyDecode
+        //> lda AreaObjectLength,x   ;check area object buffer flag
+        //> bpl RdyDecode            ;if buffer not negative, branch, otherwise
+        var behind: Boolean? = false
+        if (ram.areaData!![y] != 0xFD.toByte() && ram.areaObjectLength[x] < 0.toByte()) {
+            //> iny
+            y++
+            //> lda (AreaData),y         ;get second byte of area object
+            //> asl                      ;check for page select bit (d7), branch if not set
+            //> bcc Chk1Row13
+            //> lda AreaObjectPageSel    ;check page select
+            //> bne Chk1Row13
+            if(ram.areaData!![y] < 0.toByte() && ram.areaObjectPageSel == 0.toByte()) {
+                //> inc AreaObjectPageSel    ;if not already set, set it now
+                ram.areaObjectPageSel++
+                //> inc AreaObjectPageLoc    ;and increment page location
+                ram.areaObjectPageLoc++
+            }
+            //> Chk1Row13:  dey
+            y--
+            //> lda (AreaData),y         ;reread first byte of level object
+            //> and #$0f                 ;mask out high nybble
+            val tmp = ram.areaData!![y] and 0xf
+            //> cmp #$0d                 ;row 13?
+            //> bne Chk1Row14
+            if(tmp == 0xd.toByte()) {
+                //> iny                      ;if so, reread second byte of level object
+                //> lda (AreaData),y
+                //> dey                      ;decrement to get ready to read first byte
+                val tmp = ram.areaData!![y + 1]
+
+                //> and #%01000000           ;check for d6 set (if not, object is page control)
+                //> bne CheckRear
+                //> lda AreaObjectPageSel    ;if page select is set, do not reread
+                //> bne CheckRear
+                if(tmp and 0b01000000.toByte() != 0.toByte() || ram.areaObjectPageSel != 0.toByte()) {
+                    // See CheckRear further down.
+                    if (ram.areaObjectPageLoc.toUByte() < ram.currentPageLoc) behind = true
+                } else {
+                    //> iny                      ;if d6 not set, reread second byte
+                    y++
+                    //> lda (AreaData),y
+                    //> and #%00011111           ;mask out all but 5 LSB and store in page control
+                    //> sta AreaObjectPageLoc
+                    ram.areaObjectPageLoc = ram.areaData!![y] and 0b11111
+                    //> inc AreaObjectPageSel    ;increment page select
+                    ram.areaObjectPageSel++
+                    //> jmp NextAObj
+                    behind = null
+                }
+            } else {
+                //> Chk1Row14:  cmp #$0e                 ;row 14?
+                //> bne CheckRear
+                //> lda BackloadingFlag      ;check flag for saved page number and branch if set
+                //> bne RdyDecode            ;to render the object (otherwise bg might not look right)
+                if(tmp != 0xe.toByte() || !ram.backloadingFlag) {
+                    //> CheckRear:  lda AreaObjectPageLoc    ;check to see if current page of level object is
+                    //> cmp CurrentPageLoc       ;behind current page of renderer
+                    //> bcc SetBehind            ;if so branch
+                    if (ram.areaObjectPageLoc.toUByte() < ram.currentPageLoc) behind = true
+                }
+            }
+        }
+        if(behind == false) {
+            //> RdyDecode:  jsr DecodeAreaData       ;do sub and do not turn on flag
+            decodeAreaData()
+            //> jmp ChkLength
+        } else {
+            if (behind == true) {
+                //> SetBehind:  inc BehindAreaParserFlag ;turn on flag if object is behind renderer
+                ram.behindAreaParserFlag = true
+            }
+            //> NextAObj:   jsr IncAreaObjOffset     ;increment buffer offset and move on
+            incAreaObjOffset()
+        }
+        //> ChkLength:  ldx ObjectOffset         ;get buffer offset
+        //> lda AreaObjectLength,x   ;check object length for anything stored here
+        //> bmi ProcLoopb            ;if not, branch to handle loopback
+        if(ram.areaObjectLength[ram.objectOffset] >= 0.toByte()) {
+            //> dec AreaObjectLength,x   ;otherwise decrement length or get rid of it
+            ram.areaObjectLength[ram.objectOffset]--
+        }
+        //> ProcLoopb:  dex                      ;decrement buffer offset
+        x--
+        //> bpl ProcADLoop           ;and loopback unless exceeded buffer
+    } while(x >= 0.toByte())
+
+    //> lda BehindAreaParserFlag ;check for flag set if objects were behind renderer
+    //> bne ProcessAreaData      ;branch if true to load more level data, otherwise
+    if(ram.behindAreaParserFlag) return processAreaData()
+    //> lda BackloadingFlag      ;check for flag set if starting right of page $00
+    //> bne ProcessAreaData      ;branch if true to load more level data, otherwise leave
+    if(ram.backloadingFlag) return processAreaData()
+    //> EndAParse:  rts
+}
+
+private fun System.decodeAreaData(): Unit = TODO()
+private fun System.incAreaObjOffset() {
+    ram.areaDataOffset++
+    ram.areaDataOffset++
+    ram.areaObjectPageSel = 0
 }
 
 

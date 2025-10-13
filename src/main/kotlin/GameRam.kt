@@ -132,9 +132,9 @@ class GameRam {
     @RamLocation(0x6ff) var playerXScroll: Byte = 0
     @RamLocation(0x755) var playerPosForScroll: Byte = 0
     @RamLocation(0x775) var scrollAmount: Byte = 0
-    @RamLocation(0xe7) var areaData: Byte = 0
-    @RamLocation(0xe7) var areaDataLow: Byte = 0
-    @RamLocation(0xe8) var areaDataHigh: Byte = 0
+
+    var areaData: ByteArray? = null  // Indirect: pointer at 0xe7
+
     @RamLocation(0xe9) var enemyData: Byte = 0
     @RamLocation(0xe9) var enemyDataLow: Byte = 0
     @RamLocation(0xea) var enemyDataHigh: Byte = 0
@@ -142,8 +142,8 @@ class GameRam {
     @RamLocation(0x71e) var columnSets: Byte = 0
     @RamLocation(0x725) var currentPageLoc: UByte = 0u
     @RamLocation(0x726) var currentColumnPos: UByte = 0u
-    @RamLocation(0x728) var backloadingFlag: Byte = 0
-    @RamLocation(0x729) var behindAreaParserFlag: Byte = 0
+    @RamLocation(0x728) var backloadingFlag: Boolean = false
+    @RamLocation(0x729) var behindAreaParserFlag: Boolean = false
     @RamLocation(0x72a) var areaObjectPageLoc: Byte = 0
     @RamLocation(0x72b) var areaObjectPageSel: Byte = 0
     @RamLocation(0x72c) var areaDataOffset: Byte = 0

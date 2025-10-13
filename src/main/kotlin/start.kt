@@ -162,7 +162,7 @@ fun System.secondaryGameSetup() {
     //> sta DisableIntermediate   ;clear skip lives display flag
     ram.disableIntermediate = false
     //> sta BackloadingFlag       ;clear value here
-    ram.backloadingFlag = 0x00
+    ram.backloadingFlag = false
 
     //> lda #$ff
     //> sta BalPlatformAlignment  ;initialize balance platform assignment flag

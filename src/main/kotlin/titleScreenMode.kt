@@ -437,7 +437,7 @@ fun System.initializeArea() {
     //> sta BackloadingFlag      ;set flag here if halfway page or saved entry page number found
     ram.screenLeftPageLoc = startPage
     ram.currentPageLoc = startPage.toUByte()
-    ram.backloadingFlag = startPage
+    ram.backloadingFlag = startPage != 0.toByte()
 
     //> jsr GetScreenPosition    ;get pixel coordinates for screen borders
     val rightSideScreenPage = getScreenPosition()
