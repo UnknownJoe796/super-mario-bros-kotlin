@@ -99,7 +99,7 @@ fun System.getAreaMusic() {
             //> lda CloudTypeOverride
             //> beq StoreMusic         ;check for cloud type override
             //> ldy #$04               ;select music for cloud type level if found
-            if ((ram.cloudTypeOverride) != 0.toByte()) indexY = 0x04
+            if (ram.cloudTypeOverride) indexY = 0x04
         }
     } else {
         // Using area type path directly
@@ -108,7 +108,7 @@ fun System.getAreaMusic() {
         //> lda CloudTypeOverride
         //> beq StoreMusic         ;check for cloud type override
         //> ldy #$04               ;select music for cloud type level if found
-        if ((ram.cloudTypeOverride) != 0.toByte()) indexY = 0x04
+        if (ram.cloudTypeOverride) indexY = 0x04
     }
 
     //> StoreMusic:  lda MusicSelectData,y  ;otherwise select appropriate music for level type

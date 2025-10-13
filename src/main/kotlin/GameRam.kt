@@ -140,8 +140,8 @@ class GameRam {
     @RamLocation(0xea) var enemyDataHigh: Byte = 0
     @RamLocation(0x71f) var areaParserTaskNum: Byte = 0
     @RamLocation(0x71e) var columnSets: Byte = 0
-    @RamLocation(0x725) var currentPageLoc: Byte = 0
-    @RamLocation(0x726) var currentColumnPos: Byte = 0
+    @RamLocation(0x725) var currentPageLoc: UByte = 0u
+    @RamLocation(0x726) var currentColumnPos: UByte = 0u
     @RamLocation(0x728) var backloadingFlag: Byte = 0
     @RamLocation(0x729) var behindAreaParserFlag: Byte = 0
     @RamLocation(0x72a) var areaObjectPageLoc: Byte = 0
@@ -200,7 +200,7 @@ class GameRam {
     @RamLocation(0x733) var areaStyle: Byte = 0
     @RamLocation(0x741) var foregroundScenery: Byte = 0
     @RamLocation(0x742) var backgroundScenery: Byte = 0
-    @RamLocation(0x743) var cloudTypeOverride: Byte = 0
+    @RamLocation(0x743) var cloudTypeOverride: Boolean = false
     @RamLocation(0x744) var backgroundColorCtrl: Byte = 0
     @RamLocation(0x74e) var areaType: Byte = 0  // TODO: This should be an enum, I think
     @RamLocation(0x74f) var areaAddrsLOffset: Byte = 0
@@ -418,8 +418,8 @@ class GameRam {
     @RamLocation(0x711) var fireballThrowingTimer: Byte = 0
     @RamLocation(0x6ae) var hammerEnemyOffset: Byte = 0
     @RamLocation(0x6b7) var jumpCoinMiscOffset: Byte = 0
-    @RamLocation(0x500) var blockBuffer1: Byte = 0
-    @RamLocation(0x5d0) var blockBuffer2: Byte = 0
+    @RamLocation(0x500) val blockBuffer1: ByteArray = ByteArray(0xd0)
+    @RamLocation(0x5d0) val blockBuffer2: ByteArray = ByteArray(0xd0)
     @RamLocation(0x3a2) var hammerThrowingTimer: Byte = 0
     @RamLocation(0x3c) var hammerBroJumpTimer: Byte = 0
     @RamLocation(0x6be) var miscCollisionFlag: Byte = 0
