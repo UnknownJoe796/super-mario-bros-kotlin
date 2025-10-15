@@ -425,7 +425,7 @@ private fun System.incModeTask_B() {
     //> rts
 }
 
-private fun System.drawPlayerIntermediate(): Unit = TODO()
+private fun System.drawPlayerIntermediate(): Unit  { /*TODO*/ }
 
 private fun System.resetScreenTimer() {
     //> ResetScreenTimer:
@@ -438,8 +438,8 @@ private fun System.resetScreenTimer() {
 }
 
 
-private fun System.getSBNybbles(): Unit = TODO()
-private fun System.updateNumber(a: Byte): Unit = TODO()
-private fun System.areaParserTasks(taskNum: Byte): Unit = TODO()
+private fun System.getSBNybbles(): Unit  { /*TODO*/ }
+private fun System.updateNumber(a: Byte): Unit  { /*TODO*/ }
+private fun System.areaParserTasks(taskNum: Byte): Unit  { /*TODO*/ }
 
-private fun System.outputInter(code: Int): Unit = TODO()
+private fun System.outputInter(code: Int): Unit  { /*TODO*/ }

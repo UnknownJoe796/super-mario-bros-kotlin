@@ -238,8 +238,8 @@ private fun System.decTimers() {
 }
 
 
-fun System.soundEngine(): Unit = TODO()
-fun System.readJoypads(): Unit = TODO()
+fun System.soundEngine(): Unit  { /*TODO*/ }
+fun System.readJoypads(): Unit  { /*TODO*/ }
 
 fun System.pauseRoutine(): Unit {
     //> PauseRoutine:

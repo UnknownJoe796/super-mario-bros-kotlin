@@ -38,15 +38,18 @@ class PictureProcessingUnit {
     }
 
     //    PPU_SPR_DATA / OAMDATA 	$2004 	DDDD DDDD 	RW 	OAM data read/write
-    fun readOamData(): Byte = TODO()
+    fun readOamData(): Byte  {
+        /*TODO*/
+        return 0x0
+    }
     fun writeOamData(data: Byte) {
         oamAddress++
-        TODO()
+        // TODO
     }
 
     //    PPU_SCROLL_REG / PPUSCROLL 	$2005 	XXXX XXXX YYYY YYYY 	Wx2 	X and Y scroll bits 7-0 (two writes: X scroll, then Y scroll)
     fun scroll(x: Byte, y: Byte) {
-        TODO()
+        // TODO
     }
 
     //    PPU_ADDRESS / PPUADDR 	$2006 	..AA AAAA AAAA AAAA 	Wx2 	VRAM address (two writes: most significant byte, then least significant byte)
@@ -58,16 +61,17 @@ class PictureProcessingUnit {
     //    PPU_DATA / PPUDATA 	$2007 	DDDD DDDD 	RW 	VRAM data read/write
     fun readVram(): Byte {
         internalVramAddress = internalVramAddress.plus(if (control.drawVertical) 32 else 1).toShort()
-        TODO()
+        // TODO
+        return 0x0
     }
 
     fun writeVram(value: Byte) {
         internalVramAddress = internalVramAddress.plus(if (control.drawVertical) 32 else 1).toShort()
-        TODO()
+        // TODO
     }
 
     //    SPR_DMA / OAMDMA 	$4014 	AAAA AAAA 	W 	OAM DMA high address
     fun updateSpriteData(values: Array<GameRam.Sprite>) {
-        TODO()
+        // TODO
     }
 }

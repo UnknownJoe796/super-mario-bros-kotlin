@@ -38,12 +38,13 @@ private fun System.chkContinue(joypadBits: JoypadBits) {
     ram.demoTimer = 0x00.toByte()
     //> ldx #$17
     //> lda #$00
-    for(x in 0x17 downTo 0) {
-        //> InitScores:   sta ScoreAndCoinDisplay,x   ;clear player scores and coin displays
-        ram.scoreAndCoinDisplay[x] = 0x0
-        //> dex
-        //> bpl InitScores
-    }
+    //> InitScores:   sta ScoreAndCoinDisplay,x   ;clear player scores and coin displays
+    //> dex
+    //> bpl InitScores
+    ram.playerScoreDisplay.zeros()
+    ram.player2ScoreDisplay.zeros()
+    ram.coinDisplay.zeros()
+    ram.coin2Display.zeros()
     //> ExitMenu:     rts
 }
 ```

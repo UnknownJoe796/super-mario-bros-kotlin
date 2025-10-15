@@ -78,7 +78,10 @@ class AudioProcessingUnit() {
         val pulse2Active: Boolean = false,
         val pulse1Active: Boolean = false,
     )
-    fun status(): Status = TODO()
+    fun status(): Status  {
+        /*TODO*/
+        return Status()
+    }
 
     // $4017 	All 	Frame counter
     // $4017 	MI-- ---- 	Mode (M, 0 = 4-step, 1 = 5-step), IRQ inhibit flag (I)

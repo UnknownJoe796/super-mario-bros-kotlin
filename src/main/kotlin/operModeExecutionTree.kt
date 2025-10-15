@@ -19,7 +19,7 @@ fun System.operModeExecutionTree(): Unit {
     }
 }
 
-fun System.gameMode(): Unit = TODO()
+fun System.gameMode(): Unit  { /*TODO*/ }
 fun System.gameOverMode(): Unit {
     //> GameOverMode:
     //> lda OperMode_Task

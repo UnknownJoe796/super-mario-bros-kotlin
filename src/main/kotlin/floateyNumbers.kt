@@ -127,7 +127,7 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
             //> lda Enemy_State,x
             //> cmp #$02                     ;if enemy state defeated or otherwise
             //> bcs FloateyPart              ;$02 or greater, branch beyond this part
-            ram.enemyState[x] < 0x2
+            ram.enemyState[x].toUByte() < 0x2.toUByte()
         }
     }
 
@@ -183,4 +183,4 @@ fun System.dumpTwoSpr(index: Int, desiredY: UByte): Unit {
     ram.sprites[index].y = desiredY
     ram.sprites[index + 1].y = desiredY
 }
-fun System.addToScore(): Unit = TODO()
+fun System.addToScore(): Unit  { /*TODO*/ }

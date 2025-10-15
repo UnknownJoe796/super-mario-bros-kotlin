@@ -139,7 +139,7 @@ private fun System.printVictoryMessages() {
 
         //> cmp #$03                  ;check primary message counter again
         //> bcc IncMsgCounter         ;if not at 3 yet (world 8 only), branch to increment
-        if(ram.primaryMsgCounter < 3.toByte()) return incMsgCounter()
+        if(ram.primaryMsgCounter.toUByte() < 3.toUByte()) return incMsgCounter()
         //> sbc #$01                  ;otherwise subtract one
         //> jmp ThankPlayer           ;and skip to next part
         return thankPlayer((ram.primaryMsgCounter - 1).toByte())
@@ -148,7 +148,7 @@ private fun System.printVictoryMessages() {
 private fun System.mRetainerMsg(primaryMsgCounter: Byte) {
     //> MRetainerMsg:  cmp #$02                  ;check primary message counter
     //> bcc IncMsgCounter         ;if not at 2 yet (world 1-7 only), branch
-    if(primaryMsgCounter < 2) return incMsgCounter()
+    if(primaryMsgCounter.toUByte() < 2u) return incMsgCounter()
     else return thankPlayer(primaryMsgCounter)
 }
 private fun System.thankPlayer(primaryMsgCounter: Byte) {
@@ -234,7 +234,7 @@ private fun System.playerEndWorld() {
     //> cpy #World8                ;if on world 8, player is done with game,
     //> bcs EndChkBButton          ;thus branch to read controller
     val world = ram.worldNumber
-    if (world < World8) {
+    if (world.toUByte() < World8.toUByte()) {
         // Initialize for next world start at area 1-1
         //> lda #$00
         //> sta AreaNumber             ;otherwise initialize area number used as offset

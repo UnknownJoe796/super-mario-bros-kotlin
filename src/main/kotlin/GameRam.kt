@@ -147,7 +147,7 @@ class GameRam {
     @RamLocation(0x72a) var areaObjectPageLoc: Byte = 0
     @RamLocation(0x72b) var areaObjectPageSel: Byte = 0
     @RamLocation(0x72c) var areaDataOffset: Byte = 0
-    @RamLocation(0x72d) var areaObjOffsetBuffer: Byte = 0
+    @RamLocation(0x72d) val areaObjOffsetBuffer = ByteArray(3)
     @RamLocation(0x730) val areaObjectLength = ByteArray(3)
     @RamLocation(0x734) var staircaseControl: Byte = 0
     @RamLocation(0x735) var areaObjectHeight: Byte = 0

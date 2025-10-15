@@ -480,7 +480,7 @@ fun System.initializeArea() {
         //> lda WorldNumber          ;otherwise check world number
         //> cmp #World5              ;if less than 5, do not activate secondary
         //> bcc CheckHalfway
-        ram.worldNumber < Constants.World5 -> false
+        ram.worldNumber.toUByte() < Constants.World5.toUByte() -> false
         //> bne SetSecHard           ;if not equal to, then world > 5, thus activate
         ram.worldNumber != Constants.World5 -> true
         //> lda LevelNumber          ;otherwise, world 5, so check level number
@@ -510,8 +510,11 @@ fun System.initializeArea() {
     //> rts
 }
 
-private fun System.getScreenPosition(): Byte = TODO()
-private fun System.getAreaDataAddrs(): Unit = TODO()
+private fun System.getScreenPosition(): Byte  {
+    /*TODO*/
+    return 0
+}
+private fun System.getAreaDataAddrs(): Unit  { /*TODO*/ }
 fun System.loadAreaPointer(): Unit {
     // TODO: translate
 }

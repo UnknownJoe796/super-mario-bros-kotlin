@@ -36,7 +36,9 @@ typealias DataBitsByte = Byte
 
 infix fun Byte.bytePlus(other: Byte): Byte = ((this) + (other)).toByte()
 infix fun Byte.shr(other: Byte): Byte = (this.toInt() shr other.toInt()).toByte()
+infix fun Byte.ushr(other: Byte): Byte = (this.toInt() ushr other.toInt()).toByte()
 infix fun Byte.shr(other: Int): Byte = (this.toInt() shr other).toByte()
+infix fun Byte.ushr(other: Int): Byte = (this.toInt() ushr other).toByte()
 infix fun Byte.shl(other: Byte): Byte = (this.toInt() shl other.toInt()).toByte()
 infix fun Byte.shl(other: Int): Byte = (this.toInt() shl other).toByte()
 operator fun ByteArray.get(index: Byte): Byte = this[index.toUByte().toInt()]

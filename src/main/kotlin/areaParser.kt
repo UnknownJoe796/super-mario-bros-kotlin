@@ -573,7 +573,7 @@ private fun System.processAreaData() {
         }
         if(behind == false) {
             //> RdyDecode:  jsr DecodeAreaData       ;do sub and do not turn on flag
-            decodeAreaData()
+            decodeAreaData(x, y)
             //> jmp ChkLength
         } else {
             if (behind == true) {
@@ -604,7 +604,303 @@ private fun System.processAreaData() {
     //> EndAParse:  rts
 }
 
-private fun System.decodeAreaData(): Unit = TODO()
+private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Unit  {
+    //> DecodeAreaData:
+    val x = objectOffset
+    var y = areaDataOffset
+    //> lda AreaObjectLength,x     ;check current buffer flag
+    //> bmi Chk1stB
+    if (ram.areaObjectLength[x] >= 0.toByte()) {
+        //> ldy AreaObjOffsetBuffer,x  ;if not, get offset from buffer
+        y = ram.areaObjOffsetBuffer[x]
+    }
+    //> Chk1stB:  ldx #$10                   ;load offset of 16 for special row 15
+    var add: Byte = 0x10
+    //> lda (AreaData),y           ;get first byte of level object again
+    var a: Byte = ram.areaData!![y]
+    //> cmp #$fd
+    //> beq EndAParse              ;if end of level, leave this routine
+    if (a == 0xFD.toByte()) return
+    //> and #$0f                   ;otherwise, mask out low nybble
+    val row: Byte = a and 0x0F
+    //> cmp #$0f                   ;row 15?
+    //> beq ChkRow14               ;if so, keep the offset of 16
+    if (row != 0x0F.toByte()) {
+        //> ldx #$08                   ;otherwise load offset of 8 for special row 12
+        add = 0x08
+        //> cmp #$0c                   ;row 12?
+        //> beq ChkRow14               ;if so, keep the offset value of 8
+        if (row != 0x0C.toByte()) {
+            //> ldx #$00                   ;otherwise nullify value by default
+            add = 0x00
+        }
+    }
+    //> ChkRow14: stx $07                    ;store whatever value we just loaded here
+    var temp07: Byte = add
+    //> ldx ObjectOffset           ;get object offset again
+    //> cmp #$0e                   ;row 14?
+    //> bne ChkRow13
+    if (row == 0x0E.toByte()) {
+        //> lda #$00                   ;if so, load offset with $00
+        //> sta $07
+        temp07 = 0x00
+        //> lda #$2e                   ;and load A with another value
+        a = 0x2E.toByte()
+        //> bne NormObj                ;unconditional branch
+        // jump to NormObj
+    } else if (row == 0x0D.toByte()) {
+        //> ChkRow13: cmp #$0d                   ;row 13?
+        //> bne ChkSRows
+        //> lda #$22                   ;if so, load offset with 34
+        //> sta $07
+        temp07 = 0x22
+        //> iny                        ;get next byte
+        y++
+        //> lda (AreaData),y
+        a = ram.areaData!![y]
+        //> and #%01000000             ;mask out all but d6 (page control obj bit)
+        //> beq LeavePar               ;if d6 clear, branch to leave (we handled this earlier)
+        if (a and 0b0100_0000.toByte() == 0.toByte()) return
+        //> lda (AreaData),y           ;otherwise, get byte again
+        a = ram.areaData!![y]
+        //> and #%01111111             ;mask out d7
+        a = a and 0b0111_1111.toByte()
+        //> cmp #$4b                   ;check for loop command in low nybble
+        //> bne Mask2MSB               ;(plus d6 set for object other than page control)
+        if (a == 0x4B.toByte()) {
+            //> inc LoopCommand            ;if loop command, set loop command flag
+            ram.loopCommand++
+        }
+        //> Mask2MSB: and #%00111111             ;mask out d7 and d6
+        a = a and 0b0011_1111.toByte()
+        //> jmp NormObj                ;and jump
+    } else {
+        //> ChkSRows: cmp #$0c                   ;row 12-15?
+        //> bcs SpecObj
+        if (row < 0x0C.toByte()) {
+            //> iny                        ;if not, get second byte of level object
+            y++
+            //> lda (AreaData),y
+            a = ram.areaData!![y]
+            //> and #%01110000             ;mask out all but d6-d4
+            val highBits = a and 0b0111_0000.toByte()
+            //> bne LrgObj                 ;if any bits set, branch to handle large object
+            if (highBits == 0.toByte()) {
+                // small object
+                //> lda #$16
+                //> sta $07                    ;otherwise set offset of 24 for small object
+                temp07 = 0x16
+                //> lda (AreaData),y           ;reload second byte of level object
+                a = ram.areaData!![y]
+                //> and #%00001111             ;mask out higher nybble and jump
+                a = a and 0x0F
+                //> jmp NormObj
+            } else {
+                //> LrgObj:   sta $00                    ;store value here (branch for large objects)
+                var temp00: Byte = highBits
+                //> cmp #$70                   ;check for vertical pipe object
+                //> bne NotWPipe
+                if (temp00 == 0x70.toByte()) {
+                    //> lda (AreaData),y           ;if not, reload second byte
+                    val second = ram.areaData!![y]
+                    //> and #%00001000             ;mask out all but d3 (usage control bit)
+                    //> beq NotWPipe               ;if d3 clear, branch to get original value
+                    if (second and 0b0000_1000.toByte() != 0.toByte()) {
+                        //> lda #$00                   ;otherwise, nullify value for warp pipe
+                        //> sta $00
+                        temp00 = 0x00
+                    }
+                }
+                //> NotWPipe: lda $00                    ;get value and jump ahead
+                a = temp00
+                //> jmp MoveAOId
+                // fallthrough to MoveAOId below
+            }
+        } else {
+            //> SpecObj:  iny                        ;branch here for rows 12-15
+            y++
+            //> lda (AreaData),y
+            a = ram.areaData!![y]
+            //> and #%01110000             ;get next byte and mask out all but d6-d4
+            a = a and 0b0111_0000.toByte()
+            // fallthrough to MoveAOId
+        }
+        //> MoveAOId:  lsr                        ;move d6-d4 to lower nybble
+        //>           lsr
+        //>           lsr
+        //>           lsr
+        a = (a.toUByte() shr 4.toUByte()).toByte()
+    }
+    //> NormObj:  sta $00                    ;store value here (branch for small objects and rows 13 and 14)
+    val objId: Byte = a
+    //> lda AreaObjectLength,x     ;is there something stored here already?
+    //> bpl RunAObj                ;if so, branch to do its particular sub
+    if (ram.areaObjectLength[x] < 0.toByte()) {
+        //> lda AreaObjectPageLoc      ;otherwise check to see if the object we've loaded is on the
+        //> cmp CurrentPageLoc         ;same page as the renderer, and if so, branch
+        //> beq InitRear
+        if (ram.areaObjectPageLoc.toUByte() != ram.currentPageLoc) {
+            //> ldy AreaDataOffset         ;if not, get old offset of level pointer
+            y = ram.areaDataOffset
+            //> lda (AreaData),y           ;and reload first byte
+            a = ram.areaData!![y]
+            //> and #%00001111
+            val lowN: Byte = a and 0x0F.toByte()
+            //> cmp #$0e                   ;row 14?
+            //> bne LeavePar
+            if (lowN != 0x0E.toByte()) return
+            //> lda BackloadingFlag        ;if so, check backloading flag
+            //> bne StrAObj                ;if set, branch to render object, else leave
+            if (!ram.backloadingFlag) return
+            //> LeavePar: rts
+            // else fall through to StrAObj
+        } else {
+            //> InitRear: lda BackloadingFlag        ;check backloading flag to see if it's been initialized
+            //> beq BackColC               ;branch to column-wise check
+            if (ram.backloadingFlag) {
+                //> lda #$00                   ;if not, initialize both backloading and
+                //> sta BackloadingFlag        ;behind-renderer flags and leave
+                //> sta BehindAreaParserFlag
+                //> sta ObjectOffset
+                ram.backloadingFlag = false
+                ram.behindAreaParserFlag = false
+                ram.objectOffset = 0
+                //> LoopCmdE: rts
+                return
+            }
+            //> BackColC: ldy AreaDataOffset         ;get first byte again
+            y = ram.areaDataOffset
+            //> lda (AreaData),y
+            a = ram.areaData!![y]
+            //> and #%11110000             ;mask out low nybble and move high to low
+            //> lsr
+            //> lsr
+            //> lsr
+            //> lsr
+            val col: Byte = a and 0xF0.toByte() ushr 4
+            //> cmp CurrentColumnPos       ;is this where we're at?
+            //> bne LeavePar               ;if not, branch to leave
+            if (col != ram.currentColumnPos.toByte()) return
+            // else fall through to StrAObj
+        }
+        //> StrAObj:  lda AreaDataOffset         ;if so, load area obj offset and store in buffer
+        //> sta AreaObjOffsetBuffer,x
+        ram.areaObjOffsetBuffer[x] = ram.areaDataOffset
+        //> jsr IncAreaObjOffset       ;do sub to increment to next object data
+        incAreaObjOffset()
+    }
+    //> RunAObj:  lda $00                    ;get stored value and add offset to it
+    //> clc                        ;then use the jump engine with current contents of A
+    //> adc $07
+    //> jsr JumpEngine
+    when (objId + temp07) {
+        //> ;large objects (rows $00-$0b or 00-11, d6-d4 set)
+        //> .dw VerticalPipe         ;used by warp pipes
+        0x00 -> verticalPipe()
+        //> .dw AreaStyleObject
+        0x01 -> areaStyleObject()
+        //> .dw RowOfBricks
+        0x02 -> rowOfBricks()
+        //> .dw RowOfSolidBlocks
+        0x03 -> rowOfSolidBlocks()
+        //> .dw RowOfCoins
+        0x04 -> rowOfCoins()
+        //> .dw ColumnOfBricks
+        0x05 -> columnOfBricks()
+        //> .dw ColumnOfSolidBlocks
+        0x06 -> columnOfSolidBlocks()
+        //> .dw VerticalPipe         ;used by decoration pipes
+        0x07 -> verticalPipe()
+
+        //> ;objects for special row $0c or 12
+        //> .dw Hole_Empty
+        0x08 -> hole_Empty()
+        //> .dw PulleyRopeObject
+        0x09 -> pulleyRopeObject()
+        //> .dw Bridge_High
+        0x0A -> bridge_High()
+        //> .dw Bridge_Middle
+        0x0B -> bridge_Middle()
+        //> .dw Bridge_Low
+        0x0C -> bridge_Low()
+        //> .dw Hole_Water
+        0x0D -> hole_Water()
+        //> .dw QuestionBlockRow_High
+        0x0E -> questionBlockRow_High()
+        //> .dw QuestionBlockRow_Low
+        0x0F -> questionBlockRow_Low()
+
+        //> ;objects for special row $0f or 15
+        //> .dw EndlessRope
+        0x10 -> endlessRope()
+        //> .dw BalancePlatRope
+        0x11 -> balancePlatRope()
+        //> .dw CastleObject
+        0x12 -> castleObject()
+        //> .dw StaircaseObject
+        0x13 -> staircaseObject()
+        //> .dw ExitPipe
+        0x14 -> exitPipe()
+        //> .dw FlagBalls_Residual
+        0x15 -> flagBalls_Residual()
+
+        //> ;small objects (rows $00-$0b or 00-11, d6-d4 all clear)
+        //> .dw QuestionBlock     ;power-up
+        0x16 -> questionBlock()
+        //> .dw QuestionBlock     ;coin
+        0x17 -> questionBlock()
+        //> .dw QuestionBlock     ;hidden, coin
+        0x18 -> questionBlock()
+        //> .dw Hidden1UpBlock    ;hidden, 1-up
+        0x19 -> hidden1UpBlock()
+        //> .dw BrickWithItem     ;brick, power-up
+        0x1A -> brickWithItem()
+        //> .dw BrickWithItem     ;brick, vine
+        0x1B -> brickWithItem()
+        //> .dw BrickWithItem     ;brick, star
+        0x1C -> brickWithItem()
+        //> .dw BrickWithCoins    ;brick, coins
+        0x1D -> brickWithCoins()
+        //> .dw BrickWithItem     ;brick, 1-up
+        0x1E -> brickWithItem()
+        //> .dw WaterPipe
+        0x1F -> waterPipe()
+        //> .dw EmptyBlock
+        0x20 -> emptyBlock()
+        //> .dw Jumpspring
+        0x21 -> jumpspring()
+
+        //> ;objects for special row $0d or 13 (d6 set)
+        //> .dw IntroPipe
+        0x22 -> introPipe()
+        //> .dw FlagpoleObject
+        0x23 -> flagpoleObject()
+        //> .dw AxeObj
+        0x24 -> axeObj()
+        //> .dw ChainObj
+        0x25 -> chainObj()
+        //> .dw CastleBridgeObj
+        0x26 -> castleBridgeObj()
+        //> .dw ScrollLockObject_Warp
+        0x27 -> scrollLockObject_Warp()
+        //> .dw ScrollLockObject
+        0x28 -> scrollLockObject()
+        //> .dw ScrollLockObject
+        0x29 -> scrollLockObject()
+        //> .dw AreaFrenzy            ;flying cheep-cheeps
+        0x2A -> areaFrenzy()
+        //> .dw AreaFrenzy            ;bullet bills or swimming cheep-cheeps
+        0x2B -> areaFrenzy()
+        //> .dw AreaFrenzy            ;stop frenzy
+        0x2C -> areaFrenzy()
+        //> .dw LoopCmdE
+        0x2D -> loopCmdE()
+
+        //> ;object for special row $0e or 14
+        //> .dw AlterAreaAttributes
+        0x2E -> alterAreaAttributes()
+    }
+}
 private fun System.incAreaObjOffset() {
     ram.areaDataOffset++
     ram.areaDataOffset++
@@ -622,3 +918,42 @@ private val Bitmasks = ubyteArrayOf(
 private val BlockBuffLowBounds = ubyteArrayOf(
     0x10u, 0x51u, 0x88u, 0xC0u
 )
+
+private fun System.verticalPipe(): Unit { /*TODO*/ }
+private fun System.areaStyleObject(): Unit { /*TODO*/ }
+private fun System.rowOfBricks(): Unit { /*TODO*/ }
+private fun System.rowOfSolidBlocks(): Unit { /*TODO*/ }
+private fun System.rowOfCoins(): Unit { /*TODO*/ }
+private fun System.columnOfBricks(): Unit { /*TODO*/ }
+private fun System.columnOfSolidBlocks(): Unit { /*TODO*/ }
+private fun System.hole_Empty(): Unit { /*TODO*/ }
+private fun System.pulleyRopeObject(): Unit { /*TODO*/ }
+private fun System.bridge_High(): Unit { /*TODO*/ }
+private fun System.bridge_Middle(): Unit { /*TODO*/ }
+private fun System.bridge_Low(): Unit { /*TODO*/ }
+private fun System.hole_Water(): Unit { /*TODO*/ }
+private fun System.questionBlockRow_High(): Unit { /*TODO*/ }
+private fun System.questionBlockRow_Low(): Unit { /*TODO*/ }
+private fun System.endlessRope(): Unit { /*TODO*/ }
+private fun System.balancePlatRope(): Unit { /*TODO*/ }
+private fun System.castleObject(): Unit { /*TODO*/ }
+private fun System.staircaseObject(): Unit { /*TODO*/ }
+private fun System.exitPipe(): Unit { /*TODO*/ }
+private fun System.flagBalls_Residual(): Unit { /*TODO*/ }
+private fun System.questionBlock(): Unit { /*TODO*/ }
+private fun System.hidden1UpBlock(): Unit { /*TODO*/ }
+private fun System.brickWithItem(): Unit { /*TODO*/ }
+private fun System.brickWithCoins(): Unit { /*TODO*/ }
+private fun System.waterPipe(): Unit { /*TODO*/ }
+private fun System.emptyBlock(): Unit { /*TODO*/ }
+private fun System.jumpspring(): Unit { /*TODO*/ }
+private fun System.introPipe(): Unit { /*TODO*/ }
+private fun System.flagpoleObject(): Unit { /*TODO*/ }
+private fun System.axeObj(): Unit { /*TODO*/ }
+private fun System.chainObj(): Unit { /*TODO*/ }
+private fun System.castleBridgeObj(): Unit { /*TODO*/ }
+private fun System.scrollLockObject_Warp(): Unit { /*TODO*/ }
+private fun System.scrollLockObject(): Unit { /*TODO*/ }
+private fun System.areaFrenzy(): Unit { /*TODO*/ }
+private fun System.loopCmdE(): Unit { /*TODO*/ }
+private fun System.alterAreaAttributes(): Unit { /*TODO*/ }
