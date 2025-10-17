@@ -4,6 +4,7 @@ package com.ivieleague.smbtranslation
 
 import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.Constants.World8
+import com.ivieleague.smbtranslation.areaparser.verticalPipe
 import com.ivieleague.smbtranslation.utils.bytePlus
 import kotlin.experimental.and
 
@@ -919,7 +920,6 @@ private val BlockBuffLowBounds = ubyteArrayOf(
     0x10u, 0x51u, 0x88u, 0xC0u
 )
 
-private fun System.verticalPipe(): Unit { /*TODO*/ }
 private fun System.areaStyleObject(): Unit { /*TODO*/ }
 private fun System.rowOfBricks(): Unit { /*TODO*/ }
 private fun System.rowOfSolidBlocks(): Unit { /*TODO*/ }

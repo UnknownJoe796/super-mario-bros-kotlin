@@ -35,6 +35,7 @@ typealias ScreenPositionByte = UByte
 typealias DataBitsByte = Byte
 
 infix fun Byte.bytePlus(other: Byte): Byte = ((this) + (other)).toByte()
+infix fun Byte.byteMinus(other: Byte): Byte = ((this) - (other)).toByte()
 infix fun Byte.shr(other: Byte): Byte = (this.toInt() shr other.toInt()).toByte()
 infix fun Byte.ushr(other: Byte): Byte = (this.toInt() ushr other.toInt()).toByte()
 infix fun Byte.shr(other: Int): Byte = (this.toInt() shr other).toByte()
