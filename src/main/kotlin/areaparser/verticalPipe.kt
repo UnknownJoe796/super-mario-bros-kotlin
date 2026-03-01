@@ -59,14 +59,17 @@ fun System.verticalPipe(): Unit {
  * @return The pipe's length
  */
 private data class PipeHeight(val height: Byte, val length: Byte)
-private fun System.getPipeHeight(): PipeHeight {
+private fun System.getPipeHeight(counterIndex: Int): PipeHeight {
     //> GetPipeHeight:
     //> ldy #$01       ;check for length loaded, if not, load
     //> jsr ChkLrgObjFixedLength ;pipe length of 2 (horizontal)
+    val l = chkLrgObjFixedLength(counterIndex = counterIndex, length = 0x01.toByte())
     //> jsr GetLrgObjAttrib
+    val a = getLrgObjAttrib(counterIndex)
     //> tya            ;get saved lower nybble as height
     //> and #$07       ;save only the three lower bits as
     //> sta $06        ;vertical length, then load Y with
+    val `$06` = a.length
     //> ldy AreaObjectLength,x    ;length left over
     //> rts
     return PipeHeight(0, 0)

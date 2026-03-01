@@ -48,8 +48,12 @@ class PictureProcessingUnit {
     }
 
     //    PPU_SCROLL_REG / PPUSCROLL 	$2005 	XXXX XXXX YYYY YYYY 	Wx2 	X and Y scroll bits 7-0 (two writes: X scroll, then Y scroll)
+    var scrollX: Int = 0
+    var scrollY: Int = 0
+
     fun scroll(x: Byte, y: Byte) {
-        // TODO
+        scrollX = x.toInt() and 0xFF
+        scrollY = y.toInt() and 0xFF
     }
 
     //    PPU_ADDRESS / PPUADDR 	$2006 	..AA AAAA AAAA AAAA 	Wx2 	VRAM address (two writes: most significant byte, then least significant byte)
