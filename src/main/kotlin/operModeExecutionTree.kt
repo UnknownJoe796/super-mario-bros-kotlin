@@ -19,7 +19,21 @@ fun System.operModeExecutionTree(): Unit {
     }
 }
 
-fun System.gameMode(): Unit  { /*TODO*/ }
+fun System.gameMode() {
+    //> GameMode:
+    //> lda OperMode_Task
+    //> jsr JumpEngine
+    when(ram.operModeTask.toInt()) {
+        //> .dw InitializeArea
+        0 -> initializeArea()
+        //> .dw ScreenRoutines
+        1 -> screenRoutines()
+        //> .dw SecondaryGameSetup
+        2 -> secondaryGameSetup()
+        //> .dw GameCoreRoutine
+        else -> gameCoreRoutine()
+    }
+}
 fun System.gameOverMode(): Unit {
     //> GameOverMode:
     //> lda OperMode_Task

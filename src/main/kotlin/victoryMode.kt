@@ -67,8 +67,7 @@ private fun System.setupVictoryMode() {
     return
 }
 
-// Placeholders for routines referenced by the victory mode state machine.
-// Keep them private to avoid unintended external coupling for now.
+// Placeholder for bridge collapse - will be implemented in its own file.
 private fun System.bridgeCollapse(): Unit = TODO("BridgeCollapse not yet implemented")
 private fun System.playerVictoryWalk() {
     //> PlayerVictoryWalk:
@@ -289,12 +288,8 @@ private fun System.playerEndWorld() {
 // Continue other player or end game
 private fun System.terminateGame(): Unit = TODO("TerminateGame not yet implemented")
 
-// Engine/graphics helpers referenced from assembly. Keep as stubs.
-private fun System.enemiesAndLoopsCore(): Unit = TODO("EnemiesAndLoopsCore not yet implemented")
-private fun System.relativePlayerPosition(): Unit = TODO("RelativePlayerPosition not yet implemented")
-private fun System.playerGfxHandler(): Unit = TODO("PlayerGfxHandler not yet implemented")
-
-// Minimal stubs for routines referenced by victory walk logic; these will be implemented with proper behavior later.
+// Engine/graphics helpers - now defined in shared files (gameMode.kt, etc.)
+// enemiesAndLoopsCore, relativePlayerPosition, playerGfxHandler are stubs in their respective files
+// autoControlPlayer, scrollScreen are stubs below until properly translated
 private fun System.autoControlPlayer(amount: Byte) { /* Moves player right by amount or no-op if 0. Placeholder. */ }
 private fun System.scrollScreen(amount: Byte) { /* Scrolls screen by amount. Placeholder. */ }
-private fun System.updScrollVar() { /* Updates scroll-related variables. Placeholder. */ }
