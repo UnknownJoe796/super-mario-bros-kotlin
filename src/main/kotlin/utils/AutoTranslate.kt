@@ -1,6 +1,8 @@
 package com.ivieleague.smbtranslation.utils
 
+import com.ivieleague.smbtranslation.camelCase
 import com.ivieleague.smbtranslation.utils.KotlinPart.Calculation
+import java.io.File
 import kotlin.collections.plusAssign
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -389,7 +391,11 @@ sealed class KotlinFlagTranslation {
     data class FromValue(val part: KotlinPart) : KotlinFlagTranslation()
 }
 
-class AutoTranslate {
+class AutoTranslate(
+    /** Optional address mapping for resolving assembly labels to Kotlin properties.
+     *  When null, falls back to simple camelCase conversion. - by Claude */
+    val addressMapping: AddressMapping? = null,
+) {
     var comparison: Pair<String, String>? = null
     var previousLine: AssemblyLine? = null
 
@@ -452,17 +458,38 @@ class AutoTranslate {
 
     val output = ArrayList<TranslatedAssemblyLine>()
 
+    // by Claude - Resolve a label to Kotlin using AddressMapping when available
+    private fun resolveLabel(label: String): String {
+        addressMapping?.let { return it.toKotlinRead(label) }
+        return "ram.${label.camelCase()}"
+    }
+
+    private fun resolveLabelForWrite(label: String): String {
+        addressMapping?.let { return it.toKotlinWrite(label) }
+        return "ram.${label.camelCase()}"
+    }
+
     fun AssemblyAddressing.toKotlin(): KotlinPart = when (this) {
-        is AssemblyAddressing.DirectX -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("ram.${label.decapitalize()}["), x, KotlinPart.PlainText("]")))
-        is AssemblyAddressing.DirectY -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("ram.${label.decapitalize()}["), y, KotlinPart.PlainText("]")))
-        is AssemblyAddressing.IndirectX -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("ram.${label.decapitalize()}["), x, KotlinPart.PlainText("]")))
-        is AssemblyAddressing.IndirectY -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("ram.${label.decapitalize()}["), y, KotlinPart.PlainText("]")))
-        is AssemblyAddressing.Label -> KotlinPart.PlainText("ram.${label.decapitalize()}")
+        is AssemblyAddressing.DirectX -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("${resolveLabel(label)}["), x, KotlinPart.PlainText("]")))
+        is AssemblyAddressing.DirectY -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("${resolveLabel(label)}["), y, KotlinPart.PlainText("]")))
+        is AssemblyAddressing.IndirectX -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("${resolveLabel(label)}["), x, KotlinPart.PlainText("]")))
+        is AssemblyAddressing.IndirectY -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("${resolveLabel(label)}["), y, KotlinPart.PlainText("]")))
+        is AssemblyAddressing.Label -> KotlinPart.PlainText(resolveLabel(label))
         is AssemblyAddressing.ValueBinary -> KotlinPart.PlainText("0b${value.toString(2).padStart(8, '0')}")
         is AssemblyAddressing.ValueHex -> KotlinPart.PlainText("0x${value.toString(16).padStart(2, '0')}")
         is AssemblyAddressing.ValueDecimal -> KotlinPart.PlainText("$value")
         is AssemblyAddressing.ValueReference -> KotlinPart.PlainText("Constants.$name")
         else -> TODO()
+    }
+
+    // by Claude - Version for write targets (STA, STX, STY)
+    fun AssemblyAddressing.toKotlinWrite(): KotlinPart = when (this) {
+        is AssemblyAddressing.DirectX -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("${resolveLabelForWrite(label)}["), x, KotlinPart.PlainText("]")))
+        is AssemblyAddressing.DirectY -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("${resolveLabelForWrite(label)}["), y, KotlinPart.PlainText("]")))
+        is AssemblyAddressing.IndirectX -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("${resolveLabelForWrite(label)}["), x, KotlinPart.PlainText("]")))
+        is AssemblyAddressing.IndirectY -> KotlinPart.Calculation(listOf(KotlinPart.PlainText("${resolveLabelForWrite(label)}["), y, KotlinPart.PlainText("]")))
+        is AssemblyAddressing.Label -> KotlinPart.PlainText(resolveLabelForWrite(label))
+        else -> toKotlin() // values don't distinguish read/write
     }
 
     private fun pt(text: String) = listOf(KotlinPart.PlainText(text))
@@ -476,8 +503,8 @@ class AutoTranslate {
                     assembly = line,
                     translation = line.instruction?.let { instruction ->
                         when (instruction.op) {
-                            AssemblyOp.JSR -> pt((instruction.address as AssemblyAddressing.Label).label.decapitalize() + "()")
-                            AssemblyOp.JMP -> pt("return ${(instruction.address as AssemblyAddressing.Label).label.decapitalize()}()")
+                            AssemblyOp.JSR -> pt((instruction.address as AssemblyAddressing.Label).label.camelCase() + "()")
+                            AssemblyOp.JMP -> pt("return ${(instruction.address as AssemblyAddressing.Label).label.camelCase()}()")
                             AssemblyOp.CLC -> {
                                 c = KotlinFlagTranslation.Literal(false)
                                 null
@@ -537,9 +564,9 @@ class AutoTranslate {
                                 null
                             }
 
-                            AssemblyOp.STA -> listOf(instruction.address!!.toKotlin(), KotlinPart.PlainText(" = "), a)
-                            AssemblyOp.STX -> listOf(instruction.address!!.toKotlin(), KotlinPart.PlainText(" = "), x)
-                            AssemblyOp.STY -> listOf(instruction.address!!.toKotlin(), KotlinPart.PlainText(" = "), y)
+                            AssemblyOp.STA -> listOf(instruction.address!!.toKotlinWrite(), KotlinPart.PlainText(" = "), a)
+                            AssemblyOp.STX -> listOf(instruction.address!!.toKotlinWrite(), KotlinPart.PlainText(" = "), x)
+                            AssemblyOp.STY -> listOf(instruction.address!!.toKotlinWrite(), KotlinPart.PlainText(" = "), y)
 
                             AssemblyOp.AND -> {
                                 a = KotlinPart.Calculation(listOf(a) + pt(" and ") + instruction.address!!.toKotlin())
@@ -811,7 +838,7 @@ class AutoTranslate {
                 translation = listOf(
                     KotlinPart.PlainText("if ("),
                     condition(branch.instruction!!, invert = false),
-                    KotlinPart.PlainText(") return ${branch.instruction!!.addressAsLabel.label}()"),
+                    KotlinPart.PlainText(") return ${branch.instruction!!.addressAsLabel.label.camelCase()}()"),
                 )
             )
         }
@@ -866,21 +893,62 @@ fun String.parseAssemblyLines(): List<AssemblyLine> {
         }
 }
 
+// by Claude - Enhanced main with address mapping support
 fun main(vararg args: String) {
-    testContent.parseAssemblyLines()
+    // Try to load assembly source for address mapping
+    val asmFile = File("smbdism.asm")
+    val mapping = if (asmFile.exists()) {
+        println("Loading address mapping from smbdism.asm...")
+        AddressMapping.build(asmFile.readText())
+    } else null
+
+    val input = if (args.isNotEmpty()) {
+        // If an argument is given, treat it as a label name and extract from smbdism.asm
+        val labelName = args[0]
+        if (asmFile.exists()) {
+            extractSubroutine(asmFile.readText(), labelName)
+                ?: error("Subroutine '$labelName' not found in smbdism.asm")
+        } else {
+            error("smbdism.asm not found; provide assembly on stdin or place smbdism.asm in project root")
+        }
+    } else {
+        testContent
+    }
+
+    input.parseAssemblyLines()
         .let {
             val grouped = it.groupify()
-            val translator = AutoTranslate()
-//            translator.result = { translator.y }
+            val translator = AutoTranslate(addressMapping = mapping)
             for(item in grouped) translator.translate(item)
             val output = translator.output
             val builder = StringBuilder()
-            builder.appendLine("fun System.${it.firstNotNullOfOrNull { it.label }?.decapitalize()}(${translator.inputs.joinToString(", ")}): Unit {")
+            val funcName = it.firstNotNullOfOrNull { it.label }?.camelCase() ?: "unknown"
+            builder.appendLine("fun System.$funcName(${translator.inputs.joinToString(", ")}): Unit {")
             val em = TranslatedAssemblyLine.Emitter(builder)
             output.forEach(em::emit)
             builder.appendLine("}")
             println(builder)
         }
+}
+
+/**
+ * Extract a subroutine's assembly text from the full disassembly, given a label name.
+ * Returns the lines from the label through the next RTS instruction.
+ * - by Claude
+ */
+fun extractSubroutine(assemblySource: String, labelName: String): String? {
+    val lines = assemblySource.lines()
+    val startPattern = Regex("""^\s*${Regex.escape(labelName)}:""")
+    val startIdx = lines.indexOfFirst { startPattern.containsMatchIn(it) }
+    if (startIdx < 0) return null
+
+    val result = StringBuilder()
+    for (i in startIdx until lines.size) {
+        result.appendLine(lines[i])
+        val trimmed = lines[i].trim().substringBefore(';').trim().lowercase()
+        if (trimmed == "rts" || trimmed == "rti") break
+    }
+    return result.toString()
 }
 
 val testContent = """
