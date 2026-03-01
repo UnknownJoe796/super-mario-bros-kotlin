@@ -262,13 +262,111 @@ fun System.playerGfxHandler(): Unit = TODO("PlayerGfxHandler not yet implemented
 // by Claude - GameEngine subroutine stubs (not yet translated)
 fun System.procFireballBubble(): Unit = TODO("ProcFireball_Bubble not yet implemented")
 fun System.getPlayerOffscreenBits(): Unit = TODO("GetPlayerOffscreenBits not yet implemented")
-fun System.blockObjMTUpdater(): Unit = TODO("BlockObjMT_Updater not yet implemented")
+/**
+ * BlockObjMT_Updater: Replaces block objects with their metatiles if the
+ * replacement flag is set and the VRAM buffer is free.
+ */
+fun System.blockObjMTUpdater() {
+    //> BlockObjMT_Updater:
+    //> ldx #$01                  ;set offset to start with second block object
+    //> UpdateLoop:
+    for (x in 1 downTo 0) {
+        //> stx ObjectOffset          ;set offset here
+        ram.objectOffset = x.toByte()
+        //> lda VRAM_Buffer1          ;if vram buffer already being used here,
+        //> bne NextBUpd              ;branch to move onto next block object
+        if (ram.vRAMBuffer1.isNotEmpty()) continue
+        //> lda Block_RepFlag,x       ;if flag for block object already clear,
+        //> beq NextBUpd              ;branch to move onto next block object
+        // Block_RepFlag is at $3ec, indexed by x (0 or 1)
+        // Using blockRepFlag as a simplified single-value for now
+        // TODO: proper indexed access for Block_RepFlag[x]
+        if (ram.blockRepFlag == 0.toByte()) continue
+        //> lda Block_BBuf_Low,x      ;get low byte of block buffer
+        //> sta $06                   ;store into block buffer address
+        //> lda #$05
+        //> sta $07                   ;set high byte of block buffer address
+        //> lda Block_Orig_YPos,x     ;get original vertical coordinate of block object
+        //> sta $02                   ;store here and use as offset to block buffer
+        //> tay
+        //> lda Block_Metatile,x      ;get metatile to be written
+        //> sta ($06),y               ;write it to the block buffer
+        // In the idiomatic model, this writes the metatile into the block buffer at the
+        // appropriate position. The exact block buffer write depends on indexed fields.
+        // For now, delegate to the existing replaceBlockMetatile.
+        val metatile = ram.blockMetatile.toInt() and 0xFF
+        //> jsr ReplaceBlockMetatile  ;do sub to replace metatile where block object is
+        replaceBlockMetatile(metatile)
+        //> lda #$00
+        //> sta Block_RepFlag,x       ;clear block object flag
+        ram.blockRepFlag = 0
+        //> NextBUpd:   dex                       ;decrement block object offset
+        //> bpl UpdateLoop            ;do this until both block objects are dealt with
+    }
+    //> rts
+}
 fun System.blockObjectsCore(): Unit = TODO("BlockObjectsCore not yet implemented")
 fun System.miscObjectsCore(): Unit = TODO("MiscObjectsCore not yet implemented")
 fun System.processCannons(): Unit = TODO("ProcessCannons not yet implemented")
 fun System.processWhirlpools(): Unit = TODO("ProcessWhirlpools not yet implemented")
 fun System.flagpoleRoutine(): Unit = TODO("FlagpoleRoutine not yet implemented")
-fun System.forceInjury(): Unit = TODO("ForceInjury not yet implemented")
+/**
+ * ForceInjury: Injures or kills the player.
+ * If player is small, kills them. If big/fiery, shrinks to small.
+ */
+fun System.forceInjury() {
+    //> ForceInjury:
+    //> ldx PlayerStatus          ;check player's status
+    //> beq KillPlayer            ;branch if small
+    if (ram.playerStatus == 0.toByte()) {
+        //> KillPlayer:
+        //> stx Player_X_Speed   ;halt player's horizontal movement by initializing speed
+        ram.playerXSpeed = 0
+        //> inx
+        //> stx EventMusicQueue  ;set event music queue to death music
+        ram.eventMusicQueue = Constants.DeathMusic
+        //> lda #$fc
+        //> sta Player_Y_Speed   ;set new vertical speed
+        ram.playerYSpeed = 0xFC.toByte()
+        //> lda #$0b             ;set subroutine to run on next frame
+        //> bne SetKRout         ;branch to set player's state and other things
+        ram.gameEngineSubroutine = 0x0b
+        ram.playerState = 1
+        ram.timerControl = 0xFF.toByte()
+        ram.scrollAmount = 0
+        return
+    }
+
+    //> sta PlayerStatus          ;otherwise set player's status to small (A=0 from caller or implicit)
+    ram.playerStatus = 0
+    //> lda #$08
+    //> sta InjuryTimer           ;set injured invincibility timer
+    ram.injuryTimer = 0x08
+    //> asl
+    //> sta Square1SoundQueue     ;play pipedown/injury sound ($10)
+    ram.square1SoundQueue = Constants.Sfx_PipeDown_Injury
+    //> jsr GetPlayerColors       ;change player's palette if necessary
+    getPlayerColors()
+    //> lda #$0a                  ;set subroutine to run on next frame
+
+    //> SetKRout:
+    //> ldy #$01                  ;set new player state
+    //> SetPRout:
+    //> sta GameEngineSubroutine  ;load new value to run subroutine on next frame
+    ram.gameEngineSubroutine = 0x0a
+    //> sty Player_State          ;store new player state
+    ram.playerState = 1
+    //> ldy #$ff
+    //> sty TimerControl          ;set master timer control flag to halt timers
+    ram.timerControl = 0xFF.toByte()
+    //> iny
+    //> sty ScrollAmount          ;initialize scroll speed
+    ram.scrollAmount = 0
+
+    //> ExInjColRoutines:
+    //> ldx ObjectOffset              ;get enemy offset and leave
+    //> rts
+}
 /**
  * RunGameTimer: Counts down the game timer and handles time-up.
  */
