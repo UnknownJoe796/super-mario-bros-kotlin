@@ -33,7 +33,7 @@ fun System.renderAreaGraphics() {
     //> lda CurrentNTAddr_High
     //> sta VRAM_Buffer2,y
     // Translate current NT address into nametable/x/y for high-level PPU API
-    val ntAddr = ((ram.currentNTAddrHigh) shl 8) or (ram.currentNTAddrLow)
+    val ntAddr = ((ram.currentNTAddrHigh.toInt() and 0xFF) shl 8) or (ram.currentNTAddrLow.toInt() and 0xFF)
     val ntIndex = ((ntAddr - 0x2000) / 0x400) and 0x03
     val startInNt = (ntAddr - 0x2000) % 0x400
     val startX = startInNt % 32
@@ -66,7 +66,7 @@ fun System.renderAreaGraphics() {
         //> rol                          ;%xx000000 - attribute table bits,
         //> rol                          ;%00xxxxxx - metatile number
         //> tay                          ;rotate bits to d1-d0 and use as offset here
-        val attributeGroup = attribBits shl 2 shr 6 // bring bits into d1-d0 -> 0..3
+        val attributeGroup = (metatileVal shr 6) and 0x03u // bring bits into d1-d0 -> 0..3
 
         //> lda MetatileGraphics_Low,y   ;get address to graphics table from here
         //> sta $06
@@ -108,7 +108,9 @@ fun System.renderAreaGraphics() {
         patternIds.add(tileBottom)
 
         //> ldy $04                      ;get current attribute row
-        // In our model, attribRow indexes a temporary attribute buffer row.
+        // NES: Y register is loaded HERE (before any inc $04), and SetAttrib uses Y.
+        // So the bottom-row inc $04 does NOT affect which buffer entry gets written.
+        val attribRowForWrite = attribRow
         //> lda $05                      ;get LSB of current column where we're at, and
         //> bne RightCheck               ;branch if set (clear = left attrib, set = right)
         if (attribColumn == 0) {
@@ -147,8 +149,6 @@ fun System.renderAreaGraphics() {
                 val bits = (attributeGroup and 0x03u) shl 2
                 attribWork = bits
             } else {
-                //> LLeft:      lsr $03                      ;shift attribute bits 2 to the right
-                //> lsr $03                      ;thus in d5-d4 for lower left square
                 // bottom-right -> bits 6-7
                 val bits = (attributeGroup and 0x03u) shl 6
                 attribWork = bits
@@ -158,11 +158,12 @@ fun System.renderAreaGraphics() {
         }
 
         //> SetAttrib:  lda AttributeBuffer,y        ;get previously saved bits from before
-        val prevAttrib = ram.attributeBuffer.getOrNull(attribRow) ?: 0u
+        // NES uses the OLD Y value (attribRowForWrite), not the post-increment attribRow.
+        val prevAttrib = ram.attributeBuffer.getOrNull(attribRowForWrite) ?: 0u
         //> ora $03                      ;if any, and put new bits, if any, onto
         val combined = prevAttrib or attribWork
         //> sta AttributeBuffer,y        ;the old, and store
-        if (attribRow in ram.attributeBuffer.indices) ram.attributeBuffer[attribRow] = combined
+        if (attribRowForWrite in ram.attributeBuffer.indices) ram.attributeBuffer[attribRowForWrite] = combined
 
         //> inc $00                      ;increment vram buffer offset by 2
         //> inc $00

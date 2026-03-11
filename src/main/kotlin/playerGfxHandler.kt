@@ -154,7 +154,7 @@ fun System.playerGfxHandler() {
     //> tax                         ;initialize X to zero
     var kickTileIdx = 0
     //> ldy Player_SprDataOffset    ;get player sprite data offset
-    var sprOfs = ram.playerSprDataOffset.value.toInt() and 0xFF
+    var sprOfs = (ram.playerSprDataOffset.value.toInt() and 0xFF) shr 2
     //> lda PlayerFacingDir         ;get player's facing direction
     //> lsr
     //> bcs SwimKT                  ;if player facing to the right, use current offset
@@ -293,7 +293,7 @@ private fun System.renderPlayerSub(rowCount: Int) {
     //> ldx PlayerGfxOffset          ;load graphics table offset
     var tblOfs = ram.playerGfxOffset.toInt() and 0xFF
     //> ldy Player_SprDataOffset     ;get player's sprite data offset
-    var sprOfs = ram.playerSprDataOffset.value.toInt() and 0xFF
+    var sprOfs = (ram.playerSprDataOffset.value.toInt() and 0xFF) shr 2
 
     //> DrawPlayerLoop:
     for (row in 0 until rowCount) {
@@ -630,7 +630,7 @@ private fun System.shrinkPlayer(animCtrl: Int): Int {
 private fun System.chkForPlayerAttrib() {
     //> ChkForPlayerAttrib:
     //> ldy Player_SprDataOffset    ;get sprite data offset
-    val y = ram.playerSprDataOffset.value.toInt() and 0xFF
+    val y = (ram.playerSprDataOffset.value.toInt() and 0xFF) shr 2
     //> lda GameEngineSubroutine
     //> cmp #$0b                    ;if executing specific game engine routine,
     //> beq KilledAtt               ;branch to change third and fourth row OAM attributes
@@ -683,7 +683,7 @@ private fun System.playerOffscreenChk() {
     //> clc
     //> adc #$18                      ;add 24 bytes to start at bottom row
     //> tay                           ;set as offset here
-    var sprOfs = (ram.playerSprDataOffset.value.toInt() and 0xFF) + 6  // +24 bytes = +6 sprites (bottom row)
+    var sprOfs = ((ram.playerSprDataOffset.value.toInt() and 0xFF) shr 2) + 6  // +24 bytes = +6 sprites (bottom row)
 
     //> PROfsLoop:
     for (row in 0..3) {

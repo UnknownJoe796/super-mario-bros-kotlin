@@ -4,7 +4,6 @@ import com.ivieleague.smbtranslation.utils.*
 
 fun System.updateScreen(bufferToWrite: VBuffer) {
     bufferToWrite.forEach {
-        println("Applying $it")
         it(ppu)
     }
     //> WriteBufferToScreen:

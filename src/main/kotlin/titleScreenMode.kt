@@ -242,16 +242,10 @@ fun System.initializeGame() {
     ram.demoTimer = 0x18.toByte()
     //> jsr LoadAreaPointer
     loadAreaPointer()
-    // by Claude - In the NES, the AreaData pointer ($E7/$E8) is set by GetAreaDataAddrs
-    // (called from InitializeArea). The area parser at ScrTask=8 reads from this pointer.
-    // In Kotlin, ram.areaData is a nullable ByteArray that must be explicitly set.
-    // Call getAreaDataAddrs() here to load the demo level's area data.
-    getAreaDataAddrs()
-    println("DEBUG initializeGame: areaData=${ram.areaData?.size}, areaPointer=${ram.areaPointer}, areaType=${ram.areaType}, worldNumber=${ram.worldNumber}, areaNumber=${ram.areaNumber}")
-
-    // After initialization, the original falls through to InitializeArea via the jump table sequencing.
-    // Here we simply advance the mode task to mirror that control flow.
-    ram.operModeTask++
+    // NES: InitializeGame falls through directly into InitializeArea (adjacent in ROM).
+    // InitializeArea sets up currentNTAddr, columnSets, area data pointers, etc.
+    // and ends with its own operModeTask++ to advance to screenRoutines.
+    initializeArea()
 }
 // by Claude - PrimaryGameSetup falls through to SecondaryGameSetup in the assembly
 // (no RTS between them). SecondaryGameSetup handles screen enable, sprite setup,
@@ -435,7 +429,9 @@ fun System.initializeArea() {
     //> ClrTimersLoop: sta Timers,x             ;clear out memory between
     //> dex                      ;$0780 and $07a1
     //> bpl ClrTimersLoop
-    for (i in ram.timers.indices) ram.timers[i] = 0
+    // Assembly: ldx #$21 / sta Timers,x / dex / bpl — clears $0780..$07A1 (indices 0..0x21)
+    // Index 0x22 (DemoTimer at $07A2) is intentionally NOT cleared here.
+    for (i in 0..0x21) ram.timers[i] = 0
 
     //> lda HalfwayPage
     //> ldy AltEntranceControl   ;if AltEntranceControl not set, use halfway page, if any found

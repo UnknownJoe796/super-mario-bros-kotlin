@@ -104,7 +104,7 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
     // wtf? this is uber cursed.  X was just overwritten in LoadNumTiles?
     var x: Int = comboNumber.toInt()
     //> ChkTallEnemy: ldy Enemy_SprDataOffset,x    ;get OAM data offset for enemy object
-    var y = ram.enemySprDataOffset[x].toInt() and 0xFF
+    var y = (ram.enemySprDataOffset[x].toInt() and 0xFF) shr 2
     //> lda Enemy_ID,x               ;get enemy object identifier
     val useAltOffset = when(ram.enemyID[x]) {
         //> cmp #Spiny
@@ -134,7 +134,7 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
     if(useAltOffset) {
         //> GetAltOffset: ldx SprDataOffset_Ctrl       ;load some kind of control bit
         //> ldy Alt_SprDataOffset,x      ;get alternate OAM data offset
-        y = ram.altSprDataOffset[ram.sprDataOffsetCtrl.toInt()].toInt() and 0xFF
+        y = (ram.altSprDataOffset[ram.sprDataOffsetCtrl.toInt()].toInt() and 0xFF) shr 2
         //> ldx ObjectOffset             ;get enemy object offset again
         x = ram.objectOffset.toInt()
     }

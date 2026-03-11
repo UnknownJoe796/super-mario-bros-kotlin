@@ -259,12 +259,13 @@ fun System.soundEngine() {
 }
 
 // by Claude - ReadJoypads: On the NES, this reads the controller shift registers via
-// $4016/$4017. In the Kotlin port, input is injected externally into SavedJoypadBits
-// before each frame, so this is a no-op.
+// $4016/$4017 and writes the result into SavedJoypadBits. In the Kotlin port, the
+// host platform writes input into inputs.joypadPort1/2, and this function transfers
+// it into the game RAM fields that game logic reads.
 fun System.readJoypads() {
     //> ReadJoypads:
-    // Input is provided by the host platform directly into ram.savedJoypadBits / ram.savedJoypad1Bits.
-    // The select/start masking logic from the assembly is handled by playerCtrlRoutine.
+    ram.savedJoypadBits = inputs.joypadPort1
+    ram.savedJoypad2Bits = inputs.joypadPort2
 }
 
 fun System.pauseRoutine(): Unit {

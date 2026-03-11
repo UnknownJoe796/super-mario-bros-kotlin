@@ -1280,7 +1280,7 @@ fun System.drawLargePlatform() {
 
     //> DrawLargePlatform:
     //> ldy Enemy_SprDataOffset,x   ;get OAM data offset
-    val sprOfs = ram.enemySprDataOffset[x].toInt() and 0xFF
+    val sprOfs = (ram.enemySprDataOffset[x].toInt() and 0xFF) shr 2
 
     //> sty $02                     ;store here
     //> iny; iny; iny               ;add 3 to it for offset to X coordinate
@@ -1392,7 +1392,7 @@ fun System.drawSmallPlatform() {
 
     //> DrawSmallPlatform:
     //> ldy Enemy_SprDataOffset,x   ;get OAM data offset
-    val sprOfs = ram.enemySprDataOffset[x].toInt() and 0xFF
+    val sprOfs = (ram.enemySprDataOffset[x].toInt() and 0xFF) shr 2
 
     //> lda #$5b                    ;load tile number for small platforms
     //> iny; jsr DumpSixSpr         ;dump tile number into all six sprites

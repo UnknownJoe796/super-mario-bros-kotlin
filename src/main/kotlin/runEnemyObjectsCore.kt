@@ -489,15 +489,15 @@ fun System.movePiranhaPlant() {
         return
     }
 
-    //> lda PiranhaPlant_MoveFlag; bne SetupToMovePPlant
-    val moveFlag = ram.piranhaPlantMoveFlag.toInt() and 0xFF
+    //> lda PiranhaPlant_MoveFlag,x; bne SetupToMovePPlant
+    val moveFlag = ram.sprObjYSpeed[1 + x].toInt() and 0xFF  // PiranhaPlant_MoveFlag,x ($A0+x)
     if (moveFlag != 0) {
         setupToMovePPlant(x)
         return
     }
 
-    //> lda PiranhaPlant_Y_Speed; bmi ReversePlantSpeed (if moving upward, reverse)
-    val ySpeed = ram.piranhaPlantYSpeed.toInt().toByte().toInt()
+    //> lda PiranhaPlant_Y_Speed,x; bmi ReversePlantSpeed (if moving upward, reverse)
+    val ySpeed = ram.sprObjXSpeed[1 + x].toInt().toByte().toInt()  // PiranhaPlant_Y_Speed,x ($58+x)
     if (ySpeed < 0) {
         reversePlantSpeed(x)
         return
@@ -525,11 +525,11 @@ fun System.movePiranhaPlant() {
  */
 private fun System.reversePlantSpeed(x: Int) {
     //> ReversePlantSpeed:
-    val speed = ram.piranhaPlantYSpeed.toInt() and 0xFF
+    val speed = ram.sprObjXSpeed[1 + x].toInt() and 0xFF  // PiranhaPlant_Y_Speed,x ($58+x)
     //> Two's complement to reverse direction
-    ram.piranhaPlantYSpeed = (((speed xor 0xFF) + 1) and 0xFF).toByte()
-    //> inc PiranhaPlant_MoveFlag
-    ram.piranhaPlantMoveFlag = ((ram.piranhaPlantMoveFlag.toInt() and 0xFF) + 1).toByte()
+    ram.sprObjXSpeed[1 + x] = (((speed xor 0xFF) + 1) and 0xFF).toByte()
+    //> inc PiranhaPlant_MoveFlag,x
+    ram.sprObjYSpeed[1 + x] = ((ram.sprObjYSpeed[1 + x].toInt() and 0xFF) + 1).toByte()  // ($A0+x)
     setupToMovePPlant(x)
 }
 
@@ -539,13 +539,13 @@ private fun System.reversePlantSpeed(x: Int) {
  */
 private fun System.setupToMovePPlant(x: Int) {
     //> SetupToMovePPlant:
-    val ySpeed = ram.piranhaPlantYSpeed.toInt().toByte().toInt()
+    val ySpeed = ram.sprObjXSpeed[1 + x].toInt().toByte().toInt()  // PiranhaPlant_Y_Speed,x ($58+x)
 
     //> Determine target Y based on direction
     val targetY = if (ySpeed >= 0) {
-        ram.piranhaPlantDownYPos.toInt() and 0xFF
+        ram.sprObjYMoveForce[1 + x].toInt() and 0xFF  // PiranhaPlantDownYPos,x ($434+x)
     } else {
-        ram.piranhaPlantUpYPos.toInt() and 0xFF
+        ram.sprObjYMFDummy[1 + x].toInt() and 0xFF  // PiranhaPlantUpYPos,x ($417+x)
     }
 
     //> RiseFallPiranhaPlant:
@@ -567,7 +567,7 @@ private fun System.setupToMovePPlant(x: Int) {
 
     //> Check if reached target
     if (newY == targetY) {
-        ram.piranhaPlantMoveFlag = 0
+        ram.sprObjYSpeed[1 + x] = 0  // PiranhaPlant_MoveFlag,x ($A0+x)
         //> lda #$40; sta EnemyFrameTimer,x
         ram.timers[0x0a + x] = 0x40
     }
@@ -984,7 +984,7 @@ fun System.procFirebar() {
     getFirebarPosition(savedSpinHigh, 0)
 
     //> ldy Enemy_SprDataOffset,x   ;get OAM data offset
-    val sprDataOfs = ram.enemySprDataOffset[x].toInt() and 0xFF
+    val sprDataOfs = (ram.enemySprDataOffset[x].toInt() and 0xFF) shr 2
     //> lda Enemy_Rel_YPos          ;get relative vertical coordinate
     //> sta Sprite_Y_Position,y     ;store as Y in OAM data
     //> sta $07                     ;also save here
@@ -1031,7 +1031,7 @@ fun System.procFirebar() {
             val dupOffset = ram.duplicateObjOffset.toInt() and 0xFF
             //> lda Enemy_SprDataOffset,y   ;get offset from long firebar and load OAM data offset
             //> sta $06                     ;using long firebar offset, then store as new one here
-            sprOamOfs = ram.enemySprDataOffset[dupOffset].toInt() and 0xFF
+            sprOamOfs = (ram.enemySprDataOffset[dupOffset].toInt() and 0xFF) shr 2
         }
 
         //> NextFbar: inc $00                     ;move onto the next firebar part

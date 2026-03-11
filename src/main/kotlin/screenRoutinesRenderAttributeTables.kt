@@ -21,9 +21,9 @@ fun System.renderAttributeTables() {
 
     //> lda CurrentNTAddr_High   ;get high byte and branch if borrow not set
     var addrHigh = ram.currentNTAddrHigh
-    //> bcs SetATHigh
-    if (!borrowed)
-    //> eor #%00000100           ;otherwise invert d2
+    //> bcs SetATHigh            ;carry set = no borrow => skip eor
+    if (borrowed)
+    //> eor #%00000100           ;only if borrow occurred, invert d2
     addrHigh = addrHigh xor 0b100.toByte()
     // Recreate high-byte selection for attribute table page: $23xx or $27xx
     //> SetATHigh:   and #%00000100           ;mask out all other bits

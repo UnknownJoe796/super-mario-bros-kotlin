@@ -136,8 +136,8 @@ class TASReplayTest {
             }
         }
 
-        // sprDataOffsets store NES byte offsets (0-252) — keep them as-is.
-        // sprites[] is sized to 256 to accommodate byte-offset indexing.
+        // sprDataOffsets store NES byte offsets (0-252); game code divides by 4 to get sprite index.
+        // sprites[] is Array(64) matching NES OAM (64 sprites × 4 bytes each).
 
         // Reset stack index — NMI does balanced push/pop but currentIndex accumulates across frames
         system.ram.stack.clear()
@@ -283,10 +283,9 @@ class TASReplayTest {
                 }
             }
 
-            // Inject TAS buttons
+            // Inject TAS buttons into input port so readJoypads() transfers them to RAM
             val buttons = if (frame < tasInputs.size) tasInputs[frame].player1 else 0
-            system.ram.savedJoypad1Bits = JoypadBits(buttons.toByte())
-            system.ram.savedJoypadBits = JoypadBits(buttons.toByte())
+            system.inputs.joypadPort1 = JoypadBits(buttons.toByte())
 
             // Run NMI with timeout protection
             var nmiError: Throwable? = null

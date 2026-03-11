@@ -298,7 +298,7 @@ private fun System.getBlockBufferAddr(columnIndex: Int): Pair<ByteArray, Int> {
     val useBuf2 = (columnIndex and 0x10) != 0
     val col = columnIndex and 0x0F
     val buffer = if (useBuf2) ram.blockBuffer2 else ram.blockBuffer1
-    val offset = col * 0x0d  // each column is 13 bytes tall
+    val offset = col  // NES uses interleaved layout: buffer[col + row*0x10]
     return Pair(buffer, offset)
 }
 
@@ -355,12 +355,13 @@ private fun System.blockBufferCollision(sprObjOffset: Int, adderOffset: Int, ret
     //> sbc #$20                    ;subtract 32 pixels for the status bar
     //> sta $02                     ;store result here
     val vertOffset = ((modifiedY and 0xF0) - 0x20) and 0xFF
-    val vertHighNybble = vertOffset ushr 4  // This is $02 in the assembly (row index)
+    // $02 in the assembly stores the full vertOffset (multiples of 0x10, range 0x00-0xC0).
+    // NES uses ($06),Y where Y=vertOffset to index into buffer[col + vertOffset].
 
     //> tay                         ;use as offset for block buffer
     //> lda ($06),y                 ;check current content of block buffer
     //> sta $03                     ;and store here
-    val bufIndex = bufBase + vertHighNybble
+    val bufIndex = bufBase + vertOffset
     val metatile = if (bufIndex in buffer.indices) buffer[bufIndex] else 0
 
     //> pla                         ;pull A from stack
@@ -379,7 +380,7 @@ private fun System.blockBufferCollision(sprObjOffset: Int, adderOffset: Int, ret
     return BlockBufferResult(
         metatile = metatile,
         lowNybble = lowNybble,
-        vertHighNybble = vertHighNybble,
+        vertOffset = vertOffset,
         blockBuffer = buffer,
         blockBufferBase = bufBase
     )
@@ -391,9 +392,9 @@ private fun System.blockBufferCollision(sprObjOffset: Int, adderOffset: Int, ret
 data class BlockBufferResult(
     val metatile: Byte,          // $03 - the metatile found
     val lowNybble: Int,          // $04 - low nybble of x or y coordinate
-    val vertHighNybble: Int,     // $02 - high nybble offset for vertical position
+    val vertOffset: Int,         // $02 - vertical offset into block buffer (multiples of 0x10)
     val blockBuffer: ByteArray,  // $06/$07 - block buffer reference
-    val blockBufferBase: Int     // base offset into blockBuffer
+    val blockBufferBase: Int     // base offset into blockBuffer (column 0-15)
 )
 
 /**
@@ -1857,7 +1858,7 @@ private fun System.handleCoinMetatile(result: BlockBufferResult) {
 private fun System.eraseAreaContentsMetatile(result: BlockBufferResult) {
     //> ErACM:
     //> ldy $02; lda #$00; sta ($06),y
-    val idx = result.blockBufferBase + result.vertHighNybble
+    val idx = result.blockBufferBase + result.vertOffset
     if (idx in result.blockBuffer.indices) {
         result.blockBuffer[idx] = 0
     }

@@ -176,7 +176,7 @@ fun System.flagpoleGfxHandler() {
     //> FlagpoleGfxHandler:
     val x = ram.objectOffset.toInt()
     //> ldy Enemy_SprDataOffset,x      ;get sprite data offset for flagpole flag
-    val y = ram.enemySprDataOffset[x].toInt() and 0xFF
+    val y = (ram.enemySprDataOffset[x].toInt() and 0xFF) shr 2
     //> lda Enemy_Rel_XPos             ;get relative horizontal coordinate
     val relX = ram.enemyRelXPos.toInt() and 0xFF
     //> sta Sprite_X_Position,y        ;store as X coordinate for first sprite
@@ -254,7 +254,7 @@ fun System.flagpoleGfxHandler() {
     //> ChkFlagOffscreen:
     //> ldx ObjectOffset               ;get object offset for flag
     //> ldy Enemy_SprDataOffset,x      ;get OAM data offset
-    val sprOfs = ram.enemySprDataOffset[x].toInt() and 0xFF
+    val sprOfs = (ram.enemySprDataOffset[x].toInt() and 0xFF) shr 2
     //> lda Enemy_OffscreenBits        ;get offscreen bits
     //> and #%00001110                 ;mask out all but d3-d1
     val offscr = ram.enemyOffscreenBits.toInt() and 0x0e
@@ -285,7 +285,7 @@ fun System.drawFireball() {
     //> DrawFireball:
     val x = ram.objectOffset.toInt()
     //> ldy FBall_SprDataOffset,x  ;get fireball's sprite data offset
-    val y = ram.fBallSprDataOffset[x].toInt() and 0xFF
+    val y = (ram.fBallSprDataOffset[x].toInt() and 0xFF) shr 2
     //> lda Fireball_Rel_YPos      ;get relative vertical coordinate
     //> sta Sprite_Y_Position,y    ;store as sprite Y coordinate
     ram.sprites[y].y = ram.fireballRelYPos.toUByte()
@@ -339,7 +339,7 @@ fun System.drawExplosionFireball() {
     //> DrawExplosion_Fireball:
     val x = ram.objectOffset.toInt()
     //> ldy Alt_SprDataOffset,x  ;get OAM data offset of alternate sort for fireball's explosion
-    val y = ram.altSprDataOffset[ram.sprDataOffsetCtrl].toInt() and 0xFF
+    val y = (ram.altSprDataOffset[ram.sprDataOffsetCtrl].toInt() and 0xFF) shr 2
     //> lda Fireball_State,x     ;load fireball state
     val state = ram.fireballStates[x].toInt() and 0xFF
     //> inc Fireball_State,x     ;increment state for next frame
@@ -434,7 +434,7 @@ fun System.drawBubble() {
     //> bne ExDBub                  ;if bit set, branch to leave
     if ((ram.bubbleOffscreenBits.toInt() and 0x08) != 0) return
     //> ldy Bubble_SprDataOffset,x  ;get air bubble's OAM data offset
-    val y = ram.bubbleSprDataOffset[x].toInt() and 0xFF
+    val y = (ram.bubbleSprDataOffset[x].toInt() and 0xFF) shr 2
     //> lda Bubble_Rel_XPos         ;get relative horizontal coordinate
     //> sta Sprite_X_Position,y     ;store as X coordinate here
     ram.sprites[y].x = ram.bubbleRelXPos.toUByte()
@@ -478,7 +478,7 @@ fun System.drawBlock() {
         tblOfs = 0
     )
     //> ldy Block_SprDataOffset,x     ;get sprite data offset
-    var y = ram.blockSprDataOffset[x].toInt() and 0xFF
+    var y = (ram.blockSprDataOffset[x].toInt() and 0xFF) shr 2
     state.sprOfs = y
     //> ldx #$00                      ;reset X for use as offset to tile data
     state.tblOfs = 0
@@ -497,7 +497,7 @@ fun System.drawBlock() {
     //> ldx ObjectOffset              ;get block object offset
     x = ram.objectOffset.toInt()
     //> ldy Block_SprDataOffset,x     ;get sprite data offset
-    y = ram.blockSprDataOffset[x].toInt() and 0xFF
+    y = (ram.blockSprDataOffset[x].toInt() and 0xFF) shr 2
     //> lda AreaType
     //> cmp #$01                      ;check for ground level type area
     //> beq ChkRep                    ;if found, branch to next part
@@ -511,7 +511,7 @@ fun System.drawBlock() {
     //> ChkRep:    lda Block_Metatile,x          ;check replacement metatile
     //> cmp #$c4                      ;if not used block metatile, then
     //> bne BlkOffscr                 ;branch ahead to use current graphics
-    if (ram.blockMetatile == 0xc4.toByte()) {
+    if (ram.blockMetatile[x] == 0xc4.toByte()) {
         //> lda #$87                      ;set A for used block tile
         //> iny                           ;increment Y to write to tile bytes
         //> jsr DumpFourSpr               ;do sub to dump into all four sprites
@@ -593,7 +593,7 @@ fun System.drawBrickChunks() {
     }
 
     //> DChunks: ldy Block_SprDataOffset,x  ;get OAM data offset
-    val y = ram.blockSprDataOffset[x].toInt() and 0xFF
+    val y = (ram.blockSprDataOffset[x].toInt() and 0xFF) shr 2
     //> iny                        ;increment to start with tile bytes in OAM
     //> jsr DumpFourSpr            ;do sub to dump tile number into all four sprites
     dumpFourSprTile(y, tileNum)
@@ -626,7 +626,7 @@ fun System.drawBrickChunks() {
     //> sec
     //> sbc ScreenLeft_X_Pos       ;subtract coordinate of left side from original coordinate
     //> sta $00                    ;store result as relative horizontal coordinate of original
-    val origRelX = ((ram.blockOrigXPos.toInt() and 0xFF) - (ram.screenLeftXPos.toInt() and 0xFF)) and 0xFF
+    val origRelX = ((ram.blockOrigXPos[x].toInt() and 0xFF) - (ram.screenLeftXPos.toInt() and 0xFF)) and 0xFF
 
     //> sec
     //> sbc Block_Rel_XPos         ;get difference of relative positions of original - current

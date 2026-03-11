@@ -9,7 +9,7 @@ import kotlin.experimental.and
 //> ColorRotatePalette:
 //> .db $27, $27, $27, $17, $07, $17
 private val colorRotatePalette = listOf(
-    Color(0x27), Color(0x27), Color(0x27), Color(0x17), Color(0x07), Color(0x17)
+    Color(0x27.toByte()), Color(0x27.toByte()), Color(0x27.toByte()), Color(0x17.toByte()), Color(0x07.toByte()), Color(0x17.toByte())
 )
 
 //> BlankPalette:
@@ -27,10 +27,10 @@ private val blankPalette = BufferedPpuUpdate.BackgroundSetPalette(
 //> ;used based on area type
 //> Palette3Data:
 private val palette3Data = listOf(
-    listOf(Color(0x0f), Color(0x07), Color(0x12), Color(0x0f)),
-    listOf(Color(0x0f), Color(0x07), Color(0x17), Color(0x0f)),
-    listOf(Color(0x0f), Color(0x07), Color(0x17), Color(0x1c)),
-    listOf(Color(0x0f), Color(0x07), Color(0x17), Color(0x00)),
+    listOf(Color(0x0f.toByte()), Color(0x07.toByte()), Color(0x12.toByte()), Color(0x0f.toByte())),
+    listOf(Color(0x0f.toByte()), Color(0x07.toByte()), Color(0x17.toByte()), Color(0x0f.toByte())),
+    listOf(Color(0x0f.toByte()), Color(0x07.toByte()), Color(0x17.toByte()), Color(0x1c.toByte())),
+    listOf(Color(0x0f.toByte()), Color(0x07.toByte()), Color(0x17.toByte()), Color(0x00.toByte())),
 )
 //> .db $0f, $07, $12, $0f
 //> .db $0f, $07, $17, $0f

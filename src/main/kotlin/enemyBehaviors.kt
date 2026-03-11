@@ -195,7 +195,7 @@ fun System.runFireworks() {
     //> sta Fireball_Rel_XPos
     ram.fireballRelXPos = ram.enemyRelXPos
     //> ldy Enemy_SprDataOffset,x   ;get OAM data offset
-    val sprDataOfs = ram.enemySprDataOffset[x].toInt() and 0xFF
+    val sprDataOfs = (ram.enemySprDataOffset[x].toInt() and 0xFF) shr 2
     //> lda ExplosionGfxCounter,x   ;get explosion graphics counter
     val gfxCounter = ram.sprObjXSpeed[1 + x].toInt() and 0xFF
     //> jsr DrawExplosion_Fireworks ;do a sub to draw the explosion then leave
@@ -403,7 +403,7 @@ private fun System.drawStarFlag(x: Int) {
     //> jsr RelativeEnemyPosition  ;get relative coordinates of star flag
     relativeEnemyPosition()
     //> ldy Enemy_SprDataOffset,x  ;get OAM data offset
-    var sprOfs = ram.enemySprDataOffset[x].toInt() and 0xFF
+    var sprOfs = (ram.enemySprDataOffset[x].toInt() and 0xFF) shr 2
     //> ldx #$03                   ;do four sprites
     //> DSFLoop:
     for (i in 3 downTo 0) {

@@ -1033,24 +1033,24 @@ internal fun System.initPiranhaPlant() {
     //> InitPiranhaPlant:
     //> lda #$01                     ;set initial speed
     //> sta PiranhaPlant_Y_Speed,x
-    ram.piranhaPlantYSpeed = 1
+    ram.sprObjXSpeed[1 + x] = 1  // PiranhaPlant_Y_Speed,x = Enemy_X_Speed,x ($58+x)
 
     //> lsr
     //> sta Enemy_State,x            ;initialize enemy state (1 >> 1 = 0)
     ram.enemyState[x] = 0
 
     //> sta PiranhaPlant_MoveFlag,x  ;initialize move flag
-    ram.piranhaPlantMoveFlag = 0
+    ram.sprObjYSpeed[1 + x] = 0  // PiranhaPlant_MoveFlag,x = Enemy_Y_Speed,x ($A0+x)
 
     //> lda Enemy_Y_Position,x
     //> sta PiranhaPlantDownYPos,x   ;save original vertical coordinate here
     val yPos = ram.sprObjYPos[1 + x].toInt() and 0xFF
-    ram.piranhaPlantDownYPos = yPos.toByte()
+    ram.sprObjYMoveForce[1 + x] = yPos.toByte()  // PiranhaPlantDownYPos,x ($434+x)
 
     //> sec
     //> sbc #$18
     //> sta PiranhaPlantUpYPos,x     ;save original vertical coordinate - 24 pixels here
-    ram.piranhaPlantUpYPos = ((yPos - 0x18) and 0xFF).toByte()
+    ram.sprObjYMFDummy[1 + x] = ((yPos - 0x18) and 0xFF).toByte()  // PiranhaPlantUpYPos,x ($417+x)
 
     //> lda #$09
     //> jmp SetBBox2                 ;set specific value for bounding box control
@@ -1344,13 +1344,13 @@ private fun System.initVertPlatform() {
     }
 
     //> SetYO: sta YPlatformTopYPos,x
-    ram.yPlatformTopYPos = topY.toByte()
+    ram.sprObjXMoveForce[1 + x] = topY.toByte()  // YPlatformTopYPos,x ($401+x)
 
     //> tya
     //> clc                         ;load value from earlier, add number of pixels
     //> adc Enemy_Y_Position,x      ;to vertical position
     //> sta YPlatformCenterYPos,x   ;save result as central vertical position
-    ram.yPlatformCenterYPos = ((centerAdder + yPos) and 0xFF).toByte()
+    ram.sprObjXSpeed[1 + x] = ((centerAdder + yPos) and 0xFF).toByte()  // YPlatformCenterYPos,x ($58+x)
 
     //> (falls through to CommonPlatCode)
     commonPlatCode()

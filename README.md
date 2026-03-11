@@ -64,7 +64,7 @@ class GameRam {
 
 ## Progress
 
-![Title](title.png)
+![Title](docs/demo-000-title.png)
 
 *Above: Output of a unit test running the DrawTitleScreen subroutine (translated), GroundPaletteData, MushroomIconData, and a set of four test sprites making up small mario jumping in the top left*
 
@@ -76,7 +76,8 @@ Each phase will remain its own branch, as each is interesting and usable in its 
   - [X] Emulate the PPU
     - Seems to be mostly complete, renders to Skiko, probably way too inefficient.  Need to check scroll behaviors.
   - [ ] Emulate the APU
-  - [ ] Emulate the Joypads
+  - [X] Emulate the Joypads
+  - [ ] Validation tools against interpreter
 - Phase 2 - Organized
   - [ ] Organize the top level functions and game RAM block into classes
 - Phase 3 - Un-NES

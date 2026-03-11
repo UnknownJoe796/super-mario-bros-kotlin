@@ -39,7 +39,9 @@ fun System.initializeNameTables() {
         //> bne InitNTLoop
         //> dex
         //> bne InitNTLoop
-        repeat(0x300) {
+        // 6502 loop: X=4,Y=$C0 → first pass writes $C0=192 tiles, subsequent 3 passes write 256 each.
+        // Total: 192 + 256 + 256 + 256 = 960 = exactly 32×30 nametable tiles.
+        repeat(960) {
             ppu.writeVram(0x24.toByte())
         }
 

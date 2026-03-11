@@ -123,6 +123,11 @@ fun System.gameEngine() {
     //> lda Player_Y_HighPos
     //> cmp #$02                   ;if player is below the screen, don't bother with the music
     //> bpl NoChgMus
+    // Assembly control flow: beq ClrPlrPal jumps PAST NoChgMus cycling code directly to
+    // ResetPalStar, which then falls through to SaveAB. CyclePlayerPalette ends with
+    // jmp SaveAB (skipping ClrPlrPal). So ResetPalStar and CyclePlayerPalette are
+    // mutually exclusive paths.
+    var skipToSaveAB = false
     if (ram.playerYHighPos < 2) {
         //> lda StarInvincibleTimer    ;if star mario invincibility timer at zero,
         //> beq ClrPlrPal              ;skip this part
@@ -130,6 +135,7 @@ fun System.gameEngine() {
             //> ClrPlrPal:
             //> jsr ResetPalStar           ;do sub to clear player's palette bits in attributes
             resetPalStar()
+            skipToSaveAB = true  // assembly: ClrPlrPal falls through to SaveAB
         } else {
             //> cmp #$04
             //> bne NoChgMus               ;if not yet at a certain point, continue
@@ -144,24 +150,26 @@ fun System.gameEngine() {
         }
     }
 
-    //> NoChgMus:
-    //> ldy StarInvincibleTimer    ;get invincibility timer
-    val starTimer = ram.starInvincibleTimer.toInt() and 0xFF
-    //> lda FrameCounter           ;get frame counter
-    var a = ram.frameCounter.toInt() and 0xFF
-    //> cpy #$08                   ;if timer still above certain point,
-    //> bcs CycleTwo               ;branch to cycle player's palette quickly
-    if (starTimer < 8) {
-        //> lsr                        ;otherwise, divide by 8 to cycle every eighth frame
-        //> lsr
-        a = a shr 2
+    if (!skipToSaveAB) {
+        //> NoChgMus:
+        //> ldy StarInvincibleTimer    ;get invincibility timer
+        val starTimer = ram.starInvincibleTimer.toInt() and 0xFF
+        //> lda FrameCounter           ;get frame counter
+        var a = ram.frameCounter.toInt() and 0xFF
+        //> cpy #$08                   ;if timer still above certain point,
+        //> bcs CycleTwo               ;branch to cycle player's palette quickly
+        if (starTimer < 8) {
+            //> lsr                        ;otherwise, divide by 8 to cycle every eighth frame
+            //> lsr
+            a = a shr 2
+        }
+        //> CycleTwo:
+        //> lsr                        ;if branched here, divide by 2 to cycle every other frame
+        a = a shr 1
+        //> jsr CyclePlayerPalette     ;do sub to cycle the palette (note: shares fire flower code)
+        cyclePlayerPalette(a)
+        //> jmp SaveAB                 ;then skip this sub to finish up the game engine
     }
-    //> CycleTwo:
-    //> lsr                        ;if branched here, divide by 2 to cycle every other frame
-    a = a shr 1
-    //> jsr CyclePlayerPalette     ;do sub to cycle the palette (note: shares fire flower code)
-    cyclePlayerPalette(a)
-    //> jmp SaveAB                 ;then skip this sub to finish up the game engine
 
     //> SaveAB:
     //> lda A_B_Buttons            ;save current A and B button
@@ -266,17 +274,21 @@ fun System.blockObjMTUpdater() {
         if (ram.blockRepFlags[x] == 0.toByte()) continue
         //> lda Block_BBuf_Low,x      ;get low byte of block buffer
         //> sta $06                   ;store into block buffer address
-        //> lda #$05
-        //> sta $07                   ;set high byte of block buffer address
+        val bbLow = ram.blockBBufLow[x].toInt() and 0xFF
+        val useBuf2 = bbLow >= 0xD0
+        val buffer = if (useBuf2) ram.blockBuffer2 else ram.blockBuffer1
+        val col = bbLow and 0x0F
         //> lda Block_Orig_YPos,x     ;get original vertical coordinate of block object
         //> sta $02                   ;store here and use as offset to block buffer
         //> tay
+        val vertOfs = ram.blockOrigYPos[x].toInt() and 0xFF
         //> lda Block_Metatile,x      ;get metatile to be written
         //> sta ($06),y               ;write it to the block buffer
-        // In the idiomatic model, this writes the metatile into the block buffer at the
-        // appropriate position. The exact block buffer write depends on indexed fields.
-        // For now, delegate to the existing replaceBlockMetatile.
-        val metatile = ram.blockMetatile.toInt() and 0xFF
+        val metatile = ram.blockMetatile[x].toInt() and 0xFF
+        val bufIdx = col + vertOfs
+        if (bufIdx in buffer.indices) {
+            buffer[bufIdx] = metatile.toByte()
+        }
         //> jsr ReplaceBlockMetatile  ;do sub to replace metatile where block object is
         replaceBlockMetatile(metatile)
         //> lda #$00

@@ -29,85 +29,51 @@ object PpuRenderer {
      */
     fun render(canvas: Canvas, ppu: PictureProcessingUnit, scale: Int = 2, scrollStartY: Int = 0) {
         val tileSize = 8
-        val nt: NesNametable = ppu.backgroundTiles[0]
+        val screenW = 256
+        val screenH = 240
         val paint = Paint()
 
-        // Fill with PPU background color
-        val backgroundColor = ppu.backgroundPalettes[0].colors[0]
+        // Nametable X offset from PPU control register bit 0
+        val ntOffsetX = (ppu.control.baseNametableAddress.toInt() and 1) * 256
+
+        // Fill with PPU universal background color ($3F00)
+        val backgroundColor = ppu.universalBackgroundColor
         paint.color = backgroundColor.argb
-        println("Filling with back color ${backgroundColor}")
         canvas.drawRect(
-            Rect.Companion.makeXYWH(
-                0f,
-                0f,
-                (nt.width * tileSize * scale).toFloat(),
-                (nt.height * tileSize * scale).toFloat()
-            ),
+            Rect.Companion.makeXYWH(0f, 0f, (screenW * scale).toFloat(), (screenH * scale).toFloat()),
             paint
         )
 
-        // Helper to sample the background color index at a screen pixel (0..3)
-        // Takes screen coordinates and maps back to tile coordinates considering scroll
-        fun backgroundColorIndexAt(screenX: Int, screenY: Int): Int {
-            // Map screen coordinates back to tile coordinates
-            val tileX = if (screenY >= scrollStartY) {
-                screenX + ppu.scrollX
+        // Look up background tile + color index at a screen pixel
+        fun bgLookup(sx: Int, sy: Int): Pair<Tile, Byte> {
+            val vx: Int
+            val vy: Int
+            if (sy >= scrollStartY) {
+                vx = (sx + ppu.scrollX + ntOffsetX) % 512
+                vy = sy + ppu.scrollY
             } else {
-                screenX
+                vx = sx
+                vy = sy
             }
-            val tileY = if (screenY >= scrollStartY) {
-                screenY + ppu.scrollY
-            } else {
-                screenY
-            }
-
-            if (tileX !in 0 until nt.width * tileSize || tileY !in 0 until nt.height * tileSize) return 0
-            val tx = tileX / tileSize
-            val ty = tileY / tileSize
-            val ix = tileX % tileSize
-            val iy = tileY % tileSize
-            val tile: Tile = nt[tx, ty] ?: return 0
-            return tile.pattern.colorIndex(ix, iy).toInt()
+            val ntIdx = (vx / 256) and 1
+            val tx = (vx and 255) / tileSize
+            val ty = (vy / tileSize).coerceIn(0, 29)
+            val tile = ppu.backgroundTiles[ntIdx][tx, ty]
+            return tile to tile.pattern.colorIndex(vx % tileSize, vy % tileSize)
         }
 
-        // Draw background tiles (CI 0 already covered by bg fill)
-        for (ty in 0 until nt.height) {
-            for (tx in 0 until nt.width) {
-                val tile: Tile = nt[tx, ty]
-                for (py in 0 until tileSize) {
-                    for (px in 0 until tileSize) {
-                        val ci = tile.pattern.colorIndex(px, py) // 0..3
-                        if (ci == 0.toByte()) continue // already bg color
-                        val colorIdx = ci
-                        val argb = tile.palette.colors[colorIdx].argb
-                        paint.color = argb
-
-                        // Calculate base screen position
-                        val baseX = tx * tileSize + px
-                        val baseY = ty * tileSize + py
-
-                        // Apply scroll offset only if Y >= scrollStartY
-                        val screenX = if (baseY >= scrollStartY) {
-                            baseX - ppu.scrollX
-                        } else {
-                            baseX
-                        }
-                        val screenY = if (baseY >= scrollStartY) {
-                            baseY - ppu.scrollY
-                        } else {
-                            baseY
-                        }
-
-                        // Skip if scrolled off screen
-                        if (screenX < 0 || screenY < 0 ||
-                            screenX >= nt.width * tileSize ||
-                            screenY >= nt.height * tileSize) continue
-
-                        val x = screenX * scale
-                        val y = screenY * scale
-                        canvas.drawRect(Rect.Companion.makeXYWH(x.toFloat(), y.toFloat(), scale.toFloat(), scale.toFloat()), paint)
-                    }
-                }
+        // Draw background — iterate over screen pixels, look up from correct nametable
+        for (sy in 0 until screenH) {
+            for (sx in 0 until screenW) {
+                val (tile, ci) = bgLookup(sx, sy)
+                if (ci == 0.toByte()) continue // bg color already filled
+                paint.color = tile.palette.colors[ci].argb
+                canvas.drawRect(
+                    Rect.Companion.makeXYWH(
+                        (sx * scale).toFloat(), (sy * scale).toFloat(),
+                        scale.toFloat(), scale.toFloat()
+                    ), paint
+                )
             }
         }
 
@@ -138,8 +104,8 @@ object PpuRenderer {
 
                     if (behind) {
                         // If behind background, only draw where background is CI 0
-                        val bgCi = backgroundColorIndexAt(x, y)
-                        if (bgCi != 0) continue
+                        val (_, bgCi) = bgLookup(x, y)
+                        if (bgCi != 0.toByte()) continue
                     }
 
                     val colorIdx = ci

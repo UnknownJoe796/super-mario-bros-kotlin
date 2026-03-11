@@ -414,7 +414,7 @@ fun System.enemyJump() {
 private fun System.drawPowerUp() {
     //> DrawPowerUp:
     //> ldy Enemy_SprDataOffset+5  ;get power-up's sprite data offset
-    val sprOfs = ram.enemySprDataOffset[5].toInt() and 0xFF
+    val sprOfs = (ram.enemySprDataOffset[5].toInt() and 0xFF) shr 2
 
     //> lda Enemy_Rel_YPos         ;get relative vertical coordinate
     //> clc; adc #$08              ;add eight pixels
@@ -722,7 +722,7 @@ private fun System.drawVine(vineIndex: Int) {
     //> ldx VineObjOffset,y        ;get offset to vine
     val vineObjX = ram.vineObjOffsets[vineIndex].toInt() and 0xFF
     //> ldy Enemy_SprDataOffset,x  ;get sprite data offset
-    val sprOfs = ram.enemySprDataOffset[vineObjX].toInt() and 0xFF
+    val sprOfs = (ram.enemySprDataOffset[vineObjX].toInt() and 0xFF) shr 2
 
     //> jsr SixSpriteStacker       ;stack six sprites on top of each other vertically
     // Stores Y position into 6 consecutive sprites, each 8 pixels apart

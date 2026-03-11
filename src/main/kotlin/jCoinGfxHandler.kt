@@ -18,7 +18,7 @@ fun System.jCoinGfxHandler() {
     //> JCoinGfxHandler:
     val x = ram.objectOffset.toInt()
     //> ldy Misc_SprDataOffset,x    ;get coin/floatey number's OAM data offset
-    val y = ram.miscSprDataOffsets[x].toInt() and 0xFF
+    val y = (ram.miscSprDataOffsets[x].toInt() and 0xFF) shr 2
     //> lda Misc_State,x            ;get state of misc object
     val state = ram.miscStates[x].toInt() and 0xFF
     //> cmp #$02                    ;if 2 or greater,

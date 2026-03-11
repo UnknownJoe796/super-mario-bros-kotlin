@@ -152,7 +152,7 @@ fun System.enemyGfxHandler() {
     val xCoord = ram.enemyRelXPos
     //> ldy Enemy_SprDataOffset,x
     //> sty $eb                     ;get sprite data offset
-    val sprDataOfs = ram.enemySprDataOffset[objectX].toInt() and 0xFF
+    val sprDataOfs = (ram.enemySprDataOffset[objectX].toInt() and 0xFF) shr 2
     //> lda #$00
     //> sta VerticalFlipFlag        ;initialize vertical flip flag by default
     ram.verticalFlipFlag = 0
@@ -584,7 +584,7 @@ fun System.enemyGfxHandler() {
     //> ldx ObjectOffset           ;get enemy object offset
     x = ram.objectOffset.toInt()
     //> ldy Enemy_SprDataOffset,x  ;get sprite data offset
-    val y = ram.enemySprDataOffset[x].toInt() and 0xFF
+    val y = (ram.enemySprDataOffset[x].toInt() and 0xFF) shr 2
 
     //> lda $ef
     //> cmp #$08                   ;get saved enemy object and check
@@ -908,7 +908,7 @@ private fun System.moveESprRowOffscreen(objectX: Int, rowOffset: Int) {
     //> clc                         ;add A to enemy object OAM data offset
     //> adc Enemy_SprDataOffset,x
     //> tay                         ;use as offset
-    val sprOfs = (ram.enemySprDataOffset[objectX].toInt() and 0xFF) + rowOffset
+    val sprOfs = ((ram.enemySprDataOffset[objectX].toInt() and 0xFF) shr 2) + rowOffset
     //> lda #$f8
     //> jmp DumpTwoSpr              ;move first row of sprites offscreen
     ram.sprites[sprOfs].y = 0xf8.toUByte()
@@ -924,7 +924,7 @@ private fun System.moveESprColOffscreen(objectX: Int, colOffset: Int) {
     //> clc                         ;add A to enemy object OAM data offset
     //> adc Enemy_SprDataOffset,x
     //> tay                         ;use as offset
-    val sprOfs = (ram.enemySprDataOffset[objectX].toInt() and 0xFF) + colOffset
+    val sprOfs = ((ram.enemySprDataOffset[objectX].toInt() and 0xFF) shr 2) + colOffset
     //> jsr MoveColOffscreen        ;move first and second row sprites in column offscreen
     ram.sprites[sprOfs].y = 0xf8.toUByte()
     ram.sprites[sprOfs + 2].y = 0xf8.toUByte()

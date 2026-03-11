@@ -253,7 +253,7 @@ fun System.drawHammer() {
     //> DrawHammer:
     val x = ram.objectOffset.toInt()
     //> ldy Misc_SprDataOffset,x    ;get misc object OAM data offset
-    val y = ram.miscSprDataOffsets[x].toInt() and 0xFF
+    val y = (ram.miscSprDataOffsets[x].toInt() and 0xFF) shr 2
 
     //> lda TimerControl
     //> bne ForceHPose              ;if master timer control set, skip this part

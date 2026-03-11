@@ -20,7 +20,7 @@ private fun applyAttributeCell(ppu: PictureProcessingUnit, nametable: TwoBits, a
         return ppu.backgroundPalettes[idx]
     }
     // Top-left quadrant (bits 0-1): tiles (0..1, 0..1)
-    val palTL = paletteForQuadrant(0).also { println("PAL: $it") }
+    val palTL = paletteForQuadrant(0)
     for (dy in 0..1) for (dx in 0..1) {
         if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
             val t = nt[baseX + dx, baseY + dy]
@@ -28,7 +28,7 @@ private fun applyAttributeCell(ppu: PictureProcessingUnit, nametable: TwoBits, a
         }
     }
     // Top-right quadrant (bits 2-3): (2..3, 0..1)
-    val palTR = paletteForQuadrant(1).also { println("PAL: $it") }
+    val palTR = paletteForQuadrant(1)
     for (dy in 0..1) for (dx in 2..3) {
         if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
             val t = nt[baseX + dx, baseY + dy]
@@ -36,7 +36,7 @@ private fun applyAttributeCell(ppu: PictureProcessingUnit, nametable: TwoBits, a
         }
     }
     // Bottom-left quadrant (bits 4-5): (0..1, 2..3)
-    val palBL = paletteForQuadrant(2).also { println("PAL: $it") }
+    val palBL = paletteForQuadrant(2)
     for (dy in 2..3) for (dx in 0..1) {
         if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
             val t = nt[baseX + dx, baseY + dy]
@@ -44,7 +44,7 @@ private fun applyAttributeCell(ppu: PictureProcessingUnit, nametable: TwoBits, a
         }
     }
     // Bottom-right quadrant (bits 6-7): (2..3, 2..3)
-    val palBR = paletteForQuadrant(3).also { println("PAL: $it") }
+    val palBR = paletteForQuadrant(3)
     for (dy in 2..3) for (dx in 2..3) {
         if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
             val t = nt[baseX + dx, baseY + dy]
@@ -118,6 +118,9 @@ sealed class BufferedPpuUpdate {
         override fun toString() = "BufferedPpuUpdate.BackgroundSetPalette(index = $index, colors = listOf(${colors.joinToString { "Color(0x${it.argb.toUInt().toString(16)}.toInt())" }}))"
         override fun invoke(ppu: PictureProcessingUnit) {
             ppu.backgroundPalettes[index.toInt() and 0x03].palette = DirectPalette(colors.toTypedArray())
+            // NES: only $3F00 (BG palette 0 color 0) updates universal background.
+            // $3F04/$3F08/$3F0C can hold unique data but are NOT used for CI=0 pixels.
+            if (index.toInt() == 0) ppu.syncUniversalBackgroundColor(colors[0])
         }
     }
 
@@ -128,6 +131,8 @@ sealed class BufferedPpuUpdate {
         override fun toString() = "BufferedPpuUpdate.SpriteSetPalette(index = $index, colors = listOf(${colors.joinToString { "Color(0x${it.argb.toUInt().toString(16)}.toInt())" }}))"
         override fun invoke(ppu: PictureProcessingUnit) {
             ppu.spritePalettes[index.toInt() and 0x03].palette = DirectPalette(colors.toTypedArray())
+            // NES: $3F10 mirrors $3F00, so sprite palette 0 color 0 also updates universal bg.
+            if (index.toInt() == 0) ppu.syncUniversalBackgroundColor(colors[0])
         }
     }
 

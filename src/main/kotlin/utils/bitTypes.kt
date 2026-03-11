@@ -56,7 +56,7 @@ value class SpriteFlags(val byte: Byte) {
             (if (flipVertical) 0x1 shl 7 else 0) +
                     (if (flipHorizontal) 0x1 shl 6 else 0) +
                     (if (behindBackground) 0x1 shl 5 else 0) +
-                    (palette.toInt() shr 0 and 1.shl(1).minus(1))
+                    (palette.toInt() and 0x03)
             ).toByte())
     fun copy(
         flipVertical: Boolean = this.flipVertical,

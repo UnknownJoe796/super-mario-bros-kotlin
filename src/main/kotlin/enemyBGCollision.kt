@@ -98,7 +98,7 @@ private fun System.getBlockBufferAddrEnemy(columnIndex: Int): Pair<ByteArray, In
     val useBuf2 = (columnIndex and 0x10) != 0
     val col = columnIndex and 0x0F
     val buffer = if (useBuf2) ram.blockBuffer2 else ram.blockBuffer1
-    val offset = col * 0x0d
+    val offset = col  // NES uses interleaved layout: buffer[col + row*0x10]
     return Pair(buffer, offset)
 }
 
@@ -132,9 +132,7 @@ private fun System.blockBufferCollisionEnemy(sprObjOffset: Int, adderOffset: Int
     val modifiedY = (objY + yAdder) and 0xFF
 
     val vertOffset = ((modifiedY and 0xF0) - 0x20) and 0xFF
-    val vertHighNybble = vertOffset ushr 4
-
-    val bufIndex = bufBase + vertHighNybble
+    val bufIndex = bufBase + vertOffset
     val metatile = if (bufIndex in buffer.indices) buffer[bufIndex] else 0
 
     val lowNybble: Int = if (returnHorizontal) {
@@ -146,7 +144,7 @@ private fun System.blockBufferCollisionEnemy(sprObjOffset: Int, adderOffset: Int
     return BlockBufferResult(
         metatile = metatile,
         lowNybble = lowNybble,
-        vertHighNybble = vertHighNybble,
+        vertOffset = vertOffset,
         blockBuffer = buffer,
         blockBufferBase = bufBase
     )
@@ -305,7 +303,7 @@ private fun System.handleEToBGCollision(x: Int, underResult: BlockBufferResult) 
         //> ldy $02                   ;get vertical coordinate used to find block
         //> lda #$00                  ;store default blank metatile in that spot so we won't
         //> sta ($06),y               ;trigger this routine accidentally again
-        val idx = underResult.blockBufferBase + underResult.vertHighNybble
+        val idx = underResult.blockBufferBase + underResult.vertOffset
         if (idx in underResult.blockBuffer.indices) {
             underResult.blockBuffer[idx] = 0
         }
@@ -709,7 +707,10 @@ private fun System.chkForBumpHammerBroJ(x: Int) {
     }
 
     //> InvEnemyDir: jmp RXSpd
-    enemyTurnAroundLocal(x)
+    // by Claude - fix: InvEnemyDir jumps directly to RXSpd, bypassing the
+    // ID checks in EnemyTurnAround. All enemy types (including PowerUpObject)
+    // get their speed reversed when hitting a wall from the side check.
+    reverseEnemySpeed(x)
 }
 
 /**
@@ -741,10 +742,27 @@ private fun System.setHJ(x: Int, bitmask: Int, ySpeed: Byte) {
 }
 
 /**
- * Turns an enemy around by negating horizontal speed and flipping direction.
+ * Reverses an enemy's horizontal speed and flips its moving direction.
+ * This is the RXSpd label in the assembly, called directly from InvEnemyDir
+ * (which bypasses EnemyTurnAround's ID filtering).
+ */
+private fun System.reverseEnemySpeed(x: Int) {
+    //> RXSpd: lda Enemy_X_Speed,x; eor #$ff; tay; iny; sty Enemy_X_Speed,x
+    val speed = ram.sprObjXSpeed[x + 1]
+    ram.sprObjXSpeed[x + 1] = (speed.toInt().inv() + 1).toByte()
+
+    //> lda Enemy_MovingDir,x; eor #%00000011; sta Enemy_MovingDir,x
+    val dir = ram.enemyMovingDirs[x].toInt() and 0xFF
+    ram.enemyMovingDirs[x] = (dir xor 0x03).toByte()
+}
+
+/**
+ * Turns an enemy around by negating horizontal speed and flipping direction,
+ * but only for enemy types that are allowed to turn around.
+ * EnemyTurnAround in the assembly has ID checks before falling through to RXSpd.
  */
 private fun System.enemyTurnAroundLocal(x: Int) {
-    //> EnemyTurnAround / RXSpd:
+    //> EnemyTurnAround:
     val enemyId = ram.enemyID[x].toInt() and 0xFF
     //> cmp #PiranhaPlant; beq ExTA
     if (enemyId == Constants.PiranhaPlant.toInt() and 0xFF) return
@@ -760,13 +778,7 @@ private fun System.enemyTurnAroundLocal(x: Int) {
         enemyId != Constants.GreenParatroopaJump.toInt() and 0xFF &&
         enemyId >= 0x07) return
 
-    //> RXSpd: lda Enemy_X_Speed,x; eor #$ff; tay; iny; sty Enemy_X_Speed,x
-    val speed = ram.sprObjXSpeed[x + 1]
-    ram.sprObjXSpeed[x + 1] = (speed.toInt().inv() + 1).toByte()
-
-    //> lda Enemy_MovingDir,x; eor #%00000011; sta Enemy_MovingDir,x
-    val dir = ram.enemyMovingDirs[x].toInt() and 0xFF
-    ram.enemyMovingDirs[x] = (dir xor 0x03).toByte()
+    reverseEnemySpeed(x)
 }
 
 // ---------------------------------------------------------------------------
@@ -888,14 +900,19 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
 
     //> ldx SprDataOffset_Ctrl
     //> lda $02; sta Block_Orig_YPos,x
-    ram.blockOrigYPos = result.vertHighNybble.toByte()
+    ram.blockOrigYPos[x] = result.vertOffset.toByte()
 
     //> tay
     //> lda $06; sta Block_BBuf_Low,x
-    ram.blockBBufLow = result.blockBufferBase.toByte()
+    // NES $06 = col for buffer 1, 0xD0+col for buffer 2 (buffer base low byte)
+    ram.blockBBufLow[x] = if (result.blockBuffer === ram.blockBuffer2) {
+        (0xD0 + result.blockBufferBase).toByte()
+    } else {
+        result.blockBufferBase.toByte()
+    }
 
     //> lda ($06),y              ;get contents of block buffer at old address
-    val bufIdx = result.blockBufferBase + result.vertHighNybble
+    val bufIdx = result.blockBufferBase + result.vertOffset
     val blockBufferContents = if (bufIdx in result.blockBuffer.indices) {
         result.blockBuffer[bufIdx].toInt() and 0xFF
     } else {
@@ -937,7 +954,7 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
     }
 
     //> PutMTileB: sta Block_Metatile,x
-    ram.blockMetatile = metatileForBlock.toByte()
+    ram.blockMetatile[x] = metatileForBlock.toByte()
 
     //> jsr InitBlock_XY_Pos
     initBlockXYPos(x)
@@ -994,7 +1011,7 @@ private fun System.initBlockXYPos(x: Int) {
     val pageLoc = (ram.playerPageLoc.toInt() and 0xFF) + carry
     ram.sprObjPageLoc[9 + x] = pageLoc.toByte()
     //> sta Block_PageLoc2,x
-    ram.blockPageLoc2 = pageLoc.toByte()
+    ram.blockPageLoc2[x] = pageLoc.toByte()
     //> lda Player_Y_HighPos; sta Block_Y_HighPos,x
     ram.sprObjYHighPos[9 + x] = ram.playerYHighPos
 }
@@ -1110,12 +1127,12 @@ private fun System.setupJumpCoin(x: Int, bbResult: BlockBufferResult) {
     //> SetupJumpCoin:
     val miscSlot = findEmptyMiscSlot()
     //> lda Block_PageLoc2,x; sta Misc_PageLoc,y
-    ram.sprObjPageLoc[miscSlot + 13] = ram.blockPageLoc2
+    ram.sprObjPageLoc[miscSlot + 13] = ram.blockPageLoc2[x]
     //> lda $06; asl; asl; asl; asl; ora #$05; sta Misc_X_Position,y
     val bbLow = bbResult.blockBufferBase and 0x0F
     ram.sprObjXPos[miscSlot + 13] = ((bbLow shl 4) or 0x05).toByte()
     //> lda $02; adc #$20; sta Misc_Y_Position,y
-    ram.sprObjYPos[miscSlot + 13] = (bbResult.vertHighNybble + 0x20).toByte()
+    ram.sprObjYPos[miscSlot + 13] = (bbResult.vertOffset + 0x20).toByte()
     //> JCoinC:
     jCoinC(miscSlot, x)
 }
@@ -1176,21 +1193,23 @@ private fun System.brickShatter(x: Int) {
 private fun System.checkTopOfBlock(x: Int) {
     //> CheckTopOfBlock:
     //> ldx SprDataOffset_Ctrl; ldy $02; beq TopEx
-    val vertOffset = ram.blockOrigYPos.toInt() and 0xFF
+    // Assembly reads $02 (zero-page temp) and $06 (buffer ptr), which correspond to
+    // blockOrigYPos[x] and blockBBufLow[x] since they were just written in playerHeadCollision.
+    val vertOffset = ram.blockOrigYPos[x].toInt() and 0xFF
     if (vertOffset == 0) return
 
     //> tya; sec; sbc #$10; sta $02; tay
     val newVertOffset = (vertOffset - 0x10) and 0xFF
 
     // Determine which block buffer from blockBBufLow
-    val bbLow = ram.blockBBufLow.toInt() and 0xFF
+    val bbLow = ram.blockBBufLow[x].toInt() and 0xFF
     val useBuf2 = bbLow >= 0xd0
     val buffer = if (useBuf2) ram.blockBuffer2 else ram.blockBuffer1
     val col = bbLow and 0x0F
-    val bufBase = col * 0x0d
+    val bufBase = col  // NES interleaved layout: buffer[col + vertOffset]
 
     //> lda ($06),y; cmp #$c2; bne TopEx
-    val idx = bufBase + (newVertOffset ushr 4)
+    val idx = bufBase + newVertOffset
     if (idx !in buffer.indices) return
     val aboveMT = buffer[idx].toInt() and 0xFF
     if (aboveMT != 0xc2) return
@@ -1203,7 +1222,7 @@ private fun System.checkTopOfBlock(x: Int) {
     val fakeResult = BlockBufferResult(
         metatile = 0,
         lowNybble = 0,
-        vertHighNybble = newVertOffset,
+        vertOffset = newVertOffset,
         blockBuffer = buffer,
         blockBufferBase = bufBase
     )
@@ -1217,15 +1236,14 @@ private fun System.checkTopOfBlock(x: Int) {
 private fun System.spawnBrickChunks(x: Int) {
     //> SpawnBrickChunks:
     //> lda Block_X_Position,x; sta Block_Orig_XPos,x
-    ram.blockOrigXPos = ram.sprObjXPos[9 + x]
-    //> lda #$f0; sta Block_X_Speed,x
+    ram.blockOrigXPos[x] = ram.sprObjXPos[9 + x]
+    //> lda #$f0; sta Block_X_Speed,x; sta Block_X_Speed+2,x
     ram.sprObjXSpeed[9 + x] = 0xf0.toByte()
-    //> lda #$f8; sta Block_X_Speed+2,x
-    ram.sprObjXSpeed[9 + x + 2] = 0xf8.toByte()
-    //> lda #$08; sta Block_Y_Speed,x
-    ram.sprObjYSpeed[9 + x] = 0x08
-    //> lda #$fa; sta Block_Y_Speed+2,x
-    ram.sprObjYSpeed[9 + x + 2] = 0xfa.toByte()
+    ram.sprObjXSpeed[9 + x + 2] = 0xf0.toByte()
+    //> lda #$fa; sta Block_Y_Speed,x
+    ram.sprObjYSpeed[9 + x] = 0xfa.toByte()
+    //> lda #$fc; sta Block_Y_Speed+2,x
+    ram.sprObjYSpeed[9 + x + 2] = 0xfc.toByte()
     //> lda #$00; sta Block_Y_MoveForce,x
     ram.sprObjYMoveForce[9 + x] = 0
 }

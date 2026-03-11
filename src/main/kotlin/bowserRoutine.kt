@@ -557,7 +557,7 @@ fun System.procBowserFlame() {
 
     //> FlmeAt:  sty $01                     ;set bowser's flame sprite attributes here
     //> ldy Enemy_SprDataOffset,x   ;get OAM data offset
-    val sprDataOffset = ram.enemySprDataOffset[x].toInt() and 0xFF
+    val sprDataOffset = (ram.enemySprDataOffset[x].toInt() and 0xFF) shr 2
 
     //> ldx #$00
     //> DrawFlameLoop:
