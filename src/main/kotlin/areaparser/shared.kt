@@ -1,3 +1,4 @@
+// by Claude - area parser shared helper functions
 package com.ivieleague.smbtranslation.areaparser
 
 import com.ivieleague.smbtranslation.*
@@ -5,15 +6,15 @@ import com.ivieleague.smbtranslation.utils.get
 import com.ivieleague.smbtranslation.utils.set
 import kotlin.experimental.and
 
-fun System.chkLrgObjLength(x: Byte, inputY: Byte): Pair<LrgObjAttribInfo, LrgObjFixedLength> {
+// by Claude - fixed chkLrgObjLength to use length from GetLrgObjAttrib (not a separate param)
+fun System.chkLrgObjLength(x: Byte): Pair<LrgObjAttribInfo, LrgObjFixedLength> {
     //> ChkLrgObjLength:
     //> jsr GetLrgObjAttrib     ;get row location and size (length if branched to from here)
     val a = getLrgObjAttrib(x)
-    val l = chkLrgObjFixedLength(x, inputY)
+    //> (falls through to ChkLrgObjFixedLength with Y from GetLrgObjAttrib)
+    val l = chkLrgObjFixedLength(x, a.length)
     return a to l
 }
-
-data class LrgObjLength(val justStarting: Boolean, val length: Byte, val row: Byte)
 
 fun System.chkLrgObjFixedLength(counterIndex: Byte, length: Byte): LrgObjFixedLength {
     //> ChkLrgObjFixedLength:
@@ -36,12 +37,12 @@ data class LrgObjFixedLength(val justStarting: Boolean, val length: Byte)
 
 
 /**
- * @return Y
+ * Gets row location (stored in $07) and length/height (lower nybble of second byte, returned in Y).
  */
 fun System.getLrgObjAttrib(x: Byte): LrgObjAttribInfo {
     //> GetLrgObjAttrib:
     //> ldy AreaObjOffsetBuffer,x ;get offset saved from area obj decoding routine
-    val y = ram.areaObjOffsetBuffer[x]
+    val y = ram.areaObjOffsetBuffer[x].toInt() and 0xFF
     //> lda (AreaData),y          ;get first byte of level object
     val a = ram.areaData!![y]
     //> and #%00001111
@@ -51,7 +52,7 @@ fun System.getLrgObjAttrib(x: Byte): LrgObjAttribInfo {
     //> lda (AreaData),y          ;get next byte, save lower nybble (length or height)
     //> and #%00001111            ;as Y, then leave
     //> tay
-    val aOutput = ram.areaData!![y + 1] and 0b111111
+    val aOutput = ram.areaData!![y + 1] and 0b00001111
     //> rts
     return LrgObjAttribInfo(row, aOutput)
 }
@@ -65,4 +66,112 @@ data class LrgObjAttribInfo(
      * Stored in the Y register.
      */
     val length: Byte,
+)
+
+// by Claude - RenderUnderPart: renders a metatile downward in the metatile buffer
+//> RenderUnderPart:
+fun System.renderUnderPart(metatile: UByte, startX: Int, lengthY: Int) {
+    //> sty AreaObjectHeight  ;store vertical length to render
+    ram.areaObjectHeight = lengthY.toByte()
+    var x = startX
+    var y = lengthY
+    while (true) {
+        //> ldy MetatileBuffer,x  ;check current spot to see if there's something
+        val current = ram.metatileBuffer[x]
+        //> beq DrawThisRow       ;we need to keep, if nothing, go ahead
+        if (current == 0.toUByte()) {
+            //> DrawThisRow: sta MetatileBuffer,x
+            ram.metatileBuffer[x] = metatile
+        } else {
+            //> cpy #$17; beq WaitOneRow  ;if middle part (tree ledge), wait until next row
+            //> cpy #$1a; beq WaitOneRow  ;if middle part (mushroom ledge), wait until next row
+            //> cpy #$c0; beq DrawThisRow ;if question block w/ coin, overwrite
+            //> cpy #$c0; bcs WaitOneRow  ;if any other metatile with palette 3, wait until next row
+            //> cpy #$54; bne DrawThisRow ;if cracked rock terrain, overwrite
+            //> cmp #$50; beq WaitOneRow  ;if stem top of mushroom, wait until next row
+            val cv = current.toInt() and 0xFF
+            when {
+                cv == 0x17 -> { /* WaitOneRow - tree ledge middle */ }
+                cv == 0x1a -> { /* WaitOneRow - mushroom ledge middle */ }
+                cv == 0xc0 -> ram.metatileBuffer[x] = metatile // DrawThisRow - question block w/ coin
+                cv > 0xc0 -> { /* WaitOneRow - palette 3 metatile */ }
+                cv != 0x54 -> ram.metatileBuffer[x] = metatile // DrawThisRow - not cracked rock
+                // cv == 0x54 (cracked rock terrain):
+                metatile.toInt() and 0xFF == 0x50 -> { /* WaitOneRow - stem top of mushroom */ }
+                else -> ram.metatileBuffer[x] = metatile // DrawThisRow
+            }
+        }
+        //> WaitOneRow: inx
+        x++
+        //> cpx #$0d; bcs ExitUPartR  ;stop rendering if we're at the bottom of the screen
+        if (x >= 0x0d) return
+        //> ldy AreaObjectHeight; dey; bpl RenderUnderPart
+        y--
+        if (y < 0) return
+        //> ExitUPartR: rts
+    }
+}
+
+// by Claude - GetAreaObjXPosition: get horizontal pixel coordinate from current column position
+//> GetAreaObjXPosition:
+fun System.getAreaObjXPosition(): Byte {
+    //> lda CurrentColumnPos    ;multiply current offset where we're at by 16
+    //> asl; asl; asl; asl     ;to obtain horizontal pixel coordinate
+    //> rts
+    return ((ram.currentColumnPos.toInt() and 0xFF) shl 4 and 0xFF).toByte()
+}
+
+// by Claude - GetAreaObjYPosition: get vertical pixel coordinate from row ($07)
+//> GetAreaObjYPosition:
+fun System.getAreaObjYPosition(row: Byte): Byte {
+    //> lda $07  ;multiply value by 16
+    //> asl; asl; asl; asl
+    //> clc
+    //> adc #32  ;add 32 pixels for the status bar
+    //> rts
+    return (((row.toInt() and 0xFF) shl 4) + 32 and 0xFF).toByte()
+}
+
+// by Claude - FindEmptyEnemySlot: finds an empty slot in enemy object buffer
+// Returns the slot index (0-4), or null if all slots are full (carry set in assembly)
+//> FindEmptyEnemySlot:
+fun System.findEmptyEnemySlot(): Int? {
+    //> ldx #$00          ;start at first enemy slot
+    for (x in 0 until 5) {
+        //> clc               ;clear carry flag by default
+        //> lda Enemy_Flag,x  ;check enemy buffer for nonzero
+        //> beq ExitEmptyChk  ;if zero, leave
+        if (ram.enemyFlags[x] == 0.toByte()) return x
+        //> inx; cpx #$05; bne EmptyChkLoop
+    }
+    //> ExitEmptyChk: rts  ;if all values nonzero, carry flag is set
+    return null
+}
+
+// by Claude - KillEnemies: deactivate all enemies with the given identifier
+//> KillEnemies:
+fun System.killEnemies(identifier: Byte) {
+    //> sta $00           ;store identifier here
+    //> lda #$00
+    //> ldx #$04          ;check for identifier in enemy object buffer
+    for (x in 4 downTo 0) {
+        //> ldy Enemy_ID,x; cpy $00; bne NoKillE
+        if (ram.enemyID[x] == identifier) {
+            //> sta Enemy_Flag,x  ;if found, deactivate enemy object flag
+            ram.enemyFlags[x] = 0
+        }
+        //> dex; bpl KillELoop
+    }
+    //> rts
+}
+
+// by Claude - VerticalPipeData: shared between verticalPipe.kt and areaParser.kt (IntroPipe)
+//> VerticalPipeData:
+//>   .db $11, $10  ;used by pipes that lead somewhere
+//>   .db $15, $14
+//>   .db $13, $12  ;used by decoration pipes
+//>   .db $15, $14
+val VerticalPipeData = ubyteArrayOf(
+    0x11u, 0x10u, 0x15u, 0x14u,
+    0x13u, 0x12u, 0x15u, 0x14u,
 )

@@ -1,0 +1,1892 @@
+// by Claude - EnemiesAndLoopsCore, ProcessEnemyData, ProcLoopCommand, InitEnemyObject, CheckpointEnemyID
+@file:OptIn(ExperimentalUnsignedTypes::class)
+
+package com.ivieleague.smbtranslation
+
+// Loop command ROM data tables
+//> LoopCmdWorldNumber:
+//>       .db $03, $03, $06, $06, $06, $06, $06, $06, $07, $07, $07
+private val loopCmdWorldNumber = intArrayOf(0x03, 0x03, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x07, 0x07, 0x07)
+
+//> LoopCmdPageNumber:
+//>       .db $05, $09, $04, $05, $06, $08, $09, $0a, $06, $0b, $10
+private val loopCmdPageNumber = intArrayOf(0x05, 0x09, 0x04, 0x05, 0x06, 0x08, 0x09, 0x0a, 0x06, 0x0b, 0x10)
+
+//> LoopCmdYPosition:
+//>       .db $40, $b0, $b0, $80, $40, $40, $80, $40, $f0, $f0, $f0
+private val loopCmdYPosition = intArrayOf(0x40, 0xb0, 0xb0, 0x80, 0x40, 0x40, 0x80, 0x40, 0xf0, 0xf0, 0xf0)
+
+// Area data offsets for loop-back positions
+//> AreaDataOfsLoopback:
+//>       .db $12, $36, $0e, $0e, $0e, $32, $32, $32, $0a, $26, $40
+private val areaDataOfsLoopback = intArrayOf(0x12, 0x36, 0x0e, 0x0e, 0x0e, 0x32, 0x32, 0x32, 0x0a, 0x26, 0x40)
+
+// by Claude - ROM data tables for enemy init routines
+//> NormalXSpdData:
+//>       .db $f8, $f4
+private val normalXSpdData = intArrayOf(0xf8, 0xf4)
+
+//> HBroWalkingTimerData:
+//>       .db $80, $50
+private val hBroWalkingTimerData = intArrayOf(0x80, 0x50)
+
+//> FirebarSpinSpdData:
+//>       .db $28, $38, $28, $38, $28
+private val firebarSpinSpdData = intArrayOf(0x28, 0x38, 0x28, 0x38, 0x28)
+
+//> FirebarSpinDirData:
+//>       .db $00, $00, $10, $10, $00
+private val firebarSpinDirData = intArrayOf(0x00, 0x00, 0x10, 0x10, 0x00)
+
+//> PlatPosDataLow:
+//>       .db $08, $0c, $f8
+private val platPosDataLow = intArrayOf(0x08, 0x0c, 0xf8)
+
+//> PlatPosDataHigh:
+//>       .db $00, $00, $ff
+private val platPosDataHigh = intArrayOf(0x00, 0x00, 0xff)
+
+/**
+ * Main dispatch for enemy processing and level loop commands.
+ * Checks Enemy_Flag MSB to decide whether to run enemy objects,
+ * process loop commands, or handle Bowser flag linking.
+ */
+fun System.enemiesAndLoopsCore() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> EnemiesAndLoopsCore:
+    //> lda Enemy_Flag,x         ;check data here for MSB set
+    val enemyFlag = ram.enemyFlags[x].toInt() and 0xFF
+
+    //> pha                      ;save in stack
+    //> asl
+    //> bcs ChkBowserF           ;if MSB set in enemy flag, branch ahead of jumps
+    if ((enemyFlag and 0x80) != 0) {
+        //> ChkBowserF: pla                      ;get data from stack
+        //> and #%00001111           ;mask out high nybble
+        val linkedIndex = enemyFlag and 0x0F
+        //> tay
+        //> lda Enemy_Flag,y         ;use as pointer and load same place with different offset
+        //> bne ExitELCore
+        if (ram.enemyFlags[linkedIndex].toInt() == 0) {
+            //> sta Enemy_Flag,x         ;if second enemy flag not set, also clear first one
+            ram.enemyFlags[x] = 0
+        }
+        //> ExitELCore: rts
+        return
+    }
+
+    //> pla                      ;get from stack
+    //> beq ChkAreaTsk           ;if data zero, branch
+    if (enemyFlag != 0) {
+        //> jmp RunEnemyObjectsCore  ;otherwise, jump to run enemy subroutines
+        runEnemyObjectsCore()
+        return
+    }
+
+    //> ChkAreaTsk: lda AreaParserTaskNum    ;check number of tasks to perform
+    //> and #$07
+    //> cmp #$07                 ;if at a specific task, jump and leave
+    //> beq ExitELCore
+    if ((ram.areaParserTaskNum.toInt() and 0x07) == 0x07) {
+        return
+    }
+
+    //> jmp ProcLoopCommand      ;otherwise, jump to process loop command/load enemies
+    procLoopCommand()
+}
+
+/**
+ * Dispatches to the correct enemy handler based on Enemy_ID.
+ * Enemy IDs $00-$14 all go to runNormalEnemies; higher IDs
+ * are dispatched via a jump table with $14 subtracted.
+ */
+fun System.runEnemyObjectsCore() {
+    //> RunEnemyObjectsCore:
+    //> ldx ObjectOffset  ;get offset for enemy object buffer
+    val x = ram.objectOffset.toInt() and 0xFF
+    //> lda #$00          ;load value 0 for jump engine by default
+    //> ldy Enemy_ID,x
+    val enemyId = ram.enemyID[x].toInt() and 0xFF
+
+    //> cpy #$15          ;if enemy object < $15, use default value
+    //> bcc JmpEO
+    //> tya               ;otherwise subtract $14 from the value and use
+    //> sbc #$14          ;as value for jump engine
+    val jumpIndex = if (enemyId < 0x15) 0 else enemyId - 0x14
+
+    //> JmpEO: jsr JumpEngine
+    when (jumpIndex) {
+        //> .dw RunNormalEnemies  ;for objects $00-$14
+        0 -> runNormalEnemies()
+        //> .dw RunBowserFlame    ;for object $15
+        1 -> runBowserFlame()
+        //> .dw RunFireworks       ;for object $16
+        2 -> runFireworks()
+        //> .dw NoRunCode          ;for objects $17-$1a
+        3 -> {} // NoRunCode
+        4 -> {} // NoRunCode
+        5 -> {} // NoRunCode
+        6 -> {} // NoRunCode
+        //> .dw RunFirebarObj      ;for objects $1b-$22
+        7 -> runFirebarObj()
+        8 -> runFirebarObj()
+        9 -> runFirebarObj()
+        10 -> runFirebarObj()
+        11 -> runFirebarObj()
+        12 -> runFirebarObj()
+        13 -> runFirebarObj()
+        14 -> runFirebarObj()
+        //> .dw NoRunCode          ;for object $23
+        15 -> {} // NoRunCode
+        //> .dw RunLargePlatform   ;for objects $24-$2a
+        16 -> runLargePlatform()
+        17 -> runLargePlatform()
+        18 -> runLargePlatform()
+        19 -> runLargePlatform()
+        20 -> runLargePlatform()
+        21 -> runLargePlatform()
+        22 -> runLargePlatform()
+        //> .dw RunSmallPlatform   ;for objects $2b-$2c
+        23 -> runSmallPlatform()
+        24 -> runSmallPlatform()
+        //> .dw RunBowser          ;for object $2d
+        25 -> runBowser()
+        //> .dw PowerUpObjHandler  ;for object $2e
+        26 -> powerUpObjHandler()
+        //> .dw VineObjectHandler  ;for object $2f
+        27 -> vineObjectHandler()
+        //> .dw NoRunCode          ;for object $30
+        28 -> {} // NoRunCode
+        //> .dw RunStarFlagObj     ;for object $31
+        29 -> runStarFlagObj()
+        //> .dw JumpspringHandler  ;for object $32
+        30 -> jumpspringHandler()
+        //> .dw NoRunCode          ;for object $33
+        31 -> {} // NoRunCode
+        //> .dw WarpZoneObject     ;for object $34
+        32 -> warpZoneObject()
+        //> .dw RunRetainerObj     ;for object $35
+        33 -> runRetainerObj()
+    }
+}
+
+/**
+ * Handles level loop commands: checks world number, page number, player Y position,
+ * and player state. If the player hasn't met the loop conditions, loops the level back.
+ * World 7 has a special multi-part loop counter system requiring 3 correct passes.
+ *
+ * Falls through to ChkEnemyFrenzy and ProcessEnemyData.
+ */
+private fun System.procLoopCommand() {
+    //> ProcLoopCommand:
+    //> lda LoopCommand           ;check if loop command was found
+    //> beq ChkEnemyFrenzy
+    if (ram.loopCommand != 0.toByte()) {
+        //> lda CurrentColumnPos      ;check to see if we're still on the first page
+        //> bne ChkEnemyFrenzy        ;if not, do not loop yet
+        if (ram.currentColumnPos == 0.toUByte()) {
+            //> ldy #$0b                  ;start at the end of each set of loop data
+            //> FindLoop: dey
+            //> bmi ChkEnemyFrenzy        ;if all data is checked and not match, do not loop
+            var matchIndex = -1
+            for (y in 0x0a downTo 0) {
+                //> lda WorldNumber           ;check to see if one of the world numbers
+                //> cmp LoopCmdWorldNumber,y  ;matches our current world number
+                //> bne FindLoop
+                if ((ram.worldNumber.toInt() and 0xFF) != loopCmdWorldNumber[y]) continue
+                //> lda CurrentPageLoc        ;check to see if one of the page numbers
+                //> cmp LoopCmdPageNumber,y   ;matches the page we're currently on
+                //> bne FindLoop
+                if ((ram.currentPageLoc.toInt() and 0xFF) != loopCmdPageNumber[y]) continue
+                matchIndex = y
+                break
+            }
+
+            if (matchIndex >= 0) {
+                val y = matchIndex
+                //> lda Player_Y_Position     ;check to see if the player is at the correct position
+                //> cmp LoopCmdYPosition,y    ;if not, branch to check for world 7
+                //> bne WrongChk
+                val playerY = ram.playerYPosition.toInt() and 0xFF
+                val correctY = playerY == loopCmdYPosition[y]
+                //> lda Player_State          ;check to see if the player is
+                //> cmp #$00                  ;on solid ground (i.e. not jumping or falling)
+                //> bne WrongChk              ;if not, player fails to pass loop, and loopback
+                val onGround = ram.playerState == 0.toByte()
+
+                if (correctY && onGround) {
+                    //> lda WorldNumber           ;are we in world 7?
+                    //> cmp #World7               ;(check performed on correct vertical position and on solid ground)
+                    //> bne InitMLp               ;if not, initialize flags used there, otherwise
+                    if (ram.worldNumber == Constants.World7) {
+                        //> inc MultiLoopCorrectCntr  ;increment counter for correct progression
+                        ram.multiLoopCorrectCntr++
+                        //> IncMLoop: inc MultiLoopPassCntr     ;increment master multi-part counter
+                        ram.multiLoopPassCntr++
+                        //> lda MultiLoopPassCntr     ;have we done all three parts?
+                        //> cmp #$03
+                        //> bne InitLCmd              ;if not, skip this part
+                        if (ram.multiLoopPassCntr == 3.toByte()) {
+                            //> lda MultiLoopCorrectCntr  ;if so, have we done them all correctly?
+                            //> cmp #$03
+                            //> beq InitMLp               ;if so, branch past unnecessary check here
+                            if (ram.multiLoopCorrectCntr != 3.toByte()) {
+                                //> bne DoLpBack              ;unconditional branch if previous branch fails
+                                execGameLoopback(y)
+                                killAllEnemies()
+                            }
+                            // InitMLp: reset counters regardless
+                            ram.multiLoopPassCntr = 0
+                            ram.multiLoopCorrectCntr = 0
+                        }
+                        // else: InitLCmd - just clear the loop command below
+                    } else {
+                        //> InitMLp:  lda #$00                  ;initialize counters
+                        ram.multiLoopPassCntr = 0
+                        ram.multiLoopCorrectCntr = 0
+                    }
+                } else {
+                    //> WrongChk: lda WorldNumber           ;are we in world 7?
+                    //> cmp #World7               ;(check performed on incorrect vertical position or not on solid ground)
+                    //> beq IncMLoop
+                    if (ram.worldNumber == Constants.World7) {
+                        //> IncMLoop: inc MultiLoopPassCntr     ;increment master multi-part counter
+                        ram.multiLoopPassCntr++
+                        //> lda MultiLoopPassCntr     ;have we done all three parts?
+                        //> cmp #$03
+                        //> bne InitLCmd              ;if not, skip this part
+                        if (ram.multiLoopPassCntr == 3.toByte()) {
+                            //> lda MultiLoopCorrectCntr  ;if so, have we done them all correctly?
+                            //> cmp #$03
+                            //> beq InitMLp               ;if so, branch past unnecessary check here
+                            if (ram.multiLoopCorrectCntr == 3.toByte()) {
+                                ram.multiLoopPassCntr = 0
+                                ram.multiLoopCorrectCntr = 0
+                            } else {
+                                //> bne DoLpBack
+                                execGameLoopback(y)
+                                killAllEnemies()
+                                ram.multiLoopPassCntr = 0
+                                ram.multiLoopCorrectCntr = 0
+                            }
+                        }
+                        // else: InitLCmd - just clear the loop command below
+                    } else {
+                        //> DoLpBack: jsr ExecGameLoopback      ;if player is not in right place, loop back
+                        execGameLoopback(y)
+                        //> jsr KillAllEnemies
+                        killAllEnemies()
+                        //> InitMLp:  lda #$00
+                        ram.multiLoopPassCntr = 0
+                        ram.multiLoopCorrectCntr = 0
+                    }
+                }
+                //> InitLCmd: lda #$00                  ;initialize loop command flag
+                //> sta LoopCommand
+                ram.loopCommand = 0
+            }
+        }
+    }
+
+    //> ChkEnemyFrenzy:
+    chkEnemyFrenzy()
+}
+
+/**
+ * Checks frenzy queue and processes enemy data from the level.
+ * If a frenzy enemy is queued, spawns it directly. Otherwise,
+ * parses enemy data bytes to determine what to spawn.
+ */
+private fun System.chkEnemyFrenzy() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> ChkEnemyFrenzy:
+    //> lda EnemyFrenzyQueue  ;check for enemy object in frenzy queue
+    //> beq ProcessEnemyData  ;if not, skip this part
+    val frenzyQueue = ram.enemyFrenzyQueue.toInt() and 0xFF
+    if (frenzyQueue != 0) {
+        //> sta Enemy_ID,x        ;store as enemy object identifier here
+        ram.enemyID[x] = frenzyQueue.toByte()
+        //> lda #$01
+        //> sta Enemy_Flag,x      ;activate enemy object flag
+        ram.enemyFlags[x] = 1
+        //> lda #$00
+        //> sta Enemy_State,x     ;initialize state and frenzy queue
+        ram.enemyState[x] = 0
+        //> sta EnemyFrenzyQueue
+        ram.enemyFrenzyQueue = 0
+        //> jmp InitEnemyObject   ;and then jump to deal with this enemy
+        initEnemyObject()
+        return
+    }
+
+    //> ProcessEnemyData
+    processEnemyData()
+}
+
+/**
+ * Resets page locations back four pages when the player loops back in a level.
+ * Reinitializes enemy data offset, page selects, and sets area data offset
+ * from the loopback table.
+ */
+private fun System.execGameLoopback(loopDataIndex: Int) {
+    //> ExecGameLoopback:
+    //> lda Player_PageLoc        ;send player back four pages
+    //> sec
+    //> sbc #$04
+    //> sta Player_PageLoc
+    ram.playerPageLoc = (ram.playerPageLoc - 4).toByte()
+    //> lda CurrentPageLoc        ;send current page back four pages
+    //> sec
+    //> sbc #$04
+    //> sta CurrentPageLoc
+    ram.currentPageLoc = ((ram.currentPageLoc.toInt() and 0xFF) - 4).toUByte()
+    //> lda ScreenLeft_PageLoc    ;subtract four from page location
+    //> sec                       ;of screen's left border
+    //> sbc #$04
+    //> sta ScreenLeft_PageLoc
+    ram.screenLeftPageLoc = (ram.screenLeftPageLoc - 4).toByte()
+    //> lda ScreenRight_PageLoc   ;do the same for the page location
+    //> sec                       ;of screen's right border
+    //> sbc #$04
+    //> sta ScreenRight_PageLoc
+    ram.screenRightPageLoc = (ram.screenRightPageLoc - 4).toByte()
+    //> lda AreaObjectPageLoc     ;subtract four from page control
+    //> sec                       ;for area objects
+    //> sbc #$04
+    //> sta AreaObjectPageLoc
+    ram.areaObjectPageLoc = (ram.areaObjectPageLoc - 4).toByte()
+    //> lda #$00                  ;initialize page select for both
+    //> sta EnemyObjectPageSel    ;area and enemy objects
+    ram.enemyObjectPageSel = 0
+    //> sta AreaObjectPageSel
+    ram.areaObjectPageSel = 0
+    //> sta EnemyDataOffset       ;initialize enemy object data offset
+    ram.enemyDataOffset = 0
+    //> sta EnemyObjectPageLoc    ;and enemy object page control
+    ram.enemyObjectPageLoc = 0
+    //> lda AreaDataOfsLoopback,y ;adjust area object offset based on
+    //> sta AreaDataOffset        ;which loop command we encountered
+    ram.areaDataOffset = areaDataOfsLoopback[loopDataIndex].toByte()
+}
+
+/**
+ * Parses enemy data from the level's enemy data stream.
+ * Handles special row values ($0e for area pointer, $0f for page control),
+ * hard mode filtering, buzzy beetle mutation, and enemy group objects.
+ * Positions enemies relative to the screen and spawns them into the object buffer.
+ */
+private fun System.processEnemyData() {
+    // by Claude - enemyDataBytes is the ROM data pointed to by the (EnemyData) indirect pointer.
+    // Set by getAreaDataAddrs() via RomData lookup tables.
+    val enemyDataBytes = ram.enemyDataBytes ?: return
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> ProcessEnemyData:
+    //> ldy EnemyDataOffset      ;get offset of enemy object data
+    var y = ram.enemyDataOffset.toInt() and 0xFF
+    //> lda (EnemyData),y        ;load first byte
+    val firstByte = enemyDataBytes.getOrElse(y) { 0xFF.toByte() }.toInt() and 0xFF
+    //> cmp #$ff                 ;check for EOD terminator
+    //> bne CheckEndofBuffer
+    if (firstByte == 0xFF) {
+        //> jmp CheckFrenzyBuffer    ;if found, jump to check frenzy buffer
+        checkFrenzyBuffer()
+        return
+    }
+
+    //> CheckEndofBuffer:
+    //> and #%00001111           ;check for special row $0e
+    //> cmp #$0e
+    //> beq CheckRightBounds     ;if found, branch
+    val row = firstByte and 0x0F
+    if (row != 0x0E) {
+        //> cpx #$05                 ;check for end of buffer
+        //> bcc CheckRightBounds     ;if not at end of buffer, branch
+        if (x >= 0x05) {
+            //> iny
+            //> lda (EnemyData),y        ;check for specific value here
+            //> and #%00111111           ;not sure what this was intended for, exactly
+            //> cmp #$2e                 ;this part is quite possibly residual code
+            //> beq CheckRightBounds     ;but it has the effect of keeping enemies out of
+            //> rts                      ;the sixth slot
+            val nextByte = enemyDataBytes.getOrElse(y + 1) { 0.toByte() }.toInt() and 0x3F
+            if (nextByte != 0x2E) return
+        }
+    }
+
+    //> CheckRightBounds:
+    //> lda ScreenRight_X_Pos    ;add 48 to pixel coordinate of right boundary
+    //> clc
+    //> adc #$30
+    val rightXExtended = (ram.screenRightXPos.toInt() and 0xFF) + 0x30
+    //> and #%11110000           ;store high nybble
+    val extBoundHighNybble = rightXExtended and 0xF0
+    //> lda ScreenRight_PageLoc  ;add carry to page location of right boundary
+    //> adc #$00
+    val extBoundPageLoc = (ram.screenRightPageLoc.toInt() and 0xFF) + (if (rightXExtended > 0xFF) 1 else 0)
+
+    //> ldy EnemyDataOffset
+    //> iny
+    y = (ram.enemyDataOffset.toInt() and 0xFF) + 1
+    //> lda (EnemyData),y        ;if MSB of enemy object is clear, branch to check for row $0f
+    val secondByte = enemyDataBytes.getOrElse(y) { 0.toByte() }.toInt() and 0xFF
+    //> asl
+    //> bcc CheckPageCtrlRow
+    if ((secondByte and 0x80) != 0) {
+        //> lda EnemyObjectPageSel   ;if page select already set, do not set again
+        //> bne CheckPageCtrlRow
+        if (ram.enemyObjectPageSel == 0.toByte()) {
+            //> inc EnemyObjectPageSel   ;otherwise, if MSB is set, set page select
+            ram.enemyObjectPageSel++
+            //> inc EnemyObjectPageLoc   ;and increment page control
+            ram.enemyObjectPageLoc++
+        }
+    }
+
+    //> CheckPageCtrlRow:
+    //> dey
+    y--
+    //> lda (EnemyData),y        ;reread first byte
+    val rereadFirst = enemyDataBytes.getOrElse(y) { 0.toByte() }.toInt() and 0xFF
+    //> and #$0f
+    //> cmp #$0f                 ;check for special row $0f
+    //> bne PositionEnemyObj     ;if not found, branch to position enemy object
+    if ((rereadFirst and 0x0F) == 0x0F) {
+        //> lda EnemyObjectPageSel   ;if page select set,
+        //> bne PositionEnemyObj     ;branch without reading second byte
+        if (ram.enemyObjectPageSel == 0.toByte()) {
+            //> iny
+            //> lda (EnemyData),y        ;otherwise, get second byte, mask out 2 MSB
+            //> and #%00111111
+            val pageCtrl = enemyDataBytes.getOrElse(y + 1) { 0.toByte() }.toInt() and 0x3F
+            //> sta EnemyObjectPageLoc   ;store as page control for enemy object data
+            ram.enemyObjectPageLoc = pageCtrl.toByte()
+            //> inc EnemyDataOffset      ;increment enemy object data offset 2 bytes
+            //> inc EnemyDataOffset
+            ram.enemyDataOffset = (ram.enemyDataOffset + 2).toByte()
+            //> inc EnemyObjectPageSel   ;set page select for enemy object data and
+            ram.enemyObjectPageSel++
+            //> jmp ProcLoopCommand      ;jump back to process loop commands again
+            procLoopCommand()
+            return
+        }
+        // fall through to PositionEnemyObj if page select was already set
+    }
+
+    // --- PositionEnemyObj ---
+    //> lda EnemyObjectPageLoc   ;store page control as page location
+    //> sta Enemy_PageLoc,x      ;for enemy object
+    ram.sprObjPageLoc[1 + x] = ram.enemyObjectPageLoc
+
+    //> lda (EnemyData),y        ;get first byte of enemy object
+    val dataFirstByte = enemyDataBytes.getOrElse(y) { 0.toByte() }.toInt() and 0xFF
+    //> and #%11110000
+    val columnPos = dataFirstByte and 0xF0
+    //> sta Enemy_X_Position,x   ;store column position
+    ram.sprObjXPos[1 + x] = columnPos.toByte()
+
+    //> cmp ScreenRight_X_Pos    ;check column position against right boundary
+    //> lda Enemy_PageLoc,x      ;without subtracting, then subtract borrow
+    //> sbc ScreenRight_PageLoc  ;from page location
+    val screenRightX = ram.screenRightXPos.toInt() and 0xFF
+    val borrow = if (columnPos >= screenRightX) 1 else 0
+    val pageDiff = (ram.sprObjPageLoc[1 + x].toInt() and 0xFF) - (ram.screenRightPageLoc.toInt() and 0xFF) - (1 - borrow)
+
+    //> bcs CheckRightExtBounds  ;if enemy object beyond or at boundary, branch
+    if (pageDiff < 0) {
+        //> lda (EnemyData),y
+        //> and #%00001111           ;check for special row $0e
+        //> cmp #$0e                 ;if found, jump elsewhere
+        //> beq ParseRow0e
+        if ((dataFirstByte and 0x0F) == 0x0E) {
+            parseRow0e(y)
+            return
+        }
+        //> jmp CheckThreeBytes      ;if not found, unconditional jump
+        checkThreeBytes()
+        return
+    }
+
+    //> CheckRightExtBounds:
+    //> lda $07                  ;check right boundary + 48 against
+    //> cmp Enemy_X_Position,x   ;column position without subtracting,
+    //> lda $06                  ;then subtract borrow from page control temp
+    //> sbc Enemy_PageLoc,x      ;plus carry
+    val extBorrow = if (extBoundHighNybble >= columnPos) 1 else 0
+    val extPageDiff = extBoundPageLoc - (ram.sprObjPageLoc[1 + x].toInt() and 0xFF) - (1 - extBorrow)
+
+    //> bcc CheckFrenzyBuffer    ;if enemy object beyond extended boundary, branch
+    if (extPageDiff < 0) {
+        checkFrenzyBuffer()
+        return
+    }
+
+    //> lda #$01                 ;store value in vertical high byte
+    //> sta Enemy_Y_HighPos,x
+    ram.sprObjYHighPos[1 + x] = 1
+
+    //> lda (EnemyData),y        ;get first byte again
+    //> asl                      ;multiply by four to get the vertical
+    //> asl                      ;coordinate
+    //> asl
+    //> asl
+    val verticalCoord = (dataFirstByte shl 4) and 0xFF
+    //> sta Enemy_Y_Position,x
+    ram.sprObjYPos[1 + x] = verticalCoord.toByte()
+
+    //> cmp #$e0                 ;do one last check for special row $0e
+    //> beq ParseRow0e           ;(necessary if branched to $c1cb)
+    if (verticalCoord == 0xE0) {
+        parseRow0e(y)
+        return
+    }
+
+    //> iny
+    //> lda (EnemyData),y        ;get second byte of object
+    val secondDataByte = enemyDataBytes.getOrElse(y + 1) { 0.toByte() }.toInt() and 0xFF
+    //> and #%01000000           ;check to see if hard mode bit is set
+    //> beq CheckForEnemyGroup   ;if not, branch to check for group enemy objects
+    if ((secondDataByte and 0x40) != 0) {
+        //> lda SecondaryHardMode    ;if set, check to see if secondary hard mode flag
+        //> beq Inc2B                ;is on, and if not, branch to skip this object completely
+        if (ram.secondaryHardMode == 0.toByte()) {
+            advanceEnemyDataOffset(dataFirstByte)
+            return
+        }
+    }
+
+    //> CheckForEnemyGroup:
+    //> lda (EnemyData),y      ;get second byte and mask out 2 MSB
+    //> and #%00111111
+    val enemyType = secondDataByte and 0x3F
+
+    //> cmp #$37               ;check for value below $37
+    //> bcc BuzzyBeetleMutate
+    if (enemyType in 0x37 until 0x3F) {
+        //> cmp #$3f               ;if $37 or greater, check for value
+        //> bcc DoGroup            ;below $3f, branch if below $3f
+        //> DoGroup: jmp HandleGroupEnemies   ;handle enemy group objects
+        handleGroupEnemies(enemyType)
+        return
+    }
+
+    //> BuzzyBeetleMutate:
+    var finalEnemyId = enemyType
+    //> cmp #Goomba          ;if below $37, check for goomba
+    //> bne StrID            ;value ($3f or more always fails)
+    if (finalEnemyId == (Constants.Goomba.toInt() and 0xFF)) {
+        //> ldy PrimaryHardMode  ;check if primary hard mode flag is set
+        //> beq StrID            ;and if so, change goomba to buzzy beetle
+        if (ram.primaryHardMode) {
+            //> lda #BuzzyBeetle
+            finalEnemyId = Constants.BuzzyBeetle.toInt() and 0xFF  // BuzzyBeetle = $02
+        }
+    }
+
+    //> StrID:  sta Enemy_ID,x       ;store enemy object number into buffer
+    ram.enemyID[x] = finalEnemyId.toByte()
+    //> lda #$01
+    //> sta Enemy_Flag,x     ;set flag for enemy in buffer
+    ram.enemyFlags[x] = 1
+    //> jsr InitEnemyObject
+    initEnemyObject()
+    //> lda Enemy_Flag,x     ;check to see if flag is set
+    //> bne Inc2B            ;if not, leave, otherwise branch
+    if (ram.enemyFlags[x].toInt() != 0) {
+        advanceEnemyDataOffset(dataFirstByte)
+    }
+    //> rts
+}
+
+/**
+ * Handles special row $0e in enemy data: sets area pointer and entrance page
+ * for world-specific area transitions (e.g., underground bonus areas).
+ */
+private fun System.parseRow0e(dataY: Int) {
+    val enemyDataBytes = ram.enemyDataBytes ?: return  // by Claude
+
+    //> ParseRow0e:
+    //> iny                      ;increment Y to load third byte of object
+    //> iny
+    val thirdByteIdx = dataY + 2
+    //> lda (EnemyData),y
+    val thirdByte = enemyDataBytes.getOrElse(thirdByteIdx) { 0.toByte() }.toInt() and 0xFF
+    //> lsr                      ;move 3 MSB to the bottom, effectively
+    //> lsr                      ;making %xxx00000 into %00000xxx
+    //> lsr
+    //> lsr
+    //> lsr
+    val worldNum = thirdByte ushr 5
+    //> cmp WorldNumber          ;is it the same world number as we're on?
+    //> bne NotUse               ;if not, do not use
+    if (worldNum == (ram.worldNumber.toInt() and 0xFF)) {
+        //> dey
+        //> lda (EnemyData),y        ;otherwise, get second byte and use as offset
+        //> sta AreaPointer          ;to addresses for level and enemy object data
+        ram.areaPointer = enemyDataBytes.getOrElse(thirdByteIdx - 1) { 0.toByte() }
+        //> iny
+        //> lda (EnemyData),y        ;get third byte again, and this time mask out
+        //> and #%00011111           ;the 3 MSB from before, save as page number to be
+        //> sta EntrancePage         ;used upon entry to area, if area is entered
+        ram.entrancePage = (thirdByte and 0x1F).toByte()
+    }
+    //> NotUse: jmp Inc3B
+    //> Inc3B:  inc EnemyDataOffset      ;if row = $0e, increment three bytes
+    ram.enemyDataOffset = (ram.enemyDataOffset + 3).toByte()
+    //> (falls through from Inc3B to the rest of Inc2B logic)
+    ram.enemyObjectPageSel = 0
+    // reload X from ObjectOffset (assembly does ldx ObjectOffset here)
+}
+
+/**
+ * Checks if the first byte of enemy data at current offset has row $0e,
+ * and advances the offset by 2 or 3 bytes accordingly.
+ */
+private fun System.checkThreeBytes() {
+    val enemyDataBytes = ram.enemyDataBytes ?: return  // by Claude
+
+    //> CheckThreeBytes:
+    //> ldy EnemyDataOffset      ;load current offset for enemy object data
+    val y = ram.enemyDataOffset.toInt() and 0xFF
+    //> lda (EnemyData),y        ;get first byte
+    val firstByte = enemyDataBytes.getOrElse(y) { 0.toByte() }.toInt() and 0xFF
+    //> and #%00001111           ;check for special row $0e
+    //> cmp #$0e
+    //> bne Inc2B
+    if ((firstByte and 0x0F) == 0x0E) {
+        //> Inc3B:  inc EnemyDataOffset      ;if row = $0e, increment three bytes
+        ram.enemyDataOffset++
+    }
+    //> Inc2B:  inc EnemyDataOffset      ;otherwise increment two bytes
+    //> inc EnemyDataOffset
+    ram.enemyDataOffset = (ram.enemyDataOffset + 2).toByte()
+    //> lda #$00                 ;init page select for enemy objects
+    //> sta EnemyObjectPageSel
+    ram.enemyObjectPageSel = 0
+    //> ldx ObjectOffset         ;reload current offset in enemy buffers
+    //> rts
+}
+
+/**
+ * Advances the enemy data offset by 2 or 3 bytes depending on whether
+ * the first byte has special row $0e, and resets page select.
+ */
+private fun System.advanceEnemyDataOffset(firstByte: Int) {
+    //> CheckThreeBytes / Inc2B / Inc3B combined
+    if ((firstByte and 0x0F) == 0x0E) {
+        ram.enemyDataOffset++
+    }
+    ram.enemyDataOffset = (ram.enemyDataOffset + 2).toByte()
+    ram.enemyObjectPageSel = 0
+}
+
+/**
+ * Checks frenzy buffer and vine flag offset when enemy data is exhausted (EOD found).
+ * Spawns a frenzy enemy or vine if conditions are met.
+ */
+private fun System.checkFrenzyBuffer() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> CheckFrenzyBuffer:
+    //> lda EnemyFrenzyBuffer    ;if enemy object stored in frenzy buffer
+    //> bne StrFre               ;then branch ahead to store in enemy object buffer
+    val frenzyBuffer = ram.enemyFrenzyBuffer.toInt() and 0xFF
+    if (frenzyBuffer != 0) {
+        //> StrFre: sta Enemy_ID,x           ;store contents of frenzy buffer into enemy identifier value
+        ram.enemyID[x] = frenzyBuffer.toByte()
+        initEnemyObject()
+        return
+    }
+
+    //> lda VineFlagOffset       ;otherwise check vine flag offset
+    //> cmp #$01
+    //> bne ExEPar               ;if other value <> 1, leave
+    if ((ram.vineFlagOffset.toInt() and 0xFF) != 0x01) {
+        //> ExEPar: rts
+        return
+    }
+
+    //> lda #VineObject          ;otherwise put vine in enemy identifier
+    //> StrFre: sta Enemy_ID,x
+    ram.enemyID[x] = Constants.VineObject
+    //> (falls through to InitEnemyObject)
+    initEnemyObject()
+}
+
+/**
+ * Initializes enemy state to 0 and dispatches to the enemy-type-specific
+ * init routine via checkpointEnemyID.
+ */
+fun System.initEnemyObject() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitEnemyObject:
+    //> lda #$00                 ;initialize enemy state
+    //> sta Enemy_State,x
+    ram.enemyState[x] = 0
+    //> jsr CheckpointEnemyID    ;jump ahead to run jump engine and subroutines
+    checkpointEnemyID()
+    //> ExEPar: rts                      ;then leave
+}
+
+/**
+ * Dispatches to enemy-type-specific initialization routines based on Enemy_ID.
+ * For enemy IDs < $15, adds 8 pixels to Y position and sets offscreen masked bit.
+ * Then dispatches via a jump engine table to the appropriate init subroutine.
+ */
+fun System.checkpointEnemyID() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> CheckpointEnemyID:
+    //> lda Enemy_ID,x
+    val enemyId = ram.enemyID[x].toInt() and 0xFF
+
+    //> cmp #$15                     ;check enemy object identifier for $15 or greater
+    //> bcs InitEnemyRoutines        ;and branch straight to the jump engine if found
+    if (enemyId < 0x15) {
+        //> tay                          ;save identifier in Y register for now
+        //> lda Enemy_Y_Position,x
+        //> adc #$08                     ;add eight pixels to what will eventually be the
+        //> sta Enemy_Y_Position,x       ;enemy object's vertical coordinate ($00-$14 only)
+        val curY = ram.sprObjYPos[1 + x].toInt() and 0xFF
+        ram.sprObjYPos[1 + x] = ((curY + 0x08) and 0xFF).toByte()
+        //> lda #$01
+        //> sta EnemyOffscrBitsMasked,x  ;set offscreen masked bit
+        ram.enemyOffscrBitsMaskeds[x] = 1
+        //> tya                          ;get identifier back and use as offset for jump engine
+    }
+
+    //> InitEnemyRoutines:
+    //> jsr JumpEngine
+    when (enemyId) {
+        //> .dw InitNormalEnemy  ;for objects $00-$02
+        0x00 -> initNormalEnemy()
+        0x01 -> initNormalEnemy()
+        0x02 -> initNormalEnemy()
+        //> .dw InitRedKoopa     ;for object $03
+        0x03 -> initRedKoopa()
+        //> .dw NoInitCode        ;for object $04
+        0x04 -> {} // NoInitCode
+        //> .dw InitHammerBro     ;for object $05
+        0x05 -> initHammerBro()
+        //> .dw InitGoomba        ;for object $06
+        0x06 -> initGoomba()
+        //> .dw InitBloober       ;for object $07
+        0x07 -> initBloober()
+        //> .dw InitBulletBill    ;for object $08
+        0x08 -> initBulletBill()
+        //> .dw NoInitCode        ;for object $09
+        0x09 -> {} // NoInitCode
+        //> .dw InitCheepCheep    ;for objects $0a-$0b
+        0x0A -> initCheepCheep()
+        0x0B -> initCheepCheep()
+        //> .dw InitPodoboo       ;for object $0c
+        0x0C -> initPodoboo()
+        //> .dw InitPiranhaPlant  ;for object $0d
+        0x0D -> initPiranhaPlant()
+        //> .dw InitJumpGPTroopa  ;for object $0e
+        0x0E -> initJumpGPTroopa()
+        //> .dw InitRedPTroopa    ;for object $0f
+        0x0F -> initRedPTroopa()
+        //> .dw InitHorizFlySwimEnemy ;for object $10
+        0x10 -> initHorizFlySwimEnemy()
+        //> .dw InitLakitu        ;for object $11
+        0x11 -> initLakitu()
+        //> .dw InitEnemyFrenzy   ;for object $12
+        0x12 -> initEnemyFrenzy()
+        //> .dw NoInitCode        ;for object $13
+        0x13 -> {} // NoInitCode
+        //> .dw InitEnemyFrenzy   ;for objects $14-$17
+        0x14 -> initEnemyFrenzy()
+        0x15 -> initEnemyFrenzy()
+        0x16 -> initEnemyFrenzy()
+        0x17 -> initEnemyFrenzy()
+        //> .dw EndFrenzy         ;for object $18
+        0x18 -> endFrenzy()
+        //> .dw NoInitCode        ;for objects $19-$1a
+        0x19 -> {} // NoInitCode
+        0x1A -> {} // NoInitCode
+        //> .dw InitShortFirebar  ;for objects $1b-$1e
+        0x1B -> initShortFirebar()
+        0x1C -> initShortFirebar()
+        0x1D -> initShortFirebar()
+        0x1E -> initShortFirebar()
+        //> .dw InitLongFirebar   ;for object $1f
+        0x1F -> initLongFirebar()
+        //> .dw NoInitCode        ;for objects $20-$23
+        0x20 -> {} // NoInitCode
+        0x21 -> {} // NoInitCode
+        0x22 -> {} // NoInitCode
+        0x23 -> {} // NoInitCode
+        //> .dw InitBalPlatform   ;for object $24
+        0x24 -> initBalPlatform()
+        //> .dw InitVertPlatform  ;for object $25
+        0x25 -> initVertPlatform()
+        //> .dw LargeLiftUp       ;for object $26
+        0x26 -> largeLiftUp()
+        //> .dw LargeLiftDown     ;for object $27
+        0x27 -> largeLiftDown()
+        //> .dw InitHoriPlatform  ;for object $28
+        0x28 -> initHoriPlatform()
+        //> .dw InitDropPlatform  ;for object $29
+        0x29 -> initDropPlatform()
+        //> .dw InitHoriPlatform  ;for object $2a
+        0x2A -> initHoriPlatform()
+        //> .dw PlatLiftUp        ;for object $2b
+        0x2B -> platLiftUp()
+        //> .dw PlatLiftDown      ;for object $2c
+        0x2C -> platLiftDown()
+        //> .dw InitBowser        ;for object $2d
+        0x2D -> initBowser()
+        //> .dw PwrUpJmp          ;for object $2e (possibly dummy value)
+        0x2E -> pwrUpJmp()
+        //> .dw Setup_Vine        ;for object $2f
+        0x2F -> setupVine()
+        //> .dw NoInitCode        ;for objects $30-$34
+        0x30 -> {} // NoInitCode
+        0x31 -> {} // NoInitCode
+        0x32 -> {} // NoInitCode
+        0x33 -> {} // NoInitCode
+        0x34 -> {} // NoInitCode
+        //> .dw InitRetainerObj   ;for object $35
+        0x35 -> initRetainerObj()
+        //> .dw EndOfEnemyInitCode ;for object $36
+        0x36 -> endOfEnemyInitCode()
+    }
+}
+
+// by Claude - Run handler stubs moved to dedicated files:
+// runNormalEnemies, runBowserFlame, runFireworks, runFirebarObj,
+// runStarFlagObj, jumpspringHandler, runRetainerObj → enemyBehaviors.kt
+// runLargePlatform, runSmallPlatform → platformRoutines.kt
+// runBowser → bowserRoutine.kt
+// powerUpObjHandler, vineObjectHandler → powerUpVine.kt
+// warpZoneObject → enemyBGCollision.kt
+
+// --- Enemy init routines (dispatched from CheckpointEnemyID) ---
+// by Claude - translated from smbdism.asm InitNormalEnemy through EndOfEnemyInitCode
+
+/**
+ * Sets horizontal speed based on hard mode, then falls through to TallBBox.
+ * Used by goombas, koopas, and other normal walking enemies ($00-$02).
+ */
+private fun System.initNormalEnemy() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitNormalEnemy:
+    //> ldy #$01              ;load offset of 1 by default
+    //> lda PrimaryHardMode   ;check for primary hard mode flag set
+    //> bne GetESpd
+    //> dey                   ;if not set, decrement offset
+    val spdIdx = if (ram.primaryHardMode) 1 else 0
+
+    //> GetESpd: lda NormalXSpdData,y  ;get appropriate horizontal speed
+    //> SetESpd: sta Enemy_X_Speed,x   ;store as speed for enemy object
+    ram.sprObjXSpeed[1 + x] = normalXSpdData[spdIdx].toByte()
+
+    //> jmp TallBBox          ;branch to set bounding box control and other data
+    tallBBox()
+}
+
+/**
+ * Initializes red koopa: normal enemy init + set enemy state to 1.
+ */
+private fun System.initRedKoopa() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitRedKoopa:
+    //> jsr InitNormalEnemy   ;load appropriate horizontal speed
+    initNormalEnemy()
+
+    //> lda #$01              ;set enemy state for red koopa troopa $03
+    //> sta Enemy_State,x
+    ram.enemyState[x] = 1
+}
+
+/**
+ * Sets up hammer bro: zero speed, walking timer based on hard mode, bbox $0b.
+ */
+private fun System.initHammerBro() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitHammerBro:
+    //> lda #$00                    ;init horizontal speed and timer used by hammer bro
+    //> sta HammerThrowingTimer,x   ;apparently to time hammer throwing
+    ram.hammerThrowingTimers[x] = 0 // by Claude - indexed with x
+
+    //> sta Enemy_X_Speed,x
+    ram.sprObjXSpeed[1 + x] = 0
+
+    //> ldy SecondaryHardMode       ;get secondary hard mode flag
+    //> lda HBroWalkingTimerData,y
+    //> sta EnemyIntervalTimer,x    ;set value as delay for hammer bro to walk left
+    val hardIdx = if (ram.secondaryHardMode != 0.toByte()) 1 else 0
+    ram.timers[0x16 + x] = hBroWalkingTimerData[hardIdx].toByte()
+
+    //> lda #$0b                    ;set specific value for bounding box size control
+    //> jmp SetBBox
+    setBBox(0x0b)
+}
+
+/**
+ * Initializes goomba: normal enemy init + small bounding box ($09).
+ */
+private fun System.initGoomba() {
+    //> InitGoomba:
+    //> jsr InitNormalEnemy  ;set appropriate horizontal speed
+    initNormalEnemy()
+
+    //> jmp SmallBBox        ;set $09 as bounding box control, set other values
+    smallBBox()
+}
+
+/**
+ * Initializes bloober (blooper): zero move speed, small bounding box.
+ */
+private fun System.initBloober() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitBloober:
+    //> lda #$00               ;initialize horizontal speed
+    //> sta BlooperMoveSpeed,x
+    // by Claude - BlooperMoveSpeed,x = Enemy_X_Speed ($58+x)
+    ram.sprObjXSpeed[1 + x] = 0
+
+    //> SmallBBox: lda #$09    ;set specific bounding box size control
+    //> bne SetBBox            ;unconditional branch
+    smallBBox()
+}
+
+/**
+ * Initializes bullet bill: moving left, bbox $09 (no speed/force init).
+ */
+private fun System.initBulletBill() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitBulletBill:
+    //> lda #$02                  ;set moving direction for left
+    //> sta Enemy_MovingDir,x
+    ram.enemyMovingDirs[x] = 2
+
+    //> lda #$09                  ;set bounding box control for $09
+    //> sta Enemy_BoundBoxCtrl,x
+    ram.enemyBoundBoxCtrls[x] = 0x09
+}
+
+/**
+ * Initializes cheep-cheep: small bbox, random movement flag, save original Y.
+ */
+private fun System.initCheepCheep() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitCheepCheep:
+    //> jsr SmallBBox              ;set vertical bounding box, speed, init others
+    smallBBox()
+
+    //> lda PseudoRandomBitReg,x   ;check one portion of LSFR
+    //> and #%00010000             ;get d4 from it
+    //> sta CheepCheepMoveMFlag,x  ;save as movement flag of some sort
+    val lsfr = ram.pseudoRandomBitReg[x].toInt() and 0xFF
+    // by Claude - CheepCheepMoveMFlag,x = Enemy_X_Speed ($58+x)
+    ram.sprObjXSpeed[1 + x] = (lsfr and 0x10).toByte()
+
+    //> lda Enemy_Y_Position,x
+    //> sta CheepCheepOrigYPos,x   ;save original vertical coordinate here
+    // by Claude - CheepCheepOrigYPos,x = Enemy_Y_MoveForce ($434+x)
+    ram.sprObjYMoveForce[1 + x] = ram.sprObjYPos[1 + x]
+}
+
+/**
+ * Initializes podoboo: position below screen, set timer, small bbox.
+ */
+private fun System.initPodoboo() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitPodoboo:
+    //> lda #$02                  ;set enemy position to below
+    //> sta Enemy_Y_HighPos,x     ;the bottom of the screen
+    ram.sprObjYHighPos[1 + x] = 2
+
+    //> sta Enemy_Y_Position,x
+    ram.sprObjYPos[1 + x] = 2
+
+    //> lsr
+    //> sta EnemyIntervalTimer,x  ;set timer for enemy (2 >> 1 = 1)
+    ram.timers[0x16 + x] = 1
+
+    //> lsr
+    //> sta Enemy_State,x         ;initialize enemy state (1 >> 1 = 0)
+    ram.enemyState[x] = 0
+
+    //> jmp SmallBBox             ;$09 as bounding box size and set other things
+    smallBBox()
+}
+
+/**
+ * Initializes piranha plant: set Y speed, store down/up Y positions, bbox $09.
+ */
+internal fun System.initPiranhaPlant() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitPiranhaPlant:
+    //> lda #$01                     ;set initial speed
+    //> sta PiranhaPlant_Y_Speed,x
+    ram.piranhaPlantYSpeed = 1
+
+    //> lsr
+    //> sta Enemy_State,x            ;initialize enemy state (1 >> 1 = 0)
+    ram.enemyState[x] = 0
+
+    //> sta PiranhaPlant_MoveFlag,x  ;initialize move flag
+    ram.piranhaPlantMoveFlag = 0
+
+    //> lda Enemy_Y_Position,x
+    //> sta PiranhaPlantDownYPos,x   ;save original vertical coordinate here
+    val yPos = ram.sprObjYPos[1 + x].toInt() and 0xFF
+    ram.piranhaPlantDownYPos = yPos.toByte()
+
+    //> sec
+    //> sbc #$18
+    //> sta PiranhaPlantUpYPos,x     ;save original vertical coordinate - 24 pixels here
+    ram.piranhaPlantUpYPos = ((yPos - 0x18) and 0xFF).toByte()
+
+    //> lda #$09
+    //> jmp SetBBox2                 ;set specific value for bounding box control
+    ram.enemyBoundBoxCtrls[x] = 0x09
+}
+
+/**
+ * Initializes jumping green paratroopa: moving left, speed $f8, bbox $03.
+ */
+private fun System.initJumpGPTroopa() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitJumpGPTroopa:
+    //> lda #$02                  ;set for movement to the left
+    //> sta Enemy_MovingDir,x
+    ram.enemyMovingDirs[x] = 2
+
+    //> lda #$f8                  ;set horizontal speed
+    //> sta Enemy_X_Speed,x
+    ram.sprObjXSpeed[1 + x] = 0xf8.toByte()
+
+    //> TallBBox2: lda #$03       ;set specific value for bounding box control
+    //> SetBBox2:  sta Enemy_BoundBoxCtrl,x  ;set bounding box control then leave
+    ram.enemyBoundBoxCtrls[x] = 0x03
+}
+
+/**
+ * Initializes red paratroopa: stores original Y and center Y, then tall bbox.
+ */
+private fun System.initRedPTroopa() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitRedPTroopa:
+    //> ldy #$30                    ;load central position adder for 48 pixels down
+    //> lda Enemy_Y_Position,x      ;set vertical coordinate into location to
+    //> sta RedPTroopaOrigXPos,x    ;be used as original vertical coordinate
+    val yPos = ram.sprObjYPos[1 + x].toInt() and 0xFF
+    // by Claude - indexed by objectOffset (aliases Enemy_X_MoveForce,x at $0401+x)
+    ram.sprObjXMoveForce[1 + x] = yPos.toByte()
+
+    //> bpl GetCent                 ;if vertical coordinate < $80
+    //> ldy #$e0                    ;if => $80, load position adder for 32 pixels up
+    val centerAdder = if ((yPos and 0x80) != 0) 0xE0 else 0x30
+
+    //> GetCent: tya                ;send central position adder to A
+    //> adc Enemy_Y_Position,x      ;add to current vertical coordinate
+    //> sta RedPTroopaCenterYPos,x  ;store as central vertical coordinate
+    // by Claude - indexed by objectOffset (aliases Enemy_X_Speed,x at $58+x)
+    ram.sprObjXSpeed[1 + x] = ((centerAdder + yPos) and 0xFF).toByte()
+
+    //> TallBBox: (falls through)
+    tallBBox()
+}
+
+/**
+ * Initializes horizontally flying/swimming enemy: zero X speed, tall bbox.
+ */
+private fun System.initHorizFlySwimEnemy() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitHorizFlySwimEnemy:
+    //> lda #$00        ;initialize horizontal speed
+    //> jmp SetESpd     ;store and go to TallBBox
+    ram.sprObjXSpeed[1 + x] = 0
+    tallBBox()
+}
+
+/**
+ * Initializes lakitu: if frenzy buffer active, erase; otherwise set up as flying enemy.
+ */
+private fun System.initLakitu() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitLakitu:
+    //> lda EnemyFrenzyBuffer      ;check to see if an enemy is already in
+    //> bne KillLakitu             ;the frenzy buffer, and branch to kill lakitu if so
+    if (ram.enemyFrenzyBuffer != 0.toByte()) {
+        //> KillLakitu: jmp EraseEnemyObject
+        ram.enemyFlags[x] = 0  // erase this enemy object
+        return
+    }
+
+    //> SetupLakitu:
+    //> lda #$00                   ;erase counter for lakitu's reappearance
+    //> sta LakituReappearTimer
+    ram.lakituReappearTimer = 0
+
+    //> jsr InitHorizFlySwimEnemy  ;set $03 as bounding box, set other attributes
+    initHorizFlySwimEnemy()
+
+    //> jmp TallBBox2              ;set $03 as bounding box again (not necessary) and leave
+    ram.enemyBoundBoxCtrls[x] = 0x03
+}
+
+/**
+ * Initializes enemy frenzy: stores enemy ID into frenzy buffer, then dispatches
+ * to the appropriate frenzy handler via a jump table.
+ */
+private fun System.initEnemyFrenzy() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitEnemyFrenzy:
+    //> lda Enemy_ID,x        ;load enemy identifier
+    //> sta EnemyFrenzyBuffer ;save in enemy frenzy buffer
+    val enemyId = ram.enemyID[x].toInt() and 0xFF
+    ram.enemyFrenzyBuffer = enemyId.toByte()
+
+    //> sec
+    //> sbc #$12              ;subtract 18 and use as offset for jump engine
+    val offset = enemyId - 0x12
+
+    //> jsr JumpEngine
+    //> .dw LakituAndSpinyHandler   ;$12
+    //> .dw NoFrenzyCode            ;$13
+    //> .dw InitFlyingCheepCheep    ;$14
+    //> .dw InitBowserFlame         ;$15
+    //> .dw InitFireworks           ;$16
+    //> .dw BulletBillCheepCheep    ;$17
+    when (offset) {
+        0 -> {} // LakituAndSpinyHandler - handled by frenzy buffer at runtime
+        1 -> {} // NoFrenzyCode
+        2 -> {} // InitFlyingCheepCheep - handled by frenzy buffer at runtime
+        3 -> {} // InitBowserFlame - handled by frenzy buffer at runtime
+        4 -> {} // InitFireworks - handled by frenzy buffer at runtime
+        5 -> {} // BulletBillCheepCheep - handled by frenzy buffer at runtime
+        else -> {} // NoFrenzyCode
+    }
+}
+
+/**
+ * Ends frenzy mode: sets any lakitu enemies to state 1, clears frenzy buffer and flag.
+ */
+private fun System.endFrenzy() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> EndFrenzy:
+    //> ldy #$05               ;start at last slot
+    for (y in 5 downTo 0) {
+        //> LakituChk: lda Enemy_ID,y         ;check enemy identifiers
+        //> cmp #Lakitu            ;for lakitu
+        //> bne NextFSlot
+        if (ram.enemyID[y] == Constants.Lakitu) {
+            //> lda #$01               ;if found, set state
+            //> sta Enemy_State,y
+            ram.enemyState[y] = 1
+        }
+        //> NextFSlot: dey          ;move onto the next slot
+        //> bpl LakituChk           ;do this until all slots are checked
+    }
+
+    //> lda #$00
+    //> sta EnemyFrenzyBuffer  ;empty enemy frenzy buffer
+    ram.enemyFrenzyBuffer = 0
+
+    //> sta Enemy_Flag,x       ;disable enemy buffer flag for this object
+    ram.enemyFlags[x] = 0
+}
+
+/**
+ * Initializes short firebar: set spin state, speed, direction; center on tile (+4px).
+ */
+private fun System.initShortFirebar() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitShortFirebar:
+    //> lda #$00                    ;initialize low byte of spin state
+    //> sta FirebarSpinState_Low,x
+    // by Claude - FirebarSpinState_Low,x = Enemy_X_Speed ($58+x)
+    ram.sprObjXSpeed[1 + x] = 0
+
+    //> lda Enemy_ID,x              ;subtract $1b from enemy identifier
+    //> sec                         ;to get proper offset for firebar data
+    //> sbc #$1b
+    //> tay
+    val fbOfs = (ram.enemyID[x].toInt() and 0xFF) - 0x1b
+
+    //> lda FirebarSpinSpdData,y    ;get spinning speed of firebar
+    //> sta FirebarSpinSpeed,x
+    ram.firebarSpinSpeed = firebarSpinSpdData[fbOfs].toByte()
+
+    //> lda FirebarSpinDirData,y    ;get spinning direction of firebar
+    //> sta FirebarSpinDirection,x
+    ram.firebarSpinDirection = firebarSpinDirData[fbOfs].toByte()
+
+    //> lda Enemy_Y_Position,x
+    //> clc                         ;add four pixels to vertical coordinate
+    //> adc #$04
+    //> sta Enemy_Y_Position,x
+    ram.sprObjYPos[1 + x] = ((ram.sprObjYPos[1 + x].toInt() and 0xFF) + 4).toByte()
+
+    //> lda Enemy_X_Position,x
+    //> clc                         ;add four pixels to horizontal coordinate
+    //> adc #$04
+    //> sta Enemy_X_Position,x
+    val newX = (ram.sprObjXPos[1 + x].toInt() and 0xFF) + 4
+    ram.sprObjXPos[1 + x] = (newX and 0xFF).toByte()
+
+    //> lda Enemy_PageLoc,x
+    //> adc #$00                    ;add carry to page location
+    //> sta Enemy_PageLoc,x
+    ram.sprObjPageLoc[1 + x] = ((ram.sprObjPageLoc[1 + x].toInt() and 0xFF) + (if (newX > 0xFF) 1 else 0)).toByte()
+
+    //> jmp TallBBox2               ;set bounding box control (not used) and leave
+    ram.enemyBoundBoxCtrls[x] = 0x03
+}
+
+/**
+ * Initializes long firebar: duplicates enemy object first, then does short firebar init.
+ */
+private fun System.initLongFirebar() {
+    //> InitLongFirebar:
+    //> jsr DuplicateEnemyObj       ;create enemy object for long firebar
+    duplicateEnemyObj()
+
+    //> (falls through to InitShortFirebar)
+    initShortFirebar()
+}
+
+/**
+ * Initializes balance platform: adjusts Y, positions, sets alignment state.
+ */
+private fun System.initBalPlatform() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitBalPlatform:
+    //> dec Enemy_Y_Position,x    ;raise vertical position by two pixels
+    //> dec Enemy_Y_Position,x
+    ram.sprObjYPos[1 + x] = ((ram.sprObjYPos[1 + x].toInt() and 0xFF) - 2).toByte()
+
+    //> ldy SecondaryHardMode     ;if secondary hard mode flag not set,
+    //> bne AlignP                ;branch ahead
+    if (ram.secondaryHardMode == 0.toByte()) {
+        //> ldy #$02                  ;otherwise set value here
+        //> jsr PosPlatform           ;do a sub to add or subtract pixels
+        posPlatform(2)
+    }
+
+    //> AlignP: ldy #$ff          ;set default value here for now
+    //> lda BalPlatformAlignment  ;get current balance platform alignment
+    //> sta Enemy_State,x         ;set platform alignment to object state here
+    val curAlign = ram.balPlatformAlignment.toInt() and 0xFF
+    ram.enemyState[x] = curAlign.toByte()
+
+    //> bpl SetBPA                ;if old alignment $ff, put $ff as alignment for negative
+    if ((curAlign and 0x80) != 0) {
+        //> txa                       ;if old contents already $ff, put
+        //> tay                       ;object offset as alignment to make next positive
+        //> SetBPA: sty BalPlatformAlignment
+        ram.balPlatformAlignment = x.toByte()
+    } else {
+        //> SetBPA: sty BalPlatformAlignment  ;store $ff here
+        ram.balPlatformAlignment = 0xFF.toByte()
+    }
+
+    //> lda #$00
+    //> sta Enemy_MovingDir,x     ;init moving direction
+    ram.enemyMovingDirs[x] = 0
+
+    //> tay                       ;init Y to 0
+    //> jsr PosPlatform           ;do a sub to add 8 pixels, then run shared code here
+    posPlatform(0)
+
+    //> (falls through to InitDropPlatform)
+    initDropPlatform()
+}
+
+/**
+ * Initializes vertical platform: stores top Y and center Y positions.
+ */
+private fun System.initVertPlatform() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitVertPlatform:
+    //> ldy #$40                    ;set default value here
+    //> lda Enemy_Y_Position,x      ;check vertical position
+    val yPos = ram.sprObjYPos[1 + x].toInt() and 0xFF
+    val topY: Int
+    val centerAdder: Int
+
+    //> bpl SetYO                   ;if above a certain point, skip this part
+    if ((yPos and 0x80) == 0) {
+        topY = yPos
+        centerAdder = 0x40
+    } else {
+        //> eor #$ff
+        //> clc                         ;otherwise get two's complement
+        //> adc #$01
+        topY = ((yPos xor 0xFF) + 1) and 0xFF
+        //> ldy #$c0                    ;get alternate value to add to vertical position
+        centerAdder = 0xC0
+    }
+
+    //> SetYO: sta YPlatformTopYPos,x
+    ram.yPlatformTopYPos = topY.toByte()
+
+    //> tya
+    //> clc                         ;load value from earlier, add number of pixels
+    //> adc Enemy_Y_Position,x      ;to vertical position
+    //> sta YPlatformCenterYPos,x   ;save result as central vertical position
+    ram.yPlatformCenterYPos = ((centerAdder + yPos) and 0xFF).toByte()
+
+    //> (falls through to CommonPlatCode)
+    commonPlatCode()
+}
+
+/**
+ * Initializes large lift going up: platform lift up + overwrite bbox with SPBBox.
+ */
+private fun System.largeLiftUp() {
+    //> LargeLiftUp:
+    //> jsr PlatLiftUp       ;execute code for platforms going up
+    platLiftUp()
+
+    //> jmp LargeLiftBBox    → jmp SPBBox  ;overwrite bounding box for large platforms
+    spBBox()
+}
+
+/**
+ * Initializes large lift going down: platform lift down + overwrite bbox.
+ */
+private fun System.largeLiftDown() {
+    //> LargeLiftDown:
+    //> jsr PlatLiftDown     ;execute code for platforms going down
+    platLiftDown()
+
+    //> LargeLiftBBox: jmp SPBBox  ;jump to overwrite bounding box size control
+    spBBox()
+}
+
+/**
+ * Initializes horizontal platform: zero secondary counter, common platform code.
+ */
+private fun System.initHoriPlatform() {
+    //> InitHoriPlatform:
+    //> lda #$00
+    //> sta XMoveSecondaryCounter,x  ;init one of the moving counters
+    // by Claude - XMoveSecondaryCounter,x = Enemy_X_Speed ($58+x)
+    val x = ram.objectOffset.toInt() and 0xFF
+    ram.sprObjXSpeed[1 + x] = 0
+
+    //> jmp CommonPlatCode           ;jump ahead to execute more code
+    commonPlatCode()
+}
+
+/**
+ * Initializes drop platform: set collision flag to $ff, then common platform code.
+ */
+private fun System.initDropPlatform() {
+    //> InitDropPlatform:
+    //> lda #$ff
+    //> sta PlatformCollisionFlag,x  ;set some value here
+    ram.platformCollisionFlag = 0xFF.toByte()
+
+    //> jmp CommonPlatCode           ;then jump ahead to execute more code
+    commonPlatCode()
+}
+
+/**
+ * Initializes platform going up: Y move force $10, Y speed $ff, position + small lift bbox.
+ */
+private fun System.platLiftUp() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> PlatLiftUp:
+    //> lda #$10                 ;set movement amount here
+    //> sta Enemy_Y_MoveForce,x
+    ram.sprObjYMoveForce[1 + x] = 0x10
+
+    //> lda #$ff                 ;set moving speed for platforms going up
+    //> sta Enemy_Y_Speed,x
+    ram.sprObjYSpeed[1 + x] = 0xFF.toByte()
+
+    //> jmp CommonSmallLift      ;skip ahead to part we should be executing
+    commonSmallLift()
+}
+
+/**
+ * Initializes platform going down: Y move force $f0, Y speed $00, position + small lift bbox.
+ */
+private fun System.platLiftDown() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> PlatLiftDown:
+    //> lda #$f0                 ;set movement amount here
+    //> sta Enemy_Y_MoveForce,x
+    ram.sprObjYMoveForce[1 + x] = 0xF0.toByte()
+
+    //> lda #$00                 ;set moving speed for platforms going down
+    //> sta Enemy_Y_Speed,x
+    ram.sprObjYSpeed[1 + x] = 0
+
+    //> (falls through to CommonSmallLift)
+    commonSmallLift()
+}
+
+/**
+ * Initializes bowser: duplicates enemy object, sets all bowser-specific state.
+ */
+private fun System.initBowser() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitBowser:
+    //> jsr DuplicateEnemyObj     ;jump to create another bowser object
+    duplicateEnemyObj()
+
+    //> stx BowserFront_Offset    ;save offset of first here
+    ram.bowserFrontOffset = x.toByte()
+
+    //> lda #$00
+    //> sta BowserBodyControls    ;initialize bowser's body controls
+    ram.bowserBodyControls = 0
+
+    //> sta BridgeCollapseOffset  ;and bridge collapse offset
+    ram.bridgeCollapseOffset = 0
+
+    //> lda Enemy_X_Position,x
+    //> sta BowserOrigXPos        ;store original horizontal position here
+    ram.bowserOrigXPos = ram.sprObjXPos[1 + x]
+
+    //> lda #$df
+    //> sta BowserFireBreathTimer ;store something here
+    ram.bowserFireBreathTimer = 0xdf.toByte()
+
+    //> sta Enemy_MovingDir,x     ;and in moving direction
+    ram.enemyMovingDirs[x] = 0xdf.toByte()
+
+    //> lda #$20
+    //> sta BowserFeetCounter     ;set bowser's feet timer and in enemy timer
+    ram.bowserFeetCounter = 0x20
+
+    //> sta EnemyFrameTimer,x
+    ram.timers[0x0a + x] = 0x20
+
+    //> lda #$05
+    //> sta BowserHitPoints       ;give bowser 5 hit points
+    ram.bowserHitPoints = 5
+
+    //> lsr
+    //> sta BowserMovementSpeed   ;set default movement speed here (5 >> 1 = 2)
+    ram.bowserMovementSpeed = 2
+}
+
+/**
+ * Residual jump point for power-up object: sets state, flag, bbox, attributes, sound.
+ */
+private fun System.pwrUpJmp() {
+    //> PwrUpJmp:  lda #$01                  ;this is a residual jump point in enemy object jump table
+    //> sta Enemy_State+5         ;set power-up object's state
+    ram.enemyState[5] = 1
+
+    //> sta Enemy_Flag+5          ;set buffer flag
+    ram.enemyFlags[5] = 1
+
+    //> lda #$03
+    //> sta Enemy_BoundBoxCtrl+5  ;set bounding box size control for power-up object
+    ram.enemyBoundBoxCtrls[5] = 0x03
+
+    //> lda PowerUpType
+    //> cmp #$02                  ;check currently loaded power-up type
+    //> bcs PutBehind             ;if star or 1-up, branch ahead
+    val powerUpType = ram.powerUpType.toInt() and 0xFF
+    if (powerUpType < 0x02) {
+        //> lda PlayerStatus          ;otherwise check player's current status
+        val playerStatusVal = ram.playerStatus.toInt() and 0xFF
+        //> cmp #$02
+        //> bcc StrType               ;if player not fiery, use status as power-up type
+        val newType = if (playerStatusVal < 0x02) {
+            playerStatusVal
+        } else {
+            //> lsr                       ;otherwise shift right to force fire flower type
+            playerStatusVal ushr 1
+        }
+        //> StrType: sta PowerUpType
+        ram.powerUpType = newType.toByte()
+    }
+
+    //> PutBehind: lda #%00100000
+    //> sta Enemy_SprAttrib+5     ;set background priority bit
+    ram.sprAttrib[1 + 5] = 0x20
+
+    //> lda #Sfx_GrowPowerUp
+    //> sta Square2SoundQueue     ;load power-up reveal sound and leave
+    ram.square2SoundQueue = (ram.square2SoundQueue.toInt() or Constants.Sfx_GrowPowerUp.toInt()).toByte()
+}
+
+/**
+ * Sets up vine object from block coordinates. Stores vine slot offset and plays sound.
+ * Note: this routine is shared between block-hit code and checkpointEnemyID dispatch.
+ * When called from checkpointEnemyID, the vine is already positioned from enemy data.
+ */
+private fun System.setupVine() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> Setup_Vine:
+    //> lda #VineObject          ;load identifier for vine object
+    //> sta Enemy_ID,x           ;store in buffer
+    ram.enemyID[x] = Constants.VineObject
+
+    //> lda #$01
+    //> sta Enemy_Flag,x         ;set flag for enemy object buffer
+    ram.enemyFlags[x] = 1
+
+    // Note: Block_PageLoc,y / Block_X_Position,y / Block_Y_Position,y copies
+    // are only meaningful when called from block-hit code. When called from
+    // checkpointEnemyID, position is already set from enemy data parsing.
+    // The assembly shares this routine; we skip the block-coordinate copy here
+    // since the enemy position was already set by processEnemyData.
+
+    //> ldy VineFlagOffset       ;load vine flag/offset to next available vine slot
+    val vineFlagOfs = ram.vineFlagOffset.toInt() and 0xFF
+
+    //> bne NextVO               ;if set at all, don't bother to store vertical
+    if (vineFlagOfs == 0) {
+        //> sta VineStart_Y_Position ;otherwise store vertical coordinate here
+        ram.vineStartYPosition = ram.sprObjYPos[1 + x]
+    }
+
+    //> NextVO: txa              ;store object offset to next available vine slot
+    //> sta VineObjOffset,y      ;using vine flag as offset
+    ram.vineObjOffset = x.toByte()
+
+    //> inc VineFlagOffset       ;increment vine flag offset
+    ram.vineFlagOffset = ((vineFlagOfs + 1) and 0xFF).toByte()
+
+    //> lda #Sfx_GrowVine
+    //> sta Square2SoundQueue    ;load vine grow sound
+    ram.square2SoundQueue = (ram.square2SoundQueue.toInt() or Constants.Sfx_GrowVine.toInt()).toByte()
+}
+
+/**
+ * Initializes retainer (princess/mushroom retainer): fixed Y position $b8.
+ */
+private fun System.initRetainerObj() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitRetainerObj:
+    //> lda #$b8                ;set fixed vertical position for
+    //> sta Enemy_Y_Position,x  ;princess/mushroom retainer object
+    ram.sprObjYPos[1 + x] = 0xb8.toByte()
+}
+
+/**
+ * End-of-init-code sentinel. Does nothing (just an rts in assembly).
+ */
+private fun System.endOfEnemyInitCode() {
+    //> EndOfEnemyInitCode: rts
+}
+
+// --- Shared init helpers ---
+// by Claude - TallBBox, SmallBBox, SetBBox, InitVStf, CommonPlatCode, etc.
+
+/**
+ * TallBBox: sets bounding box control to $03 and falls through to SetBBox.
+ */
+private fun System.tallBBox() {
+    //> TallBBox: lda #$03
+    setBBox(0x03)
+}
+
+/**
+ * SmallBBox: sets bounding box control to $09 and falls through to SetBBox.
+ */
+private fun System.smallBBox() {
+    //> SmallBBox: lda #$09
+    //> bne SetBBox            ;unconditional branch
+    setBBox(0x09)
+}
+
+/**
+ * SetBBox: stores bounding box control, sets moving direction to left, inits vertical.
+ */
+private fun System.setBBox(ctrl: Int) {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> SetBBox: sta Enemy_BoundBoxCtrl,x
+    ram.enemyBoundBoxCtrls[x] = ctrl.toByte()
+
+    //> lda #$02                    ;set moving direction for left
+    //> sta Enemy_MovingDir,x
+    ram.enemyMovingDirs[x] = 2
+
+    //> InitVStf:
+    initVStf()
+}
+
+/**
+ * InitVStf: zeroes vertical speed and vertical movement force.
+ */
+private fun System.initVStf() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> InitVStf: lda #$00
+    //> sta Enemy_Y_Speed,x         ;and movement force
+    ram.sprObjYSpeed[1 + x] = 0
+
+    //> sta Enemy_Y_MoveForce,x
+    ram.sprObjYMoveForce[1 + x] = 0
+}
+
+/**
+ * CommonPlatCode: inits vertical, then sets bounding box based on area type and hard mode.
+ */
+private fun System.commonPlatCode() {
+    //> CommonPlatCode:
+    //> jsr InitVStf              ;do a sub to init certain other values
+    initVStf()
+
+    //> SPBBox:
+    spBBox()
+}
+
+/**
+ * SPBBox: sets platform bounding box control - $05 for castle or hard mode, $06 otherwise.
+ */
+private fun System.spBBox() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> SPBBox: lda #$05           ;set default bounding box size control
+    //> ldy AreaType
+    //> cpy #$03                  ;check for castle-type level
+    //> beq CasPBB                ;use default value if found
+    //> ldy SecondaryHardMode     ;otherwise check for secondary hard mode flag
+    //> bne CasPBB                ;if set, use default value
+    //> lda #$06                  ;use alternate value if not castle or secondary not set
+    val areaType = ram.areaType.toInt() and 0xFF
+    val bbCtrl = if (areaType == 3 || ram.secondaryHardMode != 0.toByte()) 0x05 else 0x06
+
+    //> CasPBB: sta Enemy_BoundBoxCtrl,x
+    ram.enemyBoundBoxCtrls[x] = bbCtrl.toByte()
+}
+
+/**
+ * CommonSmallLift: positions platform (+12px), sets bbox control to $04.
+ */
+private fun System.commonSmallLift() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> CommonSmallLift:
+    //> ldy #$01
+    //> jsr PosPlatform           ;do a sub to add 12 pixels due to preset value
+    posPlatform(1)
+
+    //> lda #$04
+    //> sta Enemy_BoundBoxCtrl,x  ;set bounding box control for small platforms
+    ram.enemyBoundBoxCtrls[x] = 0x04
+}
+
+/**
+ * PosPlatform: adds signed offset to enemy X position and page location.
+ */
+private fun System.posPlatform(y: Int) {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> PosPlatform:
+    //> lda Enemy_X_Position,x  ;get horizontal coordinate
+    //> clc
+    //> adc PlatPosDataLow,y    ;add or subtract pixels depending on offset
+    //> sta Enemy_X_Position,x  ;store as new horizontal coordinate
+    val curX = ram.sprObjXPos[1 + x].toInt() and 0xFF
+    val addend = platPosDataLow[y].toByte().toInt()  // sign-extend for $f8 = -8
+    val newX = curX + addend
+    ram.sprObjXPos[1 + x] = (newX and 0xFF).toByte()
+
+    //> lda Enemy_PageLoc,x
+    //> adc PlatPosDataHigh,y   ;add or subtract page location depending on offset
+    //> sta Enemy_PageLoc,x     ;store as new page location
+    val curPage = ram.sprObjPageLoc[1 + x].toInt() and 0xFF
+    val pageAddend = platPosDataHigh[y].toByte().toInt()  // sign-extend for $ff = -1
+    val carry = if (newX > 0xFF) 1 else if (newX < 0) -1 else 0
+    ram.sprObjPageLoc[1 + x] = ((curPage + pageAddend + carry) and 0xFF).toByte()
+}
+
+/**
+ * DuplicateEnemyObj: finds an empty enemy slot, copies position, links via flag MSB.
+ */
+private fun System.duplicateEnemyObj() {
+    val x = ram.objectOffset.toInt() and 0xFF
+
+    //> DuplicateEnemyObj:
+    //> ldy #$ff                ;start at beginning of enemy slots
+    //> FSLoop: iny             ;increment one slot
+    //> lda Enemy_Flag,y        ;check enemy buffer flag for empty slot
+    //> bne FSLoop              ;if set, branch and keep checking
+    var y = 0
+    while (y < 6 && ram.enemyFlags[y] != 0.toByte()) y++
+    if (y >= 6) return  // no empty slot found
+
+    //> sty DuplicateObj_Offset ;otherwise set offset here
+    ram.duplicateObjOffset = y.toByte()
+
+    //> txa                     ;transfer original enemy buffer offset
+    //> ora #%10000000          ;store with d7 set as flag in new enemy
+    //> sta Enemy_Flag,y        ;slot as well as enemy offset
+    ram.enemyFlags[y] = ((x and 0xFF) or 0x80).toByte()
+
+    //> lda Enemy_PageLoc,x
+    //> sta Enemy_PageLoc,y     ;copy page location
+    ram.sprObjPageLoc[1 + y] = ram.sprObjPageLoc[1 + x]
+
+    //> lda Enemy_X_Position,x  ;copy horizontal coordinates
+    //> sta Enemy_X_Position,y  ;from original enemy to new enemy
+    ram.sprObjXPos[1 + y] = ram.sprObjXPos[1 + x]
+
+    //> lda #$01
+    //> sta Enemy_Flag,x        ;set flag as normal for original enemy
+    ram.enemyFlags[x] = 1
+
+    //> sta Enemy_Y_HighPos,y   ;set high vertical byte for new enemy
+    ram.sprObjYHighPos[1 + y] = 1
+
+    //> lda Enemy_Y_Position,x
+    //> sta Enemy_Y_Position,y  ;copy vertical coordinate from original to new
+    ram.sprObjYPos[1 + y] = ram.sprObjYPos[1 + x]
+}
+
+// by Claude - killAllEnemies() moved to victorySubs.kt
+
+/**
+ * HandleGroupEnemies: spawns a group of 2-3 enemies at the right edge of the screen.
+ * The groupType parameter is the raw second byte value ($37-$3e range) from enemy data.
+ */
+private fun System.handleGroupEnemies(groupType: Int) {
+    //> HandleGroupEnemies:
+    //> ldy #$00                  ;load value for green koopa troopa
+    //> sec
+    //> sbc #$37                  ;subtract $37 from second byte read
+    val adjustedType = groupType - 0x37
+
+    //> pha                       ;save result in stack for now
+    //> cmp #$04                  ;was byte in $3b-$3e range?
+    //> bcs SnglID                ;if so, branch (single enemy type from Y=$00)
+    val enemyIdForGroup: Int
+    if (adjustedType < 0x04) {
+        //> pha                       ;save another copy to stack
+        //> ldy #Goomba               ;load value for goomba enemy
+        //> lda PrimaryHardMode       ;if primary hard mode flag not set,
+        //> beq PullID                ;branch, otherwise change to value
+        //> ldy #BuzzyBeetle          ;for buzzy beetle
+        //> PullID: pla               ;get second copy from stack
+        enemyIdForGroup = if (ram.primaryHardMode) {
+            Constants.BuzzyBeetle.toInt() and 0xFF
+        } else {
+            Constants.Goomba.toInt() and 0xFF
+        }
+    } else {
+        //> SnglID: sty $01           ;save enemy id here (Y=0 = green koopa troopa)
+        enemyIdForGroup = 0x00  // GreenKoopa
+    }
+
+    //> ldy #$b0                  ;load default y coordinate
+    //> and #$02                  ;check to see if d1 was set
+    //> beq SetYGp                ;if not set, use default $b0
+    //> ldy #$70                  ;otherwise use $70
+    val yCoord = if ((adjustedType and 0x02) != 0) 0x70 else 0xb0
+
+    //> SetYGp: sty $00           ;save y coordinate here
+    //> lda ScreenRight_PageLoc   ;get page number of right edge of screen
+    //> sta $02                   ;save here
+    var pageStore = ram.screenRightPageLoc.toInt() and 0xFF
+
+    //> lda ScreenRight_X_Pos     ;get pixel coordinate of right edge
+    //> sta $03                   ;save here
+    var xStore = ram.screenRightXPos.toInt() and 0xFF
+
+    //> ldy #$02                  ;load two enemies by default
+    //> pla                       ;get first copy from stack
+    //> lsr                       ;check to see if d0 was set
+    //> bcc CntGrp                ;if not, use default value
+    //> iny                       ;otherwise increment to three enemies
+    var numEnemies = if ((adjustedType and 0x01) != 0) 3 else 2
+
+    //> CntGrp: sty NumberofGroupEnemies
+    ram.numberofGroupEnemies = numEnemies.toByte()
+
+    //> GrLoop:
+    while (numEnemies > 0) {
+        //> ldx #$ff                  ;start at beginning of enemy buffers
+        //> GSltLp: inx               ;increment and branch if past
+        //> cpx #$05                  ;end of buffers
+        //> bcs NextED
+        var slot = -1
+        for (s in 0 until 5) {
+            //> lda Enemy_Flag,x      ;check to see if enemy is already
+            //> bne GSltLp            ;stored in buffer, and branch if so
+            if (ram.enemyFlags[s] == 0.toByte()) {
+                slot = s
+                break
+            }
+        }
+        if (slot < 0) break  // no empty slot, jump to NextED
+
+        //> lda $01
+        //> sta Enemy_ID,x            ;store enemy object identifier
+        ram.enemyID[slot] = enemyIdForGroup.toByte()
+
+        //> lda $02
+        //> sta Enemy_PageLoc,x       ;store page location for enemy object
+        ram.sprObjPageLoc[1 + slot] = pageStore.toByte()
+
+        //> lda $03
+        //> sta Enemy_X_Position,x    ;store x coordinate for enemy object
+        ram.sprObjXPos[1 + slot] = xStore.toByte()
+
+        //> clc
+        //> adc #$18                  ;add 24 pixels for next enemy
+        //> sta $03
+        val nextX = xStore + 0x18
+        xStore = nextX and 0xFF
+
+        //> lda $02                   ;add carry to page location for
+        //> adc #$00                  ;next enemy
+        //> sta $02
+        if (nextX > 0xFF) pageStore = (pageStore + 1) and 0xFF
+
+        //> lda $00                   ;store y coordinate for enemy object
+        //> sta Enemy_Y_Position,x
+        ram.sprObjYPos[1 + slot] = yCoord.toByte()
+
+        //> lda #$01                  ;activate flag for buffer, and
+        //> sta Enemy_Y_HighPos,x     ;put enemy within the screen vertically
+        ram.sprObjYHighPos[1 + slot] = 1
+
+        //> sta Enemy_Flag,x
+        ram.enemyFlags[slot] = 1
+
+        //> jsr CheckpointEnemyID     ;process each enemy object separately
+        val savedOffset = ram.objectOffset
+        ram.objectOffset = slot.toByte()
+        checkpointEnemyID()
+        ram.objectOffset = savedOffset
+
+        //> dec NumberofGroupEnemies  ;do this until we run out of enemy objects
+        numEnemies--
+        //> bne GrLoop
+    }
+
+    //> NextED: jmp Inc2B             ;jump to increment data offset and leave
+    // Note: Inc2B is handled by the caller (processEnemyData) via advanceEnemyDataOffset
+}

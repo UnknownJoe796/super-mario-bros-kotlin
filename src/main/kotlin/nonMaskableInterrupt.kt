@@ -238,8 +238,34 @@ private fun System.decTimers() {
 }
 
 
-fun System.soundEngine(): Unit  { /*TODO*/ }
-fun System.readJoypads(): Unit  { /*TODO*/ }
+// by Claude - SoundEngine: The NES sound driver is ~1300 lines of assembly that writes
+// to APU hardware registers. In the Kotlin translation, sound playback is handled by
+// the host platform. This stub processes the sound queues so game logic doesn't stall.
+fun System.soundEngine() {
+    //> SoundEngine:
+    //> lda OperMode              ;are we in title screen mode?
+    //> bne SndOn
+    if (ram.operMode == OperMode.TitleScreen) {
+        //> sta SND_MASTERCTRL_REG    ;if so, disable sound and leave
+        return
+    }
+    // The full NES sound engine processes music/SFX queues and writes to APU registers.
+    // In the Kotlin port, sound is handled externally. Clear queues so callers don't
+    // re-trigger the same event every frame.
+    ram.square1SoundQueue = 0
+    ram.square2SoundQueue = 0
+    ram.noiseSoundQueue = 0
+    ram.pauseSoundQueue = 0
+}
+
+// by Claude - ReadJoypads: On the NES, this reads the controller shift registers via
+// $4016/$4017. In the Kotlin port, input is injected externally into SavedJoypadBits
+// before each frame, so this is a no-op.
+fun System.readJoypads() {
+    //> ReadJoypads:
+    // Input is provided by the host platform directly into ram.savedJoypadBits / ram.savedJoypad1Bits.
+    // The select/start masking logic from the assembly is handled by playerCtrlRoutine.
+}
 
 fun System.pauseRoutine(): Unit {
     //> PauseRoutine:

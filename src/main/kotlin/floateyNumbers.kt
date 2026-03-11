@@ -104,7 +104,7 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
     // wtf? this is uber cursed.  X was just overwritten in LoadNumTiles?
     var x: Int = comboNumber.toInt()
     //> ChkTallEnemy: ldy Enemy_SprDataOffset,x    ;get OAM data offset for enemy object
-    var y = ram.enemySprDataOffset[x]
+    var y = ram.enemySprDataOffset[x].toInt() and 0xFF
     //> lda Enemy_ID,x               ;get enemy object identifier
     val useAltOffset = when(ram.enemyID[x]) {
         //> cmp #Spiny
@@ -134,7 +134,7 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
     if(useAltOffset) {
         //> GetAltOffset: ldx SprDataOffset_Ctrl       ;load some kind of control bit
         //> ldy Alt_SprDataOffset,x      ;get alternate OAM data offset
-        y = ram.altSprDataOffset[ram.sprDataOffsetCtrl]
+        y = ram.altSprDataOffset[ram.sprDataOffsetCtrl.toInt()].toInt() and 0xFF
         //> ldx ObjectOffset             ;get enemy object offset again
         x = ram.objectOffset.toInt()
     }
@@ -151,14 +151,14 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
     //> SetupNumSpr:  lda FloateyNum_Y_Pos,x       ;get vertical coordinate
     //> sbc #$08                     ;subtract eight and dump into the
     //> jsr DumpTwoSpr               ;left and right sprite's Y coordinates
-    dumpTwoSpr(y.toInt(), (ram.floateyNumYPos[x] - 0x8u).toUByte())
+    dumpTwoSpr(y, (ram.floateyNumYPos[x] - 0x8u).toUByte())
     //> lda FloateyNum_X_Pos,x       ;get horizontal coordinate
     //> sta Sprite_X_Position,y      ;store into X coordinate of left sprite
     ram.sprites[y].x = ram.floateyNumXPos[x]
     //> clc
     //> adc #$08                     ;add eight pixels and store into X
     //> sta Sprite_X_Position+4,y    ;coordinate of right sprite
-    ram.sprites[y.toInt()+1].x = (ram.floateyNumXPos[x] + 0x8u).toUByte()
+    ram.sprites[y+1].x = (ram.floateyNumXPos[x] + 0x8u).toUByte()
     //> lda #$02
     //> sta Sprite_Attributes,y      ;set palette control in attribute bytes
     //> sta Sprite_Attributes+4,y    ;of left and right sprites
@@ -183,4 +183,4 @@ fun System.dumpTwoSpr(index: Int, desiredY: UByte): Unit {
     ram.sprites[index].y = desiredY
     ram.sprites[index + 1].y = desiredY
 }
-fun System.addToScore(): Unit  { /*TODO*/ }
+// by Claude - addToScore() moved to scoring.kt

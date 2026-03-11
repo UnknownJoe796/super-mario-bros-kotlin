@@ -225,7 +225,7 @@ fun System.moveAllSpritesOffscreen() {
     //> ldy #$00                ;this routine moves all sprites off the screen
     //> .db $2c                 ;BIT instruction opcode
     // falls through to normal MoveSpritesOffscreen in the assembly
-    for (index in 0 until 64) {
+    for (index in ram.sprites.indices) {
         ram.sprites[index].y = 0xF8.toUByte()
     }
 }
@@ -240,7 +240,7 @@ fun System.moveSpritesOffscreen() {
     //> iny
     //> bne SprInitLoop
     //> rts
-    for (index in 1 until 64) {
+    for (index in 1 until ram.sprites.size) {
         ram.sprites[index].y = 0xF8.toUByte()
     }
 }

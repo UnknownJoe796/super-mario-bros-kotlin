@@ -352,12 +352,13 @@ fun System.writeGameText(textNumber: Byte) {
         })
     }
 
-    ram.vRAMBuffer1[0] = (ram.vRAMBuffer1[0] as BufferedPpuUpdate.BackgroundPatternString).let { original ->
+    // by Claude - entry 1 is the "WORLD  - " string (9 tiles), not entry 0 (7 tiles)
+    ram.vRAMBuffer1[1] = (ram.vRAMBuffer1[1] as BufferedPpuUpdate.BackgroundPatternString).let { original ->
         original.copy(patterns = original.patterns.toMutableList().apply {
             //> ldy WorldNumber          ;write world and level numbers (incremented for display)
             //> iny                      ;to the buffer in the spaces surrounding the dash
             //> sty VRAM_Buffer1+19
-            // Offset from original code by 13 bytes (2 for vram address bytes, 1, for control byte, 9 for previous instruction)
+            // Entry 1 tile data starts at VRAM_Buffer1 offset 13 (10 header + 3 entry header)
             this[19-13] = OriginalRom.backgrounds[ram.worldNumber + 1]
 
             //> ldy LevelNumber

@@ -111,9 +111,10 @@ fun System.replaceBlockMetatile(metatileId: Int) {
     writeBlockMetatile(metatileId)
     //> inc Block_ResidualCounter ;increment unused counter (residual code)
     ram.blockResidualCounter = (ram.blockResidualCounter + 1).toByte()
-    //> dec Block_RepFlag,x       ;decrement flag (residual code)
-    // We model a single flag in RAM; decrement if nonzero.
-    ram.blockRepFlag = (ram.blockRepFlag - 1).toByte()
+    //> dec Block_RepFlag,x       ;decrement flag indexed by objectOffset (residual code)
+    // by Claude - fix: assembly uses indexed addressing, not scalar
+    val x = ram.objectOffset.toInt()
+    ram.blockRepFlags[x] = (ram.blockRepFlags[x] - 1).toByte()
     //> rts                       ;leave
 }
 

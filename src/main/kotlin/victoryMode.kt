@@ -67,8 +67,7 @@ private fun System.setupVictoryMode() {
     return
 }
 
-// Placeholder for bridge collapse - will be implemented in its own file.
-private fun System.bridgeCollapse(): Unit = TODO("BridgeCollapse not yet implemented")
+// by Claude - bridgeCollapse() moved to victorySubs.kt
 private fun System.playerVictoryWalk() {
     //> PlayerVictoryWalk:
     //> ldy #$00                ;set value here to not walk player by default
@@ -285,8 +284,7 @@ private fun System.playerEndWorld() {
     //> EndExitTwo:    rts                        ;leave
 }
 
-// Continue other player or end game
-private fun System.terminateGame(): Unit = TODO("TerminateGame not yet implemented")
+// by Claude - terminateGame() moved to victorySubs.kt
 
 // Engine/graphics helpers - now defined in shared files (gameMode.kt, etc.)
 // enemiesAndLoopsCore, relativePlayerPosition, playerGfxHandler are stubs in their respective files

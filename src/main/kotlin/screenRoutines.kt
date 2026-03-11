@@ -193,6 +193,8 @@ private fun System.resetSpritesAndScreenTimer() {
         return
     //> jsr MoveAllSpritesOffscreen ;otherwise reset sprites now
     moveAllSpritesOffscreen()
+    // by Claude - falls through to ResetScreenTimer
+    resetScreenTimer()
 }
 
 private fun System.displayIntermediate() {
@@ -425,7 +427,7 @@ private fun System.incModeTask_B() {
     //> rts
 }
 
-private fun System.drawPlayerIntermediate(): Unit  { /*TODO*/ }
+// by Claude - drawPlayerIntermediate() moved to playerGfxHandler.kt
 
 private fun System.resetScreenTimer() {
     //> ResetScreenTimer:
@@ -438,8 +440,17 @@ private fun System.resetScreenTimer() {
 }
 
 
-private fun System.getSBNybbles(): Unit  { /*TODO*/ }
-private fun System.updateNumber(a: Byte): Unit  { /*TODO*/ }
-private fun System.areaParserTasks(taskNum: Byte): Unit  { /*TODO*/ }
+// by Claude - getSBNybbles(), updateNumber() moved to scoring.kt
+// by Claude - areaParserTasks() moved to areaParser.kt
 
-private fun System.outputInter(code: Int): Unit  { /*TODO*/ }
+// by Claude - OutputInter: write game text, reset screen timer, reenable screen
+private fun System.outputInter(code: Int) {
+    //> OutputInter:   jsr WriteGameText
+    writeGameText(code.toByte())
+    //> jsr ResetScreenTimer
+    resetScreenTimer()
+    //> lda #$00
+    //> sta DisableScreenFlag        ;reenable screen output
+    ram.disableScreenFlag = false
+    //> rts
+}

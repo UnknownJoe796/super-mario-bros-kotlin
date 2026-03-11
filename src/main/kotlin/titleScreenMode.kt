@@ -242,11 +242,20 @@ fun System.initializeGame() {
     ram.demoTimer = 0x18.toByte()
     //> jsr LoadAreaPointer
     loadAreaPointer()
+    // by Claude - In the NES, the AreaData pointer ($E7/$E8) is set by GetAreaDataAddrs
+    // (called from InitializeArea). The area parser at ScrTask=8 reads from this pointer.
+    // In Kotlin, ram.areaData is a nullable ByteArray that must be explicitly set.
+    // Call getAreaDataAddrs() here to load the demo level's area data.
+    getAreaDataAddrs()
+    println("DEBUG initializeGame: areaData=${ram.areaData?.size}, areaPointer=${ram.areaPointer}, areaType=${ram.areaType}, worldNumber=${ram.worldNumber}, areaNumber=${ram.areaNumber}")
 
     // After initialization, the original falls through to InitializeArea via the jump table sequencing.
     // Here we simply advance the mode task to mirror that control flow.
     ram.operModeTask++
 }
+// by Claude - PrimaryGameSetup falls through to SecondaryGameSetup in the assembly
+// (no RTS between them). SecondaryGameSetup handles screen enable, sprite setup,
+// music loading, and increments OperMode_Task.
 fun System.primaryGameSetup() {
     //> PrimaryGameSetup:
     //> lda #$01
@@ -259,6 +268,8 @@ fun System.primaryGameSetup() {
     //> sta OffScr_NumberofLives
     ram.numberofLives = 0x02
     ram.offScrNumberofLives = 0x02
+    //> (falls through to SecondaryGameSetup)
+    secondaryGameSetup()
 }
 
 //> MushroomIconData:
@@ -440,7 +451,9 @@ fun System.initializeArea() {
     ram.backloadingFlag = startPage != 0.toByte()
 
     //> jsr GetScreenPosition    ;get pixel coordinates for screen borders
-    val rightSideScreenPage = getScreenPosition()
+    getScreenPosition()
+    // by Claude - getScreenPosition() sets ram.screenRightPageLoc; read it after the call
+    val rightSideScreenPage = ram.screenRightPageLoc.toInt() and 0xFF
 
     //> ldy #$20                 ;if on odd numbered page, use $2480 as start of rendering
     //> and #%00000001           ;otherwise use $2080, this address used later as name table
@@ -510,11 +523,161 @@ fun System.initializeArea() {
     //> rts
 }
 
-private fun System.getScreenPosition(): Byte  {
-    /*TODO*/
-    return 0
+// by Claude - getScreenPosition() moved to scrollHandler.kt
+// by Claude - Translated from assembly subroutines LoadAreaPointer, FindAreaPointer,
+// GetAreaType, and GetAreaDataAddrs in smbdism.asm.
+
+/**
+ * Looks up the area pointer from WorldAddrOffsets + AreaAddrOffsets tables based on
+ * the current world and area numbers, stores it, and derives the area type.
+ */
+fun System.loadAreaPointer() {
+    //> LoadAreaPointer:
+    //> jsr FindAreaPointer  ;find it and store it here
+
+    // --- FindAreaPointer inlined ---
+    //> ldy WorldNumber        ;load offset from world variable
+    //> lda WorldAddrOffsets,y
+    val worldOffset = RomData.worldAddrOffsets[ram.worldNumber.toInt() and 0xFF]
+    //> clc                    ;add area number used to find data
+    //> adc AreaNumber
+    //> tay
+    val areaIdx = (worldOffset + (ram.areaNumber.toInt() and 0xFF)) and 0xFF
+    //> lda AreaAddrOffsets,y  ;from there we have our area pointer
+    val pointer = RomData.areaAddrOffsets[areaIdx]
+
+    //> sta AreaPointer
+    ram.areaPointer = pointer.toByte()
+
+    // --- GetAreaType inlined (also called standalone by getAreaDataAddrs) ---
+    //> GetAreaType: and #%01100000       ;mask out all but d6 and d5
+    //> asl / rol / rol / rol             ;make %0xx00000 into %000000xx
+    //> sta AreaType
+    ram.areaType = ((pointer and 0x60) shr 5).toByte()
 }
-private fun System.getAreaDataAddrs(): Unit  { /*TODO*/ }
-fun System.loadAreaPointer(): Unit {
-    // TODO: translate
+
+/**
+ * Extracts the area type (bits 6-5) from a raw area pointer value.
+ * Equivalent to the GetAreaType subroutine: masks bits 6-5 and rotates them
+ * to the two LSBs, yielding a value 0-3.
+ */
+private fun getAreaType(rawPointer: Int): Int = (rawPointer and 0x60) shr 5
+
+/**
+ * Uses the area pointer to look up both the enemy data and level (area) data arrays,
+ * assigns them to RAM, then parses the 2-byte level header to set foreground scenery,
+ * background color control, player entrance control, game timer setting, terrain control,
+ * background scenery, cloud type override, and area style.
+ */
+private fun System.getAreaDataAddrs() {
+    //> GetAreaDataAddrs:
+    //> lda AreaPointer          ;use 2 MSB for Y
+    val rawPointer = ram.areaPointer.toInt() and 0xFF
+    //> jsr GetAreaType
+    //> tay
+    val areaType = getAreaType(rawPointer)
+    //> sta AreaType
+    ram.areaType = areaType.toByte()
+
+    //> lda AreaPointer          ;mask out all but 5 LSB
+    //> and #%00011111
+    //> sta AreaAddrsLOffset     ;save as low offset
+    val lowOffset = rawPointer and 0x1F
+    ram.areaAddrsLOffset = lowOffset.toByte()
+
+    // --- Look up enemy data array ---
+    //> lda EnemyAddrHOffsets,y  ;load base value with 2 altered MSB
+    //> clc
+    //> adc AreaAddrsLOffset     ;becomes offset for level data
+    //> tay
+    val enemyIdx = (RomData.enemyAddrHOffsets[areaType] + lowOffset) and 0xFF
+    //> lda EnemyDataAddrLow,y   ;use offset to load pointer
+    //> sta EnemyDataLow
+    //> lda EnemyDataAddrHigh,y
+    //> sta EnemyDataHigh
+    ram.enemyDataBytes = RomData.enemyDataArrays[enemyIdx]
+    // The original stores low/high address bytes; we keep them for compatibility with
+    // code that reads them, but the actual data access uses enemyDataBytes.
+    ram.enemyDataLow = 0  // placeholder — not used for Kotlin data access
+    ram.enemyDataHigh = 0
+
+    // --- Look up area (level) data array ---
+    //> ldy AreaType             ;use area type as offset
+    //> lda AreaDataHOffsets,y   ;do the same thing but with different base value
+    //> clc
+    //> adc AreaAddrsLOffset
+    //> tay
+    val areaDataIdx = (RomData.areaDataHOffsets[areaType] + lowOffset) and 0xFF
+    //> lda AreaDataAddrLow,y    ;use this offset to load another pointer
+    //> sta AreaDataLow
+    //> lda AreaDataAddrHigh,y
+    //> sta AreaDataHigh
+    val levelData = RomData.areaDataArrays[areaDataIdx]
+    ram.areaData = levelData
+
+    // --- Parse 2-byte level header ---
+    //> ldy #$00                 ;load first byte of header
+    //> lda (AreaData),y
+    val headerByte0 = levelData[0].toInt() and 0xFF
+
+    //> and #%00000111           ;save 3 LSB for foreground scenery or bg color control
+    //> cmp #$04
+    //> bcc StoreFore
+    val low3 = headerByte0 and 0x07
+    if (low3 >= 0x04) {
+        //> sta BackgroundColorCtrl  ;if 4 or greater, save value here as bg color control
+        ram.backgroundColorCtrl = low3.toByte()
+        //> lda #$00
+        //> StoreFore: sta ForegroundScenery
+        ram.foregroundScenery = 0
+    } else {
+        //> StoreFore: sta ForegroundScenery    ;if less, save value here as foreground scenery
+        ram.foregroundScenery = low3.toByte()
+    }
+
+    //> and #%00111000           ;save player entrance control bits
+    //> lsr / lsr / lsr
+    //> sta PlayerEntranceCtrl
+    ram.playerEntranceCtrl = ((headerByte0 and 0x38) shr 3).toByte()
+
+    //> and #%11000000           ;save 2 MSB for game timer setting
+    //> clc / rol / rol / rol    ;rotate to LSBs
+    //> sta GameTimerSetting
+    ram.gameTimerSetting = ((headerByte0 and 0xC0) ushr 6).toByte()
+
+    //> iny
+    //> lda (AreaData),y         ;load second byte of header
+    val headerByte1 = levelData[1].toInt() and 0xFF
+
+    //> and #%00001111           ;mask out all but lower nybble
+    //> sta TerrainControl
+    ram.terrainControl = (headerByte1 and 0x0F).toByte()
+
+    //> and #%00110000           ;save 2 bits for background scenery type
+    //> lsr / lsr / lsr / lsr
+    //> sta BackgroundScenery
+    ram.backgroundScenery = ((headerByte1 and 0x30) shr 4).toByte()
+
+    //> and #%11000000
+    //> clc / rol / rol / rol    ;rotate to LSBs
+    //> cmp #%00000011           ;if set to 3, store here and nullify other value
+    //> bne StoreStyle
+    val styleBits = (headerByte1 and 0xC0) ushr 6
+    if (styleBits == 0x03) {
+        //> sta CloudTypeOverride    ;store value in cloud type override
+        ram.cloudTypeOverride = true
+        //> lda #$00
+        //> StoreStyle: sta AreaStyle
+        ram.areaStyle = 0
+    } else {
+        //> StoreStyle: sta AreaStyle
+        ram.areaStyle = styleBits.toByte()
+    }
+
+    //> lda AreaDataLow          ;increment area data address by 2 bytes
+    //> clc / adc #$02 / sta AreaDataLow
+    //> lda AreaDataHigh / adc #$00 / sta AreaDataHigh
+    // In Kotlin, we advance the areaDataOffset past the 2-byte header so that
+    // subsequent reads via areaData[areaDataOffset] start at the object data.
+    ram.areaDataOffset = 0x02
 }

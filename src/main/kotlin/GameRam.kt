@@ -53,9 +53,9 @@ class GameRam {
 
     @RamLocation(0x8) var objectOffset: Byte = 0
     @RamLocation(0x9) var frameCounter: Byte = 0
-    var savedJoypadBits: JoypadBits = JoypadBits(0)
-    var savedJoypad1Bits: JoypadBits = JoypadBits(0)
-    var savedJoypad2Bits: JoypadBits = JoypadBits(0)
+    @RamLocation(0x6FC) var savedJoypadBits: JoypadBits = JoypadBits(0)
+    @RamLocation(0x6FC) var savedJoypad1Bits: JoypadBits = JoypadBits(0)
+    @RamLocation(0x6FD) var savedJoypad2Bits: JoypadBits = JoypadBits(0)
     @RamLocation(0x74a) var joypadBitMask: Byte = 0
     @RamLocation(0x758) var joypadOverride: Byte = 0
     @RamLocation(0xa) var aBButtons: Byte = 0
@@ -63,8 +63,8 @@ class GameRam {
     @RamLocation(0xb) var upDownButtons: Byte = 0
     @RamLocation(0xc) var leftRightButtons: Byte = 0
     @RamLocation(0xe) var gameEngineSubroutine: Byte = 0  // TODO: This should be an enum, I think
-    var mirrorPPUCTRLREG1: PpuControl = PpuControl(0)
-    var mirrorPPUCTRLREG2: PpuMask = PpuMask(0)
+    @RamLocation(0x778) var mirrorPPUCTRLREG1: PpuControl = PpuControl(0)
+    @RamLocation(0x779) var mirrorPPUCTRLREG2: PpuMask = PpuMask(0)
     @RamLocation(0x770) var operMode: OperMode = OperMode.TitleScreen
     @RamLocation(0x772) var operModeTask: Byte = 0
     @RamLocation(0x73c) var screenRoutineTask: Byte = 0
@@ -74,29 +74,30 @@ class GameRam {
     @RamLocation(0x718) var demoActionTimer: Byte = 0
     @RamLocation(0x747) var timerControl: Byte = 0
     @RamLocation(0x77f) var intervalTimerControl: Byte = 0
-    @RamLocation(0x780) val timers = ByteArray(0x23)
-    @RamLocation(0x780) var selectTimer: Byte = 0
-    @RamLocation(0x781) var playerAnimTimer: Byte = 0
-    @RamLocation(0x782) var jumpSwimTimer: Byte = 0
-    @RamLocation(0x783) var runningTimer: Byte = 0
-    @RamLocation(0x784) var blockBounceTimer: Byte = 0
-    @RamLocation(0x785) var sideCollisionTimer: Byte = 0
-    @RamLocation(0x786) var jumpspringTimer: Byte = 0
-    @RamLocation(0x787) var gameTimerCtrlTimer: Byte = 0
-    @RamLocation(0x789) var climbSideTimer: Byte = 0
-    @RamLocation(0x78a) var enemyFrameTimer: Byte = 0
-    @RamLocation(0x78f) var frenzyEnemyTimer: Byte = 0
-    @RamLocation(0x790) var bowserFireBreathTimer: Byte = 0
-    @RamLocation(0x791) var stompTimer: Byte = 0
-    @RamLocation(0x792) var airBubbleTimer: Byte = 0
-    @RamLocation(0x795) var scrollIntervalTimer: Byte = 0
-    @RamLocation(0x796) var enemyIntervalTimer: Byte = 0
-    @RamLocation(0x79d) var brickCoinTimer: Byte = 0
-    @RamLocation(0x79e) var injuryTimer: Byte = 0
-    @RamLocation(0x79f) var starInvincibleTimer: Byte = 0
-    @RamLocation(0x7a0) var screenTimer: Byte = 0
-    @RamLocation(0x7a1) var worldEndTimer: Byte = 0
-    @RamLocation(0x7a2) var demoTimer: Byte = 0
+    @RamLocation(0x780) val timers = ByteArray(0x24) // by Claude - indices 0..0x23, accessed via ldx #$23
+    // by Claude - named timer scalars backed by timers[] array for coherence with decTimers
+    @RamLocation(0x780) var selectTimer: Byte get() = timers[0x00]; set(v) { timers[0x00] = v }
+    @RamLocation(0x781) var playerAnimTimer: Byte get() = timers[0x01]; set(v) { timers[0x01] = v }
+    @RamLocation(0x782) var jumpSwimTimer: Byte get() = timers[0x02]; set(v) { timers[0x02] = v }
+    @RamLocation(0x783) var runningTimer: Byte get() = timers[0x03]; set(v) { timers[0x03] = v }
+    @RamLocation(0x784) var blockBounceTimer: Byte get() = timers[0x04]; set(v) { timers[0x04] = v }
+    @RamLocation(0x785) var sideCollisionTimer: Byte get() = timers[0x05]; set(v) { timers[0x05] = v }
+    @RamLocation(0x786) var jumpspringTimer: Byte get() = timers[0x06]; set(v) { timers[0x06] = v }
+    @RamLocation(0x787) var gameTimerCtrlTimer: Byte get() = timers[0x07]; set(v) { timers[0x07] = v }
+    @RamLocation(0x789) var climbSideTimer: Byte get() = timers[0x09]; set(v) { timers[0x09] = v }
+    @RamLocation(0x78a) var enemyFrameTimer: Byte get() = timers[0x0a]; set(v) { timers[0x0a] = v }
+    @RamLocation(0x78f) var frenzyEnemyTimer: Byte get() = timers[0x0f]; set(v) { timers[0x0f] = v }
+    @RamLocation(0x790) var bowserFireBreathTimer: Byte get() = timers[0x10]; set(v) { timers[0x10] = v }
+    @RamLocation(0x791) var stompTimer: Byte get() = timers[0x11]; set(v) { timers[0x11] = v }
+    @RamLocation(0x792) var airBubbleTimer: Byte get() = timers[0x12]; set(v) { timers[0x12] = v }
+    @RamLocation(0x795) var scrollIntervalTimer: Byte get() = timers[0x15]; set(v) { timers[0x15] = v }
+    @RamLocation(0x796) var enemyIntervalTimer: Byte get() = timers[0x16]; set(v) { timers[0x16] = v }
+    @RamLocation(0x79d) var brickCoinTimer: Byte get() = timers[0x1d]; set(v) { timers[0x1d] = v }
+    @RamLocation(0x79e) var injuryTimer: Byte get() = timers[0x1e]; set(v) { timers[0x1e] = v }
+    @RamLocation(0x79f) var starInvincibleTimer: Byte get() = timers[0x1f]; set(v) { timers[0x1f] = v }
+    @RamLocation(0x7a0) var screenTimer: Byte get() = timers[0x20]; set(v) { timers[0x20] = v }
+    @RamLocation(0x7a1) var worldEndTimer: Byte get() = timers[0x21]; set(v) { timers[0x21] = v }
+    @RamLocation(0x7a2) var demoTimer: Byte get() = timers[0x22]; set(v) { timers[0x22] = v }
 
     class Sprite(
         var y: UByte = 0u,  // offset
@@ -111,7 +112,10 @@ class GameRam {
             this.x = other.x
         }
     }
-    @RamLocation(0x200) val sprites = Array(64) { Sprite() }
+    // NES OAM is 256 bytes (64 sprites × 4 bytes each).
+    // Sized to 256 because sprDataOffsets stores NES byte offsets (0-252),
+    // and the translation uses these byte offsets directly as sprite indices.
+    @RamLocation(0x200) val sprites = Array(256) { Sprite() }
 
     @RamLocation(0x71a) var screenEdgePageLoc: Byte = 0
     @RamLocation(0x71c) var screenEdgeXPos: Byte = 0
@@ -134,6 +138,7 @@ class GameRam {
     @RamLocation(0x775) var scrollAmount: Byte = 0
 
     var areaData: ByteArray? = null  // Indirect: pointer at 0xe7
+    var enemyDataBytes: ByteArray? = null  // by Claude - Indirect: pointer at 0xe9
 
     @RamLocation(0xe9) var enemyData: Byte = 0
     @RamLocation(0xe9) var enemyDataLow: Byte = 0
@@ -274,8 +279,10 @@ class GameRam {
     @RamLocation(0x2a) var miscState: Byte = 0
     @RamLocation(0x45) var playerMovingDir: Byte = 0
     @RamLocation(0x46) var enemyMovingDir: Byte = 0
-    @RamLocation(0x57) var sprObjectXSpeed: Byte = 0
-    @RamLocation(0x57) var playerXSpeed: Byte = 0
+    // by Claude - delegates to sprObjXSpeed[0] for scalar/array coherence (same NES address $57)
+    @RamLocation(0x57) var playerXSpeed: Byte
+        get() = sprObjXSpeed[0]
+        set(value) { sprObjXSpeed[0] = value }
     @RamLocation(0x58) var enemyXSpeed: Byte = 0
     @RamLocation(0x5e) var fireballXSpeed: Byte = 0
     @RamLocation(0x60) var blockXSpeed: Byte = 0
@@ -283,71 +290,92 @@ class GameRam {
     @RamLocation(0x58) var jumpspringFixedYPos: Byte = 0
     @RamLocation(0x70e) var jumpspringAnimCtrl: Byte = 0
     @RamLocation(0x6db) var jumpspringForce: Byte = 0
-    @RamLocation(0x6d) var sprObjectPageLoc: Byte = 0
-    @RamLocation(0x6d) var playerPageLoc: Byte = 0
+    // by Claude - delegates to sprObjPageLoc[0] for scalar/array coherence (same NES address $6D)
+    @RamLocation(0x6d) var playerPageLoc: Byte
+        get() = sprObjPageLoc[0]
+        set(value) { sprObjPageLoc[0] = value }
     @RamLocation(0x6e) var enemyPageLoc: Byte = 0
     @RamLocation(0x74) var fireballPageLoc: Byte = 0
     @RamLocation(0x76) var blockPageLoc: Byte = 0
     @RamLocation(0x7a) var miscPageLoc: Byte = 0
     @RamLocation(0x83) var bubblePageLoc: Byte = 0
-    @RamLocation(0x86) var sprObjectXPosition: Byte = 0
-    @RamLocation(0x86) var playerXPosition: UByte = 0u
+    // by Claude - delegates to sprObjXPos[0] for scalar/array coherence (same NES address $86)
+    @RamLocation(0x86) var playerXPosition: UByte
+        get() = sprObjXPos[0].toUByte()
+        set(value) { sprObjXPos[0] = value.toByte() }
     @RamLocation(0x87) var enemyXPosition: Byte = 0
     @RamLocation(0x8d) var fireballXPosition: Byte = 0
     @RamLocation(0x8f) var blockXPosition: Byte = 0
     @RamLocation(0x93) var miscXPosition: Byte = 0
     @RamLocation(0x9c) var bubbleXPosition: Byte = 0
-    @RamLocation(0x9f) var sprObjectYSpeed: Byte = 0
-    @RamLocation(0x9f) var playerYSpeed: Byte = 0
+    // by Claude - delegates to sprObjYSpeed[0] for scalar/array coherence (same NES address $9F)
+    @RamLocation(0x9f) var playerYSpeed: Byte
+        get() = sprObjYSpeed[0]
+        set(value) { sprObjYSpeed[0] = value }
     @RamLocation(0xa0) var enemyYSpeed: Byte = 0
     @RamLocation(0xa6) var fireballYSpeed: Byte = 0
     @RamLocation(0xa8) var blockYSpeed: Byte = 0
     @RamLocation(0xac) var miscYSpeed: Byte = 0
-    @RamLocation(0xb5) var sprObjectYHighPos: Byte = 0
-    @RamLocation(0xb5) var playerYHighPos: Byte = 0
+    // by Claude - delegates to sprObjYHighPos[0] for scalar/array coherence (same NES address $B5)
+    @RamLocation(0xb5) var playerYHighPos: Byte
+        get() = sprObjYHighPos[0]
+        set(value) { sprObjYHighPos[0] = value }
     @RamLocation(0xb6) var enemyYHighPos: Byte = 0
     @RamLocation(0xbc) var fireballYHighPos: Byte = 0
     @RamLocation(0xbe) var blockYHighPos: Byte = 0
     @RamLocation(0xc2) var miscYHighPos: Byte = 0
     @RamLocation(0xcb) var bubbleYHighPos: Byte = 0
-    @RamLocation(0xce) var sprObjectYPosition: Byte = 0
-    @RamLocation(0xce) var playerYPosition: UByte = 0u
+    // by Claude - delegates to sprObjYPos[0] for scalar/array coherence (same NES address $CE)
+    @RamLocation(0xce) var playerYPosition: UByte
+        get() = sprObjYPos[0].toUByte()
+        set(value) { sprObjYPos[0] = value.toByte() }
     @RamLocation(0xcf) var enemyYPosition: Byte = 0
     @RamLocation(0xd5) var fireballYPosition: Byte = 0
     @RamLocation(0xd7) var blockYPosition: Byte = 0
     @RamLocation(0xdb) var miscYPosition: Byte = 0
     @RamLocation(0xe4) var bubbleYPosition: Byte = 0
-    @RamLocation(0x3ad) var sprObjectRelXPos: Byte = 0
-    @RamLocation(0x3ad) var playerRelXPos: Byte = 0
+    // by Claude - delegates to relXPos[0] for scalar/array coherence (same NES address $3AD)
+    @RamLocation(0x3ad) var playerRelXPos: Byte
+        get() = relXPos[0]
+        set(value) { relXPos[0] = value }
     @RamLocation(0x3ae) var enemyRelXPos: Byte = 0
     @RamLocation(0x3af) var fireballRelXPos: Byte = 0
     @RamLocation(0x3b0) var bubbleRelXPos: Byte = 0
     @RamLocation(0x3b1) var blockRelXPos: Byte = 0
     @RamLocation(0x3b3) var miscRelXPos: Byte = 0
-    @RamLocation(0x3b8) var sprObjectRelYPos: Byte = 0
-    @RamLocation(0x3b8) var playerRelYPos: Byte = 0
+    // by Claude - delegates to relYPos[0] for scalar/array coherence (same NES address $3B8)
+    @RamLocation(0x3b8) var playerRelYPos: Byte
+        get() = relYPos[0]
+        set(value) { relYPos[0] = value }
     @RamLocation(0x3b9) var enemyRelYPos: Byte = 0
     @RamLocation(0x3ba) var fireballRelYPos: Byte = 0
     @RamLocation(0x3bb) var bubbleRelYPos: Byte = 0
     @RamLocation(0x3bc) var blockRelYPos: Byte = 0
     @RamLocation(0x3be) var miscRelYPos: Byte = 0
-    @RamLocation(0x3c4) var sprObjectSprAttrib: Byte = 0
-    @RamLocation(0x3c4) var playerSprAttrib: SpriteFlags = SpriteFlags(0)
+    // by Claude - delegates to sprAttrib[0] for scalar/array coherence (same NES address $3C4)
+    @RamLocation(0x3c4) var playerSprAttrib: SpriteFlags
+        get() = SpriteFlags(sprAttrib[0])
+        set(value) { sprAttrib[0] = value.byte }
     @RamLocation(0x3c5) var enemySprAttrib: Byte = 0
-    @RamLocation(0x400) var sprObjectXMoveForce: Byte = 0
+    // by Claude - removed sprObjectXMoveForce scalar at $400 (covered by sprObjXMoveForce[0] array)
     @RamLocation(0x401) var enemyXMoveForce: Byte = 0
-    @RamLocation(0x416) var sprObjectYMFDummy: Byte = 0
-    @RamLocation(0x416) var playerYMFDummy: Byte = 0
+    // by Claude - delegates to sprObjYMFDummy[0] for scalar/array coherence (same NES address $416)
+    @RamLocation(0x416) var playerYMFDummy: Byte
+        get() = sprObjYMFDummy[0]
+        set(value) { sprObjYMFDummy[0] = value }
     @RamLocation(0x417) var enemyYMFDummy: Byte = 0
     @RamLocation(0x42c) var bubbleYMFDummy: Byte = 0
-    @RamLocation(0x433) var sprObjectYMoveForce: Byte = 0
-    @RamLocation(0x433) var playerYMoveForce: Byte = 0
+    // by Claude - delegates to sprObjYMoveForce[0] for scalar/array coherence (same NES address $433)
+    @RamLocation(0x433) var playerYMoveForce: Byte
+        get() = sprObjYMoveForce[0]
+        set(value) { sprObjYMoveForce[0] = value }
     @RamLocation(0x434) var enemyYMoveForce: Byte = 0
     @RamLocation(0x43c) var blockYMoveForce: Byte = 0
     @RamLocation(0x716) var disableCollisionDet: Byte = 0
     @RamLocation(0x490) var playerCollisionBits: Byte = 0
     @RamLocation(0x491) var enemyCollisionBits: Byte = 0
-    @RamLocation(0x499) var sprObjBoundBoxCtrl: Byte = 0
+    // by Claude - removed duplicate sprObjBoundBoxCtrl (same address $0499 as playerBoundBoxCtrl,
+    // caused snapshot to capture stale value when two @RamLocation properties shared an address)
     @RamLocation(0x499) var playerBoundBoxCtrl: Byte = 0
     @RamLocation(0x49a) var enemyBoundBoxCtrl: Byte = 0
     @RamLocation(0x4a0) var fireballBoundBoxCtrl: Byte = 0
@@ -376,13 +404,26 @@ class GameRam {
     @RamLocation(0x714) var crouchingFlag: Byte = 0
     @RamLocation(0x450) var maximumLeftSpeed: Byte = 0
     @RamLocation(0x456) var maximumRightSpeed: Byte = 0
-    @RamLocation(0x3d0) var sprObjectOffscrBits: Byte = 0
-    @RamLocation(0x3d0) var playerOffscreenBits: Byte = 0
-    @RamLocation(0x3d1) var enemyOffscreenBits: Byte = 0
-    @RamLocation(0x3d2) var fBallOffscreenBits: Byte = 0
-    @RamLocation(0x3d3) var bubbleOffscreenBits: Byte = 0
-    @RamLocation(0x3d4) var blockOffscreenBits: Byte = 0
-    @RamLocation(0x3d6) var miscOffscreenBits: Byte = 0
+    // by Claude - delegates to offscrBits[0] for scalar/array coherence (same NES address $3D0)
+    @RamLocation(0x3d0) var playerOffscreenBits: Byte
+        get() = offscrBits[0]
+        set(value) { offscrBits[0] = value }
+    // by Claude - all offscreen bit scalars delegate to offscrBits[] for coherence
+    @RamLocation(0x3d1) var enemyOffscreenBits: Byte
+        get() = offscrBits[1]
+        set(value) { offscrBits[1] = value }
+    @RamLocation(0x3d2) var fBallOffscreenBits: Byte
+        get() = offscrBits[2]
+        set(value) { offscrBits[2] = value }
+    @RamLocation(0x3d3) var bubbleOffscreenBits: Byte
+        get() = offscrBits[3]
+        set(value) { offscrBits[3] = value }
+    @RamLocation(0x3d4) var blockOffscreenBits: Byte
+        get() = offscrBits[4]
+        set(value) { offscrBits[4] = value }
+    @RamLocation(0x3d6) var miscOffscreenBits: Byte
+        get() = offscrBits[6]
+        set(value) { offscrBits[6] = value }
     @RamLocation(0x3d8) var enemyOffscrBitsMasked: Byte = 0
     @RamLocation(0x46a) var cannonOffset: Byte = 0
     @RamLocation(0x46b) var cannonPageLoc: Byte = 0
@@ -420,21 +461,23 @@ class GameRam {
     @RamLocation(0x6b7) var jumpCoinMiscOffset: Byte = 0
     @RamLocation(0x500) val blockBuffer1: ByteArray = ByteArray(0xd0)
     @RamLocation(0x5d0) val blockBuffer2: ByteArray = ByteArray(0xd0)
-    @RamLocation(0x3a2) var hammerThrowingTimer: Byte = 0
-    @RamLocation(0x3c) var hammerBroJumpTimer: Byte = 0
+    // by Claude - converted to arrays; assembly indexes with ,x (enemy index 0-5)
+    @RamLocation(0x3a2) val hammerThrowingTimers: ByteArray = ByteArray(6)
+    @RamLocation(0x3c) val hammerBroJumpTimers: ByteArray = ByteArray(6)
     @RamLocation(0x6be) var miscCollisionFlag: Byte = 0
-    @RamLocation(0x401) var redPTroopaOrigXPos: Byte = 0
-    @RamLocation(0x58) var redPTroopaCenterYPos: Byte = 0
-    @RamLocation(0xa0) var xMovePrimaryCounter: Byte = 0
-    @RamLocation(0x58) var xMoveSecondaryCounter: Byte = 0
-    @RamLocation(0x58) var cheepCheepMoveMFlag: Byte = 0
-    @RamLocation(0x434) var cheepCheepOrigYPos: Byte = 0
+    // by Claude - removed stale scalar aliases that now use indexed arrays:
+    // redPTroopaOrigXPos ($401) → sprObjXMoveForce[1+x]
+    // redPTroopaCenterYPos ($58) → sprObjXSpeed[1+x]
+    // xMovePrimaryCounter ($A0) → sprObjYSpeed[1+x]
+    // xMoveSecondaryCounter ($58) → sprObjXSpeed[1+x]
+    // cheepCheepMoveMFlag ($58) → sprObjXSpeed[1+x]
+    // cheepCheepOrigYPos ($434) → sprObjYMoveForce[1+x]
+    // lakituMoveSpeed ($58) → sprObjXSpeed[1+x]
+    // lakituMoveDirection ($A0) → sprObjYSpeed[1+x]
+    // firebarSpinStateLow ($58) → sprObjXSpeed[1+x] (TODO: verify when procFirebar is translated)
+    // firebarSpinStateHigh ($A0) → sprObjYSpeed[1+x] (TODO: verify when procFirebar is translated)
     @RamLocation(0x6dd) var bitMFilter: Byte = 0
     @RamLocation(0x6d1) var lakituReappearTimer: Byte = 0
-    @RamLocation(0x58) var lakituMoveSpeed: Byte = 0
-    @RamLocation(0xa0) var lakituMoveDirection: Byte = 0
-    @RamLocation(0x58) var firebarSpinStateLow: Byte = 0
-    @RamLocation(0xa0) var firebarSpinStateHigh: Byte = 0
     @RamLocation(0x388) var firebarSpinSpeed: Byte = 0
     @RamLocation(0x34) var firebarSpinDirection: Byte = 0
     @RamLocation(0x6cf) var duplicateObjOffset: Byte = 0
@@ -459,6 +502,50 @@ class GameRam {
     @RamLocation(0x6d7) var fireworksCounter: Byte = 0
     @RamLocation(0x58) var explosionGfxCounter: Byte = 0
     @RamLocation(0xa0) var explosionTimerCounter: Byte = 0
+
+    // by Claude - SprObject flat indexed arrays
+    // These provide indexed access across all object types using the SprObject offset:
+    // 0=player, 1-6=enemies, 7-8=fireballs, 9-10=blocks, 13-17=misc, 22-24=bubbles
+    val sprObjXSpeed = ByteArray(25)       // SprObject_X_Speed, base $57
+    val sprObjPageLoc = ByteArray(25)      // SprObject_PageLoc, base $6D
+    val sprObjXPos = ByteArray(25)         // SprObject_X_Position, base $86
+    val sprObjYSpeed = ByteArray(25)       // SprObject_Y_Speed, base $9F
+    val sprObjYHighPos = ByteArray(25)     // SprObject_Y_HighPos, base $B5
+    val sprObjYPos = ByteArray(25)         // SprObject_Y_Position, base $CE
+    val sprAttrib = ByteArray(25)          // SprObject_SprAttrib, base $3C4
+    val sprObjXMoveForce = ByteArray(25)   // SprObject_X_MoveForce, base $400
+    val sprObjYMFDummy = ByteArray(25)     // SprObject_YMF_Dummy, base $416
+    val sprObjYMoveForce = ByteArray(25)   // SprObject_Y_MoveForce, base $433
+
+    // by Claude - Condensed offset arrays (9 entries)
+    // 0=player, 1=enemy, 2=fireball, 3=bubble, 4-5=block, 6-8=misc
+    val relXPos = ByteArray(9)             // SprObject_Rel_XPos, base $3AD
+    val relYPos = ByteArray(9)             // SprObject_Rel_YPos, base $3B8
+    val offscrBits = ByteArray(9)          // SprObject_OffscrBits, base $3D0
+
+    // by Claude - Object-type-specific indexed arrays
+    val enemyMovingDirs = ByteArray(6)     // Enemy_MovingDir, base $46 (indices 0-5 for enemies 1-6)
+    val enemyFlags = ByteArray(6)          // Enemy_Flag, base $0F (indices 0-5 for enemies 1-6)
+    val enemyBoundBoxCtrls = ByteArray(6)  // Enemy_BoundBoxCtrl, base $49A
+    val fireballStates = ByteArray(2)      // Fireball_State, base $24
+    val blockStates = ByteArray(2)         // Block_State, base $26
+    // by Claude - Misc_State: 9 entries ($2A-$32). Indices 0-4 are pure misc objects (hammers, coins).
+    // Indices 5-8 overlap with object variables: [3]=$2D Bowser, [4]=$2E PowerUpObject,
+    // [5]=$2F VineObject, [6]=$30 FlagpoleFlagObject, [7]=$31 StarFlagObject, [8]=$32 JumpspringObject.
+    val miscStates = ByteArray(9)          // Misc_State, base $2A
+    val blockRepFlags = ByteArray(2)       // Block_RepFlag, base $3EC
+    val shellChainCounters = ByteArray(6)  // ShellChainCounter, base $125
+    val fireballBoundBoxCtrls = ByteArray(2) // Fireball_BoundBoxCtrl, base $4A0
+
+    // by Claude - Cannon arrays (6 entries each)
+    val cannonPageLocs = ByteArray(6)      // Cannon_PageLoc, base $46B
+    val cannonXPositions = ByteArray(6)    // Cannon_X_Position, base $471
+    val cannonYPositions = ByteArray(6)    // Cannon_Y_Position, base $477
+    val cannonTimers = ByteArray(6)        // Cannon_Timer, base $47D
+
+    // by Claude - Enemy collision/offscreen indexed arrays
+    val enemyCollisionBitsArr = ByteArray(6)    // Enemy_CollisionBits, base $491
+    val enemyOffscrBitsMaskeds = ByteArray(6)   // EnemyOffscrBitsMasked, base $3D8
 
     @RamLocation(0x7b0) var musicOffsetNoise: Byte = 0
     @RamLocation(0x7b1) var eventMusicBuffer: Byte = 0

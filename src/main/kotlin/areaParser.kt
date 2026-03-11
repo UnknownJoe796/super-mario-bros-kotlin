@@ -4,7 +4,7 @@ package com.ivieleague.smbtranslation
 
 import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.Constants.World8
-import com.ivieleague.smbtranslation.areaparser.verticalPipe
+import com.ivieleague.smbtranslation.areaparser.*
 import com.ivieleague.smbtranslation.utils.bytePlus
 import kotlin.experimental.and
 
@@ -449,7 +449,7 @@ private fun System.areaParserCore() {
         //> StrBlock: ldy $00                    ;get offset for block buffer
         yStore = zp00
         //> sta ($06),y                ;store value into block buffer
-        buffer[offset + yStore] = a.toByte()
+        buffer[offset + (yStore.toInt() and 0xFF)] = a.toByte() // by Claude - unsigned index
         //> tya
         //> clc                        ;add 16 (move down one row) to offset
         //> adc #$10
@@ -495,6 +495,9 @@ private fun System.processAreaData() {
     //> ;$00 - used to store area object identifier
     //> ;$07 - used as adder to find proper area object code
 
+    // by Claude - guard: areaData pointer not loaded yet (title screen pre-init)
+    if (ram.areaData == null) return
+
     //> ProcessAreaData:
     //> ldx #$02                 ;start at the end of area object buffer
     var x = 2.toByte()
@@ -506,7 +509,7 @@ private fun System.processAreaData() {
         ram.behindAreaParserFlag = false
 
         //> ldy AreaDataOffset       ;get offset of area data pointer
-        var y = ram.areaDataOffset
+        var y = ram.areaDataOffset.toInt() and 0xFF
         //> lda (AreaData),y         ;get first byte of area object
         //> cmp #$fd                 ;if end-of-area, skip all this crap
         //> beq RdyDecode
@@ -574,7 +577,7 @@ private fun System.processAreaData() {
         }
         if(behind == false) {
             //> RdyDecode:  jsr DecodeAreaData       ;do sub and do not turn on flag
-            decodeAreaData(x, y)
+            decodeAreaData(x, y.toByte())
             //> jmp ChkLength
         } else {
             if (behind == true) {
@@ -794,6 +797,7 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
     //> clc                        ;then use the jump engine with current contents of A
     //> adc $07
     //> jsr JumpEngine
+    areaParserObjId = objId.toInt() // by Claude - save $00 for routines that need it
     when (objId + temp07) {
         //> ;large objects (rows $00-$0b or 00-11, d6-d4 set)
         //> .dw VerticalPipe         ;used by warp pipes
@@ -876,11 +880,11 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
         0x22 -> introPipe()
         //> .dw FlagpoleObject
         0x23 -> flagpoleObject()
-        //> .dw AxeObj
-        0x24 -> axeObj()
-        //> .dw ChainObj
-        0x25 -> chainObj()
-        //> .dw CastleBridgeObj
+        //> .dw AxeObj              ;$00=2
+        0x24 -> { axeObj(); chainObjWithIndex(0) }
+        //> .dw ChainObj            ;$00=3
+        0x25 -> chainObjWithIndex(1)
+        //> .dw CastleBridgeObj     ;$00=4
         0x26 -> castleBridgeObj()
         //> .dw ScrollLockObject_Warp
         0x27 -> scrollLockObject_Warp()
@@ -888,12 +892,12 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
         0x28 -> scrollLockObject()
         //> .dw ScrollLockObject
         0x29 -> scrollLockObject()
-        //> .dw AreaFrenzy            ;flying cheep-cheeps
-        0x2A -> areaFrenzy()
-        //> .dw AreaFrenzy            ;bullet bills or swimming cheep-cheeps
-        0x2B -> areaFrenzy()
-        //> .dw AreaFrenzy            ;stop frenzy
-        0x2C -> areaFrenzy()
+        //> .dw AreaFrenzy            ;flying cheep-cheeps ($00=8)
+        0x2A -> areaFrenzy(0)
+        //> .dw AreaFrenzy            ;bullet bills or swimming cheep-cheeps ($00=9)
+        0x2B -> areaFrenzy(1)
+        //> .dw AreaFrenzy            ;stop frenzy ($00=10)
+        0x2C -> areaFrenzy(2)
         //> .dw LoopCmdE
         0x2D -> loopCmdE()
 
@@ -920,40 +924,1147 @@ private val BlockBuffLowBounds = ubyteArrayOf(
     0x10u, 0x51u, 0x88u, 0xC0u
 )
 
-private fun System.areaStyleObject(): Unit { /*TODO*/ }
-private fun System.rowOfBricks(): Unit { /*TODO*/ }
-private fun System.rowOfSolidBlocks(): Unit { /*TODO*/ }
-private fun System.rowOfCoins(): Unit { /*TODO*/ }
-private fun System.columnOfBricks(): Unit { /*TODO*/ }
-private fun System.columnOfSolidBlocks(): Unit { /*TODO*/ }
-private fun System.hole_Empty(): Unit { /*TODO*/ }
-private fun System.pulleyRopeObject(): Unit { /*TODO*/ }
-private fun System.bridge_High(): Unit { /*TODO*/ }
-private fun System.bridge_Middle(): Unit { /*TODO*/ }
-private fun System.bridge_Low(): Unit { /*TODO*/ }
-private fun System.hole_Water(): Unit { /*TODO*/ }
-private fun System.questionBlockRow_High(): Unit { /*TODO*/ }
-private fun System.questionBlockRow_Low(): Unit { /*TODO*/ }
-private fun System.endlessRope(): Unit { /*TODO*/ }
-private fun System.balancePlatRope(): Unit { /*TODO*/ }
-private fun System.castleObject(): Unit { /*TODO*/ }
-private fun System.staircaseObject(): Unit { /*TODO*/ }
-private fun System.exitPipe(): Unit { /*TODO*/ }
-private fun System.flagBalls_Residual(): Unit { /*TODO*/ }
-private fun System.questionBlock(): Unit { /*TODO*/ }
-private fun System.hidden1UpBlock(): Unit { /*TODO*/ }
-private fun System.brickWithItem(): Unit { /*TODO*/ }
-private fun System.brickWithCoins(): Unit { /*TODO*/ }
-private fun System.waterPipe(): Unit { /*TODO*/ }
-private fun System.emptyBlock(): Unit { /*TODO*/ }
-private fun System.jumpspring(): Unit { /*TODO*/ }
-private fun System.introPipe(): Unit { /*TODO*/ }
-private fun System.flagpoleObject(): Unit { /*TODO*/ }
-private fun System.axeObj(): Unit { /*TODO*/ }
-private fun System.chainObj(): Unit { /*TODO*/ }
-private fun System.castleBridgeObj(): Unit { /*TODO*/ }
-private fun System.scrollLockObject_Warp(): Unit { /*TODO*/ }
-private fun System.scrollLockObject(): Unit { /*TODO*/ }
-private fun System.areaFrenzy(): Unit { /*TODO*/ }
-private fun System.loopCmdE(): Unit { /*TODO*/ }
-private fun System.alterAreaAttributes(): Unit { /*TODO*/ }
+// by Claude - data tables for area parser object routines
+
+//> FrenzyIDData:
+//>   .db FlyCheepCheepFrenzy, BBill_CCheep_Frenzy, Stop_Frenzy
+private val FrenzyIDData = byteArrayOf(
+    Constants.FlyCheepCheepFrenzy, Constants.BBill_CCheep_Frenzy, Constants.Stop_Frenzy
+)
+
+//> CastleMetatiles:
+private val CastleMetatiles = ubyteArrayOf(
+    //> .db $00, $45, $45, $45, $00
+    0x00u, 0x45u, 0x45u, 0x45u, 0x00u,
+    //> .db $00, $48, $47, $46, $00
+    0x00u, 0x48u, 0x47u, 0x46u, 0x00u,
+    //> .db $45, $49, $49, $49, $45
+    0x45u, 0x49u, 0x49u, 0x49u, 0x45u,
+    //> .db $47, $47, $4a, $47, $47
+    0x47u, 0x47u, 0x4au, 0x47u, 0x47u,
+    //> .db $47, $47, $4b, $47, $47
+    0x47u, 0x47u, 0x4bu, 0x47u, 0x47u,
+    //> .db $49, $49, $49, $49, $49
+    0x49u, 0x49u, 0x49u, 0x49u, 0x49u,
+    //> .db $47, $4a, $47, $4a, $47
+    0x47u, 0x4au, 0x47u, 0x4au, 0x47u,
+    //> .db $47, $4b, $47, $4b, $47
+    0x47u, 0x4bu, 0x47u, 0x4bu, 0x47u,
+    //> .db $47, $47, $47, $47, $47
+    0x47u, 0x47u, 0x47u, 0x47u, 0x47u,
+    //> .db $4a, $47, $4a, $47, $4a
+    0x4au, 0x47u, 0x4au, 0x47u, 0x4au,
+    //> .db $4b, $47, $4b, $47, $4b
+    0x4bu, 0x47u, 0x4bu, 0x47u, 0x4bu,
+)
+
+//> PulleyRopeMetatiles:
+//>   .db $42, $41, $43
+private val PulleyRopeMetatiles = ubyteArrayOf(0x42u, 0x41u, 0x43u)
+
+//> CoinMetatileData:
+//>   .db $c3, $c2, $c2, $c2
+private val CoinMetatileData = ubyteArrayOf(0xc3u, 0xc2u, 0xc2u, 0xc2u)
+
+//> C_ObjectRow:
+//>   .db $06, $07, $08
+private val C_ObjectRow = byteArrayOf(0x06, 0x07, 0x08)
+
+//> C_ObjectMetatile:
+//>   .db $c5, $0c, $89
+private val C_ObjectMetatile = ubyteArrayOf(0xc5u, 0x0cu, 0x89u.toUByte())
+
+//> SolidBlockMetatiles:
+//>   .db $69, $61, $61, $62
+private val SolidBlockMetatiles = ubyteArrayOf(0x69u, 0x61u, 0x61u, 0x62u)
+
+//> BrickMetatiles:
+//>   .db $22, $51, $52, $52
+//>   .db $88 ;used only by row of bricks object
+private val BrickMetatiles = ubyteArrayOf(0x22u, 0x51u, 0x52u, 0x52u, 0x88u)
+
+//> HoleMetatiles:
+//>   .db $87, $00, $00, $00
+private val HoleMetatiles = ubyteArrayOf(0x87u, 0x00u, 0x00u, 0x00u)
+
+//> StaircaseHeightData:
+//>   .db $07, $07, $06, $05, $04, $03, $02, $01, $00
+private val StaircaseHeightData = byteArrayOf(0x07, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00)
+
+//> StaircaseRowData:
+//>   .db $03, $03, $04, $05, $06, $07, $08, $09, $0a
+private val StaircaseRowData = byteArrayOf(0x03, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a)
+
+//> SidePipeShaftData:
+//>   .db $15, $14  ;used to control whether or not vertical pipe shaft
+//>   .db $00, $00  ;is drawn, and if so, controls the metatile number
+private val SidePipeShaftData = ubyteArrayOf(0x15u, 0x14u, 0x00u, 0x00u)
+
+//> SidePipeTopPart:
+//>   .db $15, $1e  ;top part of sideways part of pipe
+//>   .db $1d, $1c
+private val SidePipeTopPart = ubyteArrayOf(0x15u, 0x1eu, 0x1du, 0x1cu)
+
+//> SidePipeBottomPart:
+//>   .db $15, $21  ;bottom part of sideways part of pipe
+//>   .db $20, $1f
+private val SidePipeBottomPart = ubyteArrayOf(0x15u, 0x21u, 0x20u, 0x1fu)
+
+// VerticalPipeData moved to areaparser/shared.kt (shared with verticalPipe.kt)
+
+//> BrickQBlockMetatiles:
+//>   .db $c1, $c0, $5f, $60          ;used by question blocks
+//>   .db $55, $56, $57, $58, $59     ;used by ground level types
+//>   .db $5a, $5b, $5c, $5d, $5e     ;used by other level types
+private val BrickQBlockMetatiles = ubyteArrayOf(
+    0xc1u, 0xc0u, 0x5fu, 0x60u,
+    0x55u, 0x56u, 0x57u, 0x58u, 0x59u,
+    0x5au, 0x5bu, 0x5cu, 0x5du, 0x5eu,
+)
+
+// by Claude - area parser object routines
+
+//> AlterAreaAttributes:
+private fun System.alterAreaAttributes() {
+    val x = ram.objectOffset
+    //> ldy AreaObjOffsetBuffer,x ;load offset for level object data saved in buffer
+    val y = ram.areaObjOffsetBuffer[x].toInt() and 0xFF
+    //> iny                       ;load second byte
+    //> lda (AreaData),y
+    val secondByte = ram.areaData!![y + 1]
+    //> pha                       ;save in stack for now
+    //> and #%01000000
+    //> bne Alter2                ;branch if d6 is set
+    if (secondByte and 0b01000000.toByte() != 0.toByte()) {
+        //> Alter2: pla
+        //> and #%00000111            ;mask out all but 3 LSB
+        val low3 = secondByte.toInt() and 0x07
+        //> cmp #$04                  ;if four or greater, set color control bits
+        //> bcc SetFore               ;and nullify foreground scenery bits
+        if (low3 >= 4) {
+            //> sta BackgroundColorCtrl
+            ram.backgroundColorCtrl = low3.toByte()
+            //> lda #$00
+            //> SetFore: sta ForegroundScenery
+            ram.foregroundScenery = 0
+        } else {
+            //> SetFore: sta ForegroundScenery     ;otherwise set new foreground scenery bits
+            ram.foregroundScenery = low3.toByte()
+        }
+    } else {
+        //> pla; pha                       ;pull and push offset to copy to A
+        //> and #%00001111            ;mask out high nybble and store as
+        //> sta TerrainControl        ;new terrain height type bits
+        ram.terrainControl = (secondByte.toInt() and 0x0F).toByte()
+        //> pla
+        //> and #%00110000            ;pull and mask out all but d5 and d4
+        //> lsr; lsr; lsr; lsr       ;move bits to lower nybble and store
+        //> sta BackgroundScenery     ;as new background scenery bits
+        ram.backgroundScenery = ((secondByte.toInt() and 0x30) shr 4).toByte()
+    }
+    //> rts
+}
+
+//> ScrollLockObject_Warp:
+private fun System.scrollLockObject_Warp() {
+    //> ldx #$04            ;load value of 4 for game text routine as default
+    var textNum = 4
+    //> lda WorldNumber     ;warp zone (4-3-2), then check world number
+    //> beq WarpNum
+    if (ram.worldNumber != 0.toByte()) {
+        //> inx                 ;if world number > 1, increment for next warp zone (5)
+        textNum++
+        //> ldy AreaType        ;check area type
+        //> dey
+        //> bne WarpNum         ;if ground area type, increment for last warp zone
+        if (ram.areaType.toInt() - 1 == 0) {
+            //> inx                 ;(8-7-6) and move on
+            textNum++
+        }
+    }
+    //> WarpNum: txa
+    //> sta WarpZoneControl ;store number here to be used by warp zone routine
+    ram.warpZoneControl = textNum.toByte()
+    //> jsr WriteGameText   ;print text and warp zone numbers
+    writeGameText(textNum.toByte())
+    //> lda #PiranhaPlant
+    //> jsr KillEnemies     ;load identifier for piranha plants and do sub
+    killEnemies(Constants.PiranhaPlant)
+    //> (falls through to ScrollLockObject)
+    scrollLockObject()
+}
+
+//> ScrollLockObject:
+private fun System.scrollLockObject() {
+    //> lda ScrollLock      ;invert scroll lock to turn it on
+    //> eor #%00000001
+    //> sta ScrollLock
+    ram.scrollLock = (ram.scrollLock.toInt() xor 0x01).toByte()
+    //> rts
+}
+
+// by Claude - AreaFrenzy implementation
+private fun System.areaFrenzy(frenzyIndex: Int) {
+    //> AreaFrenzy:  ldx $00               ;use area object identifier bit as offset
+    //> lda FrenzyIDData-8,x  ;note that it starts at 8, thus weird address here
+    val frenzyId = FrenzyIDData[frenzyIndex]
+    //> ldy #$05
+    //> FreCompLoop: dey                   ;check regular slots of enemy object buffer
+    //> bmi ExitAFrenzy       ;if all slots checked and enemy object not found, branch to store
+    //> cmp Enemy_ID,y    ;check for enemy object in buffer versus frenzy object
+    //> bne FreCompLoop
+    var found = false
+    for (y in 4 downTo 0) {
+        if (ram.enemyID[y] == frenzyId) {
+            //> lda #$00              ;if enemy object already present, nullify queue and leave
+            ram.enemyFrenzyQueue = 0
+            found = true
+            break
+        }
+    }
+    if (!found) {
+        //> ExitAFrenzy: sta EnemyFrenzyQueue  ;store enemy into frenzy queue
+        ram.enemyFrenzyQueue = frenzyId
+    }
+    //> rts
+}
+
+//> LoopCmdE:
+private fun System.loopCmdE() {
+    //> LoopCmdE: rts
+    // does nothing - just returns
+}
+
+//> AreaStyleObject:
+private fun System.areaStyleObject() {
+    //> lda AreaStyle        ;load level object style and jump to the right sub
+    //> jsr JumpEngine
+    //> .dw TreeLedge        ;also used for cloud type levels
+    //> .dw MushroomLedge
+    //> .dw BulletBillCannon
+    when (ram.areaStyle.toInt() and 0xFF) {
+        0 -> treeLedge()
+        1 -> mushroomLedge()
+        2 -> bulletBillCannon()
+    }
+}
+
+//> TreeLedge:
+private fun System.treeLedge() {
+    val x = ram.objectOffset
+    //> jsr GetLrgObjAttrib     ;get row and length of green ledge
+    val attrib = getLrgObjAttrib(x)
+    val row = attrib.row.toInt() and 0xFF
+    //> lda AreaObjectLength,x  ;check length counter for expiration
+    val len = ram.areaObjectLength[x]
+    //> beq EndTreeL
+    if (len == 0.toByte()) {
+        //> EndTreeL: lda #$18                ;render end of tree ledge
+        //> jmp NoUnder
+        val metatile = 0x18.toUByte()
+        //> NoUnder: ldx $07                    ;load row of ledge
+        //> ldy #$00                   ;set 0 for no bottom on this part
+        //> jmp RenderUnderPart
+        renderUnderPart(metatile, row, 0)
+        return
+    }
+    //> bpl MidTreeL
+    if (len > 0.toByte()) {
+        //> MidTreeL: ldx $07
+        //> lda #$17                ;render middle of tree ledge
+        //> sta MetatileBuffer,x    ;note that this is also used if ledge position is
+        ram.metatileBuffer[row] = 0x17.toUByte()
+        //> lda #$4c                ;at the start of level for continuous effect
+        //> jmp AllUnder            ;now render the part underneath
+        //> AllUnder: inx
+        //> ldy #$0f                   ;set $0f to render all way down
+        //> jmp RenderUnderPart
+        renderUnderPart(0x4c.toUByte(), row + 1, 0x0f)
+        return
+    }
+    //> (len < 0, just starting)
+    //> tya
+    //> sta AreaObjectLength,x  ;store lower nybble into buffer flag as length of ledge
+    ram.areaObjectLength[x] = attrib.length
+    //> lda CurrentPageLoc
+    //> ora CurrentColumnPos    ;are we at the start of the level?
+    //> beq MidTreeL
+    if (ram.currentPageLoc.toInt() or ram.currentColumnPos.toInt() == 0) {
+        //> MidTreeL: (same code as above)
+        ram.metatileBuffer[row] = 0x17.toUByte()
+        renderUnderPart(0x4c.toUByte(), row + 1, 0x0f)
+    } else {
+        //> lda #$16                ;render start of tree ledge
+        //> jmp NoUnder
+        renderUnderPart(0x16.toUByte(), row, 0)
+    }
+}
+
+//> MushroomLedge:
+private fun System.mushroomLedge() {
+    val x = ram.objectOffset
+    //> jsr ChkLrgObjLength        ;get shroom dimensions
+    val (attrib, fixedLen) = chkLrgObjLength(x)
+    val row = attrib.row.toInt() and 0xFF
+    //> sty $06                    ;store length here for now
+    var zp06 = attrib.length.toInt() and 0xFF
+    //> bcc EndMushL
+    if (fixedLen.justStarting) {
+        //> lda AreaObjectLength,x     ;divide length by 2 and store elsewhere
+        //> lsr
+        //> sta MushroomLedgeHalfLen,x
+        ram.mushroomLedgeHalfLen = ((ram.areaObjectLength[x].toInt() and 0xFF) shr 1).toByte()
+        //> lda #$19                   ;render start of mushroom
+        //> jmp NoUnder
+        renderUnderPart(0x19.toUByte(), row, 0)
+        return
+    }
+    //> EndMushL: lda #$1b                   ;if at the end, render end of mushroom
+    //> ldy AreaObjectLength,x
+    //> beq NoUnder
+    val areaLen = ram.areaObjectLength[x].toInt() and 0xFF
+    if (areaLen == 0) {
+        //> lda #$1b ; jmp NoUnder
+        renderUnderPart(0x1b.toUByte(), row, 0)
+        return
+    }
+    //> lda MushroomLedgeHalfLen,x ;get divided length and store where length
+    //> sta $06                    ;was stored originally
+    zp06 = ram.mushroomLedgeHalfLen.toInt() and 0xFF
+    //> ldx $07
+    //> lda #$1a
+    //> sta MetatileBuffer,x       ;render middle of mushroom
+    ram.metatileBuffer[row] = 0x1a.toUByte()
+    //> cpy $06                    ;are we smack dab in the center?
+    //> bne MushLExit              ;if not, branch to leave
+    if (areaLen == zp06) {
+        //> inx
+        //> lda #$4f
+        //> sta MetatileBuffer,x       ;render stem top of mushroom underneath the middle
+        ram.metatileBuffer[row + 1] = 0x4f.toUByte()
+        //> lda #$50
+        //> AllUnder: inx
+        //> ldy #$0f                   ;set $0f to render all way down
+        //> jmp RenderUnderPart       ;now render the stem of mushroom
+        renderUnderPart(0x50.toUByte(), row + 2, 0x0f)
+    }
+    //> MushLExit: rts
+}
+
+//> PulleyRopeObject:
+private fun System.pulleyRopeObject() {
+    val x = ram.objectOffset
+    //> jsr ChkLrgObjLength       ;get length of pulley/rope object
+    val (_, fixedLen) = chkLrgObjLength(x)
+    //> ldy #$00                  ;initialize metatile offset
+    var metatileIdx = 0
+    //> bcs RenderPul             ;if starting, render left pulley
+    if (!fixedLen.justStarting) {
+        //> iny
+        metatileIdx = 1
+        //> lda AreaObjectLength,x    ;if not at the end, render rope
+        //> bne RenderPul
+        if (ram.areaObjectLength[x] == 0.toByte()) {
+            //> iny                       ;otherwise render right pulley
+            metatileIdx = 2
+        }
+    }
+    //> RenderPul: lda PulleyRopeMetatiles,y
+    //> sta MetatileBuffer        ;render at the top of the screen
+    ram.metatileBuffer[0] = PulleyRopeMetatiles[metatileIdx]
+    //> MushLExit: rts
+}
+
+//> Bridge_High:
+private fun System.bridge_High() {
+    //> lda #$06  ;start on the seventh row from top of screen
+    bridgeCommon(0x06)
+}
+
+//> Bridge_Middle:
+private fun System.bridge_Middle() {
+    //> lda #$07  ;start on the eighth row
+    bridgeCommon(0x07)
+}
+
+//> Bridge_Low:
+private fun System.bridge_Low() {
+    //> lda #$09             ;start on the tenth row
+    bridgeCommon(0x09)
+}
+
+// by Claude - shared bridge rendering logic
+private fun System.bridgeCommon(startRow: Int) {
+    val x = ram.objectOffset
+    //> pha                  ;save whatever row to the stack for now
+    //> jsr ChkLrgObjLength  ;get low nybble and save as length
+    chkLrgObjLength(x)
+    //> pla
+    //> tax                  ;render bridge railing
+    //> lda #$0b
+    //> sta MetatileBuffer,x
+    ram.metatileBuffer[startRow] = 0x0b.toUByte()
+    //> inx
+    //> ldy #$00             ;now render the bridge itself
+    //> lda #$63
+    //> jmp RenderUnderPart
+    renderUnderPart(0x63.toUByte(), startRow + 1, 0)
+}
+
+//> Hole_Water:
+private fun System.hole_Water() {
+    val x = ram.objectOffset
+    //> jsr ChkLrgObjLength   ;get low nybble and save as length
+    chkLrgObjLength(x)
+    //> lda #$86              ;render waves
+    //> sta MetatileBuffer+10
+    ram.metatileBuffer[10] = 0x86.toUByte()
+    //> ldx #$0b
+    //> ldy #$01              ;now render the water underneath
+    //> lda #$87
+    //> jmp RenderUnderPart
+    renderUnderPart(0x87.toUByte(), 0x0b, 0x01)
+}
+
+//> QuestionBlockRow_High:
+private fun System.questionBlockRow_High() {
+    //> lda #$03    ;start on the fourth row
+    questionBlockRowCommon(0x03)
+}
+
+//> QuestionBlockRow_Low:
+private fun System.questionBlockRow_Low() {
+    //> lda #$07             ;start on the eighth row
+    questionBlockRowCommon(0x07)
+}
+
+// by Claude - shared question block row rendering
+private fun System.questionBlockRowCommon(startRow: Int) {
+    val x = ram.objectOffset
+    //> pha                  ;save whatever row to the stack for now
+    //> jsr ChkLrgObjLength  ;get low nybble and save as length
+    chkLrgObjLength(x)
+    //> pla
+    //> tax                  ;render question boxes with coins
+    //> lda #$c0
+    //> sta MetatileBuffer,x
+    ram.metatileBuffer[startRow] = 0xc0.toUByte()
+    //> rts
+}
+
+//> EndlessRope:
+private fun System.endlessRope() {
+    //> ldx #$00       ;render rope from the top to the bottom of screen
+    //> ldy #$0f
+    //> jmp DrawRope
+    //> DrawRope: lda #$40            ;render the actual rope
+    //> jmp RenderUnderPart
+    renderUnderPart(0x40.toUByte(), 0x00, 0x0f)
+}
+
+//> BalancePlatRope:
+private fun System.balancePlatRope() {
+    val x = ram.objectOffset
+    //> txa                 ;save object buffer offset for now
+    //> pha
+    //> ldx #$01            ;blank out all from second row to the bottom
+    //> ldy #$0f            ;with blank used for balance platform rope
+    //> lda #$44
+    //> jsr RenderUnderPart
+    renderUnderPart(0x44.toUByte(), 0x01, 0x0f)
+    //> pla                 ;get back object buffer offset
+    //> tax
+    //> jsr GetLrgObjAttrib ;get vertical length from lower nybble
+    val attrib = getLrgObjAttrib(x)
+    //> ldx #$01
+    //> DrawRope: lda #$40            ;render the actual rope
+    //> jmp RenderUnderPart
+    renderUnderPart(0x40.toUByte(), 0x01, attrib.length.toInt() and 0xFF)
+}
+
+//> CastleObject:
+private fun System.castleObject() {
+    val x = ram.objectOffset
+    //> jsr GetLrgObjAttrib      ;save lower nybble as starting row
+    val attrib = getLrgObjAttrib(x)
+    //> sty $07                  ;if starting row is above $0a, game will crash!!!
+    val startRow = attrib.row.toInt() and 0xFF  // assembly saves length to $07, but actually it's attrib.length
+    // Wait, re-reading the assembly:
+    // GetLrgObjAttrib returns: $07 = row, Y = length
+    // Then: sty $07 — this OVERWRITES $07 with Y (the length value)
+    // So $07 = length after this line. The "starting row" comment is misleading.
+    // Actually no — let me re-read. GetLrgObjAttrib sets $07 = row (from first byte & 0x0F)
+    // and returns Y = lower nybble of second byte (length).
+    // Then `sty $07` overwrites $07 with Y. So $07 now = length = attrib.length.
+    // But the comment says "save lower nybble as starting row" — the lower nybble
+    // of the FIRST byte IS the row. And Y = lower nybble of SECOND byte = length/height.
+    // So after `sty $07`, $07 = the height/length value, NOT the row.
+    // Wait, that makes no sense for the castle. Let me re-read the full routine:
+    //
+    // CastleObject:
+    //     jsr GetLrgObjAttrib      ;save lower nybble as starting row
+    //     sty $07                  ;if starting row is above $0a, game will crash!!!
+    //
+    // GetLrgObjAttrib returns: $07 = row (first byte & 0x0F), Y = length (second byte & 0x0F)
+    // Then `sty $07` saves Y (length) into $07, overwriting the row.
+    // But later: `ldx $07 ; begin at starting row` — this uses $07 as the starting row!
+    // So actually Y IS the starting row here. Wait, that's confusing.
+    //
+    // Let me re-read GetLrgObjAttrib more carefully:
+    //   lda (AreaData),y  ;get first byte
+    //   and #%00001111
+    //   sta $07           ;save row location
+    //   iny
+    //   lda (AreaData),y  ;get second byte
+    //   and #%00001111    ;lower nybble = height/length
+    //   tay               ;Y = lower nybble of second byte
+    //
+    // So after GetLrgObjAttrib: $07 = row from first byte, Y = lower nybble from second byte.
+    // Then CastleObject does: sty $07 — overwrites row with length.
+    // Then: ldy #$04; jsr ChkLrgObjFixedLength — sets AreaObjectLength to 4 if new.
+    // Then: ldy AreaObjectLength,x — Y = current column of castle (4,3,2,1,0)
+    // Then: ldx $07 — X = $07 = the value stored by sty $07 = lower nybble of 2nd byte
+    //
+    // The "starting row" referred to in the comment IS the lower nybble of the second byte.
+    // In the original NES level encoding, for row 15 objects ($0f), the first byte's lower
+    // nybble doesn't carry row info in the same way. Actually for row $0f objects, the row
+    // value from decodeAreaData is just $0f, and the actual rendering row comes from the
+    // second byte's lower nybble.
+    //
+    // So for CastleObject: the starting row = lower nybble of second byte = attrib.length
+    val castleStartRow = attrib.length.toInt() and 0xFF
+
+    //> ldy #$04
+    //> jsr ChkLrgObjFixedLength ;load length of castle if not already loaded
+    chkLrgObjFixedLength(x, 0x04)
+    //> txa; pha                      ;save obj buffer offset to stack
+    // (we just remember x)
+    //> ldy AreaObjectLength,x   ;use current length as offset for castle data
+    var castleCol = ram.areaObjectLength[x].toInt() and 0xFF
+    //> ldx $07                  ;begin at starting row
+    var bufX = castleStartRow
+    //> lda #$0b
+    //> sta $06                  ;load upper limit of number of rows to print
+    var upperLimit = 0x0b
+    //> CRendLoop:
+    while (true) {
+        //> lda CastleMetatiles,y    ;load current byte using offset
+        //> sta MetatileBuffer,x
+        ram.metatileBuffer[bufX] = CastleMetatiles[castleCol]
+        //> inx                      ;store in buffer and increment buffer offset
+        bufX++
+        //> lda $06
+        //> beq ChkCFloor            ;have we reached upper limit yet?
+        if (upperLimit != 0) {
+            //> iny; iny; iny; iny; iny  ;if not, increment column-wise to byte in next row
+            castleCol += 5
+            //> dec $06                  ;move closer to upper limit
+            upperLimit--
+        }
+        //> ChkCFloor: cpx #$0b                 ;have we reached the row just before floor?
+        //> bne CRendLoop            ;if not, go back and do another row
+        if (bufX == 0x0b) break
+    }
+    //> pla; tax                      ;get obj buffer offset from before
+    // (x is still the objectOffset)
+    //> lda CurrentPageLoc
+    //> beq ExitCastle           ;if we're at page 0, we do not need to do anything else
+    if (ram.currentPageLoc == 0.toUByte()) return
+    //> lda AreaObjectLength,x   ;check length
+    val areaLen = ram.areaObjectLength[x].toInt() and 0xFF
+    //> cmp #$01                 ;if length almost about to expire, put brick at floor
+    //> beq PlayerStop
+    if (areaLen == 0x01) {
+        //> PlayerStop: ldy #$52                 ;put brick at floor to stop player at end of level
+        //> sty MetatileBuffer+10    ;this is only done if we're on the second column
+        ram.metatileBuffer[10] = 0x52.toUByte()
+        //> ExitCastle: rts
+        return
+    }
+    //> ldy $07                  ;check starting row for tall castle ($00)
+    //> bne NotTall
+    if (castleStartRow == 0) {
+        //> cmp #$03                 ;if found, then check to see if we're at the second column
+        //> beq PlayerStop
+        if (areaLen == 0x03) {
+            ram.metatileBuffer[10] = 0x52.toUByte()
+            return
+        }
+    }
+    //> NotTall: cmp #$02                 ;if not tall castle, check to see if we're at the third column
+    //> bne ExitCastle           ;if we aren't and the castle is tall, don't create flag yet
+    if (areaLen != 0x02) return
+    //> jsr GetAreaObjXPosition  ;otherwise, obtain and save horizontal pixel coordinate
+    val xPixel = getAreaObjXPosition()
+    //> pha
+    //> jsr FindEmptyEnemySlot   ;find an empty place on the enemy object buffer
+    val slot = findEmptyEnemySlot() ?: return
+    //> pla
+    //> sta Enemy_X_Position,x   ;then write horizontal coordinate for star flag
+    ram.sprObjXPos[1 + slot] = xPixel
+    //> lda CurrentPageLoc
+    //> sta Enemy_PageLoc,x      ;set page location for star flag
+    ram.sprObjPageLoc[1 + slot] = ram.currentPageLoc.toByte()
+    //> lda #$01
+    //> sta Enemy_Y_HighPos,x    ;set vertical high byte
+    ram.sprObjYHighPos[1 + slot] = 0x01
+    //> sta Enemy_Flag,x         ;set flag for buffer
+    ram.enemyFlags[slot] = 0x01
+    //> lda #$90
+    //> sta Enemy_Y_Position,x   ;set vertical coordinate
+    ram.sprObjYPos[1 + slot] = 0x90.toByte()
+    //> lda #StarFlagObject      ;set star flag value in buffer itself
+    //> sta Enemy_ID,x
+    ram.enemyID[slot] = Constants.StarFlagObject
+    //> rts
+}
+
+//> WaterPipe:
+private fun System.waterPipe() {
+    val x = ram.objectOffset
+    //> jsr GetLrgObjAttrib     ;get row and lower nybble
+    val attrib = getLrgObjAttrib(x)
+    //> ldy AreaObjectLength,x  ;get length (residual code, water pipe is 1 col thick)
+    //> ldx $07                 ;get row
+    val row = attrib.row.toInt() and 0xFF
+    //> lda #$6b
+    //> sta MetatileBuffer,x    ;draw something here and below it
+    ram.metatileBuffer[row] = 0x6b.toUByte()
+    //> lda #$6c
+    //> sta MetatileBuffer+1,x
+    ram.metatileBuffer[row + 1] = 0x6c.toUByte()
+    //> rts
+}
+
+//> IntroPipe:
+private fun System.introPipe() {
+    val x = ram.objectOffset
+    //> ldy #$03                 ;check if length set, if not set, set it
+    //> jsr ChkLrgObjFixedLength
+    chkLrgObjFixedLength(x, 0x03)
+    //> ldy #$0a                 ;set fixed value and render the sideways part
+    //> jsr RenderSidewaysPipe
+    val carrySet = renderSidewaysPipe(x, 0x0a)
+    //> bcs NoBlankP             ;if carry flag set, not time to draw vertical pipe part
+    if (!carrySet) {
+        //> ldx #$06                 ;blank everything above the vertical pipe part
+        //> VPipeSectLoop: lda #$00                 ;all the way to the top of the screen
+        //> sta MetatileBuffer,x     ;because otherwise it will look like exit pipe
+        //> dex
+        //> bpl VPipeSectLoop
+        for (i in 6 downTo 0) {
+            ram.metatileBuffer[i] = 0x00.toUByte()
+        }
+        //> lda VerticalPipeData,y   ;draw the end of the vertical pipe part
+        //> sta MetatileBuffer+7
+        // After RenderSidewaysPipe, Y still holds the shaft data index.
+        // For IntroPipe, the AreaObjectLength column determines Y.
+        // When shaft is drawn (length=0 or 1), Y from the pipe data is the length offset.
+        // Actually let me trace: after RenderSidewaysPipe returns with carry clear:
+        //   - The vertical shaft was drawn, meaning SidePipeShaftData[y] != 0
+        //   - y = AreaObjectLength (the horizontal offset, 0 or 1 at this point)
+        // Actually RenderSidewaysPipe is complex. Let me re-read.
+        // For IntroPipe with inputLength=0x0a:
+        //   $05 = 0x0a - 2 = 8 (vertical length of shaft)
+        //   $06 = AreaObjectLength (horizontal offset: 3, 2, 1, or 0)
+        //   x = $05 + 1 = 9
+        //   SidePipeShaftData[$06]: if $06 >= 2, value is $00 (no shaft drawn), carry stays set
+        //   If $06 < 2, shaft is drawn: RenderUnderPart called, carry cleared
+        //
+        // So carry is clear only when $06 = 0 or 1 (last two columns)
+        // At that point, Y = $06 after the pipe drawing.
+        // VerticalPipeData,y where y = 0 gives $11, y = 1 gives $10.
+        val horizOffset = ram.areaObjectLength[x].toInt() and 0xFF
+        ram.metatileBuffer[7] = VerticalPipeData.getOrElse(horizOffset) { 0x15u }
+    }
+    //> NoBlankP: rts
+}
+
+//> ExitPipe:
+private fun System.exitPipe() {
+    val x = ram.objectOffset
+    //> ldy #$03                 ;check if length set, if not set, set it
+    //> jsr ChkLrgObjFixedLength
+    chkLrgObjFixedLength(x, 0x03)
+    //> jsr GetLrgObjAttrib      ;get vertical length, then plow on through RenderSidewaysPipe
+    val attrib = getLrgObjAttrib(x)
+    //> (falls through to RenderSidewaysPipe with Y = attrib.length)
+    renderSidewaysPipe(x, attrib.length.toInt() and 0xFF)
+}
+
+// by Claude - RenderSidewaysPipe: renders a sideways pipe section
+// Returns true if carry flag is set (shaft not drawn), false if carry clear (shaft drawn)
+private fun System.renderSidewaysPipe(objOffset: Byte, inputLength: Int): Boolean {
+    //> RenderSidewaysPipe:
+    //> dey; dey                       ;decrement twice to make room for shaft at bottom
+    //> sty $05                       ;and store here for now as vertical length
+    val vertLen = inputLength - 2
+    //> ldy AreaObjectLength,x    ;get length left over and store here
+    //> sty $06
+    val horizOffset = ram.areaObjectLength[objOffset].toInt() and 0xFF
+    //> ldx $05; inx                   ;get vertical length plus one, use as buffer offset
+    var bufX = vertLen + 1
+    //> lda SidePipeShaftData,y   ;check for value $00 based on horizontal offset
+    //> cmp #$00
+    //> beq DrawSidePart          ;if found, do not draw the vertical pipe shaft
+    var carrySet = true
+    if (SidePipeShaftData[horizOffset] != 0.toUByte()) {
+        //> ldx #$00
+        //> ldy $05                   ;init buffer offset and get vertical length
+        //> jsr RenderUnderPart       ;and render vertical shaft using tile number in A
+        renderUnderPart(SidePipeShaftData[horizOffset], 0, vertLen)
+        //> clc                       ;clear carry flag to be used by IntroPipe
+        carrySet = false
+        bufX = vertLen + 1
+    }
+    //> DrawSidePart: ldy $06                   ;render side pipe part at the bottom
+    //> lda SidePipeTopPart,y
+    //> sta MetatileBuffer,x      ;note that the pipe parts are stored
+    ram.metatileBuffer[bufX] = SidePipeTopPart[horizOffset]
+    //> lda SidePipeBottomPart,y  ;backwards horizontally
+    //> sta MetatileBuffer+1,x
+    ram.metatileBuffer[bufX + 1] = SidePipeBottomPart[horizOffset]
+    //> rts
+    return carrySet
+}
+
+//> FlagBalls_Residual:
+private fun System.flagBalls_Residual() {
+    val x = ram.objectOffset
+    //> jsr GetLrgObjAttrib  ;get low nybble from object byte
+    val attrib = getLrgObjAttrib(x)
+    //> ldx #$02             ;render flag balls on third row from top
+    //> lda #$6d             ;of screen downwards based on low nybble
+    //> jmp RenderUnderPart
+    renderUnderPart(0x6d.toUByte(), 0x02, attrib.length.toInt() and 0xFF)
+}
+
+//> FlagpoleObject:
+private fun System.flagpoleObject() {
+    //> lda #$24                 ;render flagpole ball on top
+    //> sta MetatileBuffer
+    ram.metatileBuffer[0] = 0x24.toUByte()
+    //> ldx #$01                 ;now render the flagpole shaft
+    //> ldy #$08
+    //> lda #$25
+    //> jsr RenderUnderPart
+    renderUnderPart(0x25.toUByte(), 0x01, 0x08)
+    //> lda #$61                 ;render solid block at the bottom
+    //> sta MetatileBuffer+10
+    ram.metatileBuffer[10] = 0x61.toUByte()
+    //> jsr GetAreaObjXPosition
+    val xPos = getAreaObjXPosition().toInt() and 0xFF
+    //> sec
+    //> sbc #$08                 ;get pixel coordinate of where the flagpole is,
+    val flagX = (xPos - 0x08) and 0xFF
+    //> sta Enemy_X_Position+5   ;subtract eight pixels and use as horizontal coordinate for the flag
+    ram.sprObjXPos[6] = flagX.toByte()
+    //> lda CurrentPageLoc
+    //> sbc #$00                 ;subtract borrow from page location and use as
+    val borrow = if (xPos < 0x08) 1 else 0
+    //> sta Enemy_PageLoc+5      ;page location for the flag
+    ram.sprObjPageLoc[6] = ((ram.currentPageLoc.toInt() - borrow) and 0xFF).toByte()
+    //> lda #$30
+    //> sta Enemy_Y_Position+5   ;set vertical coordinate for flag
+    ram.sprObjYPos[6] = 0x30
+    //> lda #$b0
+    //> sta FlagpoleFNum_Y_Pos   ;set initial vertical coordinate for flagpole's floatey number
+    ram.flagpoleFNumYPos = 0xb0.toByte()
+    //> lda #FlagpoleFlagObject
+    //> sta Enemy_ID+5           ;set flag identifier, note that identifier and coordinates
+    ram.enemyID[5] = Constants.FlagpoleFlagObject
+    //> inc Enemy_Flag+5         ;use last space in enemy object buffer
+    ram.enemyFlags[5] = (ram.enemyFlags[5] + 1).toByte()
+    //> rts
+}
+
+//> CastleBridgeObj:
+// by Claude - castle bridge: 13 columns of bridge tiles
+private fun System.castleBridgeObj() {
+    val x = ram.objectOffset
+    //> ldy #$0c                  ;load length of 13 columns
+    //> jsr ChkLrgObjFixedLength
+    chkLrgObjFixedLength(x, 0x0c)
+    //> jmp ChainObj              ;$00=4, C_Object index = 4-2 = 2
+    chainObjWithIndex(2)
+}
+
+//> AxeObj:
+// by Claude - sets bowser palette; the chainObjWithIndex call is made by the when dispatcher
+private fun System.axeObj() {
+    //> lda #$08                  ;load bowser's palette into sprite portion of palette
+    //> sta VRAM_Buffer_AddrCtrl
+    ram.vRAMBufferAddrCtrl = 0x08
+    //> (falls through to ChainObj — handled by caller in when block)
+}
+
+// by Claude - actual chainObj implementation with the C_Object index
+private fun System.chainObjWithIndex(cIndex: Int) {
+    //> ChainObj:
+    //> ldy $00                   ;get value loaded earlier from decoder
+    //> ldx C_ObjectRow-2,y       ;get appropriate row and metatile for object
+    val row = C_ObjectRow[cIndex].toInt() and 0xFF
+    //> lda C_ObjectMetatile-2,y
+    val metatile = C_ObjectMetatile[cIndex]
+    //> ColObj: ldy #$00             ;column length of 1
+    //> jmp RenderUnderPart
+    renderUnderPart(metatile, row, 0)
+}
+
+//> EmptyBlock:
+private fun System.emptyBlock() {
+    val x = ram.objectOffset
+    //> jsr GetLrgObjAttrib  ;get row location
+    val attrib = getLrgObjAttrib(x)
+    //> ldx $07
+    val row = attrib.row.toInt() and 0xFF
+    //> lda #$c4
+    //> ColObj: ldy #$00             ;column length of 1
+    //> jmp RenderUnderPart
+    renderUnderPart(0xc4.toUByte(), row, 0)
+}
+
+//> RowOfCoins:
+private fun System.rowOfCoins() {
+    //> ldy AreaType            ;get area type
+    //> lda CoinMetatileData,y  ;load appropriate coin metatile
+    val metatile = CoinMetatileData[ram.areaType.toInt() and 0xFF]
+    //> jmp GetRow
+    getRow(metatile)
+}
+
+//> RowOfBricks:
+private fun System.rowOfBricks() {
+    //> ldy AreaType           ;load area type obtained from area offset pointer
+    var y = ram.areaType.toInt() and 0xFF
+    //> lda CloudTypeOverride  ;check for cloud type override
+    //> beq DrawBricks
+    if (ram.cloudTypeOverride) {
+        //> ldy #$04               ;if cloud type, override area type
+        y = 4
+    }
+    //> DrawBricks: lda BrickMetatiles,y   ;get appropriate metatile
+    val metatile = BrickMetatiles[y]
+    //> jmp GetRow             ;and go render it
+    getRow(metatile)
+}
+
+//> RowOfSolidBlocks:
+private fun System.rowOfSolidBlocks() {
+    //> ldy AreaType               ;load area type obtained from area offset pointer
+    val y = ram.areaType.toInt() and 0xFF
+    //> lda SolidBlockMetatiles,y  ;get metatile
+    val metatile = SolidBlockMetatiles[y]
+    //> GetRow: (falls through)
+    getRow(metatile)
+}
+
+// by Claude - GetRow: shared row rendering (pha, ChkLrgObjLength, DrawRow)
+private fun System.getRow(metatile: UByte) {
+    val x = ram.objectOffset
+    //> GetRow: pha                        ;store metatile here
+    //> jsr ChkLrgObjLength        ;get row number, load length
+    val (attrib, _) = chkLrgObjLength(x)
+    //> DrawRow: ldx $07
+    val row = attrib.row.toInt() and 0xFF
+    //> ldy #$00                   ;set vertical height of 1
+    //> pla
+    //> jmp RenderUnderPart        ;render object
+    renderUnderPart(metatile, row, 0)
+}
+
+//> ColumnOfBricks:
+private fun System.columnOfBricks() {
+    //> ldy AreaType          ;load area type obtained from area offset
+    val y = ram.areaType.toInt() and 0xFF
+    //> lda BrickMetatiles,y  ;get metatile (no cloud override as for row)
+    val metatile = BrickMetatiles[y]
+    //> jmp GetRow2
+    getRow2(metatile)
+}
+
+//> ColumnOfSolidBlocks:
+private fun System.columnOfSolidBlocks() {
+    //> ldy AreaType               ;load area type obtained from area offset
+    val y = ram.areaType.toInt() and 0xFF
+    //> lda SolidBlockMetatiles,y  ;get metatile
+    val metatile = SolidBlockMetatiles[y]
+    //> GetRow2: (falls through)
+    getRow2(metatile)
+}
+
+// by Claude - GetRow2: shared column rendering (pha, GetLrgObjAttrib, pla, RenderUnderPart)
+private fun System.getRow2(metatile: UByte) {
+    val x = ram.objectOffset
+    //> GetRow2: pha                        ;save metatile to stack for now
+    //> jsr GetLrgObjAttrib        ;get length and row
+    val attrib = getLrgObjAttrib(x)
+    //> pla                        ;restore metatile
+    //> ldx $07                    ;get starting row
+    val row = attrib.row.toInt() and 0xFF
+    //> jmp RenderUnderPart        ;now render the column
+    renderUnderPart(metatile, row, attrib.length.toInt() and 0xFF)
+}
+
+//> BulletBillCannon:
+private fun System.bulletBillCannon() {
+    val x = ram.objectOffset
+    //> jsr GetLrgObjAttrib      ;get row and length of bullet bill cannon
+    val attrib = getLrgObjAttrib(x)
+    //> ldx $07                  ;start at first row
+    var bufX = attrib.row.toInt() and 0xFF
+    var lengthY = attrib.length.toInt() and 0xFF
+    //> lda #$64                 ;render bullet bill cannon
+    //> sta MetatileBuffer,x
+    ram.metatileBuffer[bufX] = 0x64.toUByte()
+    //> inx
+    bufX++
+    //> dey                      ;done yet?
+    lengthY--
+    //> bmi SetupCannon
+    if (lengthY >= 0) {
+        //> lda #$65                 ;if not, render middle part
+        //> sta MetatileBuffer,x
+        ram.metatileBuffer[bufX] = 0x65.toUByte()
+        //> inx
+        bufX++
+        //> dey                      ;done yet?
+        lengthY--
+        //> bmi SetupCannon
+        if (lengthY >= 0) {
+            //> lda #$66                 ;if not, render bottom until length expires
+            //> jsr RenderUnderPart
+            renderUnderPart(0x66.toUByte(), bufX, lengthY)
+        }
+    }
+    //> SetupCannon: ldx Cannon_Offset        ;get offset for data used by cannons and whirlpools
+    val cannonIdx = ram.cannonOffset.toInt() and 0xFF
+    //> jsr GetAreaObjYPosition  ;get proper vertical coordinate for cannon
+    //> sta Cannon_Y_Position,x  ;and store it here
+    ram.cannonYPositions[cannonIdx] = getAreaObjYPosition(attrib.row)
+    //> lda CurrentPageLoc
+    //> sta Cannon_PageLoc,x     ;store page number for cannon here
+    ram.cannonPageLocs[cannonIdx] = ram.currentPageLoc.toByte()
+    //> jsr GetAreaObjXPosition  ;get proper horizontal coordinate for cannon
+    //> sta Cannon_X_Position,x  ;and store it here
+    ram.cannonXPositions[cannonIdx] = getAreaObjXPosition()
+    //> inx
+    var newOffset = cannonIdx + 1
+    //> cpx #$06                 ;increment and check offset
+    //> bcc StrCOffset           ;if not yet reached sixth cannon, branch to save offset
+    if (newOffset >= 6) {
+        //> ldx #$00                 ;otherwise initialize it
+        newOffset = 0
+    }
+    //> StrCOffset: stx Cannon_Offset        ;save new offset and leave
+    ram.cannonOffset = newOffset.toByte()
+    //> rts
+}
+
+//> StaircaseObject:
+private fun System.staircaseObject() {
+    val x = ram.objectOffset
+    //> jsr ChkLrgObjLength       ;check and load length
+    val (_, fixedLen) = chkLrgObjLength(x)
+    //> bcc NextStair             ;if length already loaded, skip init part
+    if (fixedLen.justStarting) {
+        //> lda #$09                  ;start past the end for the bottom
+        //> sta StaircaseControl      ;of the staircase
+        ram.staircaseControl = 0x09
+    }
+    //> NextStair: dec StaircaseControl      ;move onto next step (or first if starting)
+    ram.staircaseControl--
+    //> ldy StaircaseControl
+    val step = ram.staircaseControl.toInt() and 0xFF
+    //> ldx StaircaseRowData,y    ;get starting row and height to render
+    val startRow = StaircaseRowData.getOrElse(step) { 0x03 }.toInt() and 0xFF
+    //> lda StaircaseHeightData,y
+    //> tay
+    val height = StaircaseHeightData.getOrElse(step) { 0x00 }.toInt() and 0xFF
+    //> lda #$61                  ;now render solid block staircase
+    //> jmp RenderUnderPart
+    renderUnderPart(0x61.toUByte(), startRow, height)
+}
+
+//> Jumpspring:
+private fun System.jumpspring() {
+    val x = ram.objectOffset
+    //> jsr GetLrgObjAttrib
+    val attrib = getLrgObjAttrib(x)
+    val row = attrib.row.toInt() and 0xFF
+    //> jsr FindEmptyEnemySlot      ;find empty space in enemy object buffer
+    val slot = findEmptyEnemySlot() ?: return
+    //> jsr GetAreaObjXPosition     ;get horizontal coordinate for jumpspring
+    //> sta Enemy_X_Position,x      ;and store
+    ram.sprObjXPos[1 + slot] = getAreaObjXPosition()
+    //> lda CurrentPageLoc          ;store page location of jumpspring
+    //> sta Enemy_PageLoc,x
+    ram.sprObjPageLoc[1 + slot] = ram.currentPageLoc.toByte()
+    //> jsr GetAreaObjYPosition     ;get vertical coordinate for jumpspring
+    //> sta Enemy_Y_Position,x      ;and store
+    val yPos = getAreaObjYPosition(attrib.row)
+    ram.sprObjYPos[1 + slot] = yPos
+    //> sta Jumpspring_FixedYPos,x  ;store as permanent coordinate here
+    // Jumpspring_FixedYPos at $58+x = sprObjXSpeed[1+slot]
+    ram.sprObjXSpeed[1 + slot] = yPos
+    //> lda #JumpspringObject
+    //> sta Enemy_ID,x              ;write jumpspring object to enemy object buffer
+    ram.enemyID[slot] = Constants.JumpspringObject
+    //> ldy #$01
+    //> sty Enemy_Y_HighPos,x       ;store vertical high byte
+    ram.sprObjYHighPos[1 + slot] = 0x01
+    //> inc Enemy_Flag,x            ;set flag for enemy object buffer
+    ram.enemyFlags[slot] = (ram.enemyFlags[slot] + 1).toByte()
+    //> ldx $07
+    //> lda #$67                    ;draw metatiles in two rows where jumpspring is
+    //> sta MetatileBuffer,x
+    ram.metatileBuffer[row] = 0x67.toUByte()
+    //> lda #$68
+    //> sta MetatileBuffer+1,x
+    ram.metatileBuffer[row + 1] = 0x68.toUByte()
+    //> rts
+}
+
+//> Hidden1UpBlock:
+private fun System.hidden1UpBlock() {
+    //> lda Hidden1UpFlag  ;if flag not set, do not render object
+    //> beq ExitDecBlock
+    if (!ram.hidden1UpFlag) return
+    //> lda #$00           ;if set, init for the next one
+    //> sta Hidden1UpFlag
+    ram.hidden1UpFlag = false
+    //> jmp BrickWithItem  ;jump to code shared with unbreakable bricks
+    brickWithItem()
+}
+
+//> QuestionBlock:
+private fun System.questionBlock() {
+    //> jsr GetAreaObjectID ;get value from level decoder routine
+    val objId = getAreaObjectID()
+    //> jmp DrawQBlk        ;go to render it
+    drawQBlk(objId)
+}
+
+//> BrickWithCoins:
+private fun System.brickWithCoins() {
+    //> lda #$00                 ;initialize multi-coin timer flag
+    //> sta BrickCoinTimerFlag
+    ram.brickCoinTimerFlag = 0
+    //> (falls through to BrickWithItem)
+    brickWithItem()
+}
+
+//> BrickWithItem:
+private fun System.brickWithItem() {
+    val x = ram.objectOffset
+    //> jsr GetAreaObjectID         ;save area object ID
+    val objId = getAreaObjectID()
+    //> sty $07
+    // ($07 = objId — used as temporary)
+    //> lda #$00                    ;load default adder for bricks with lines
+    var adder = 0
+    //> ldy AreaType                ;check level type for ground level
+    //> dey
+    //> beq BWithL                  ;if ground type, do not start with 5
+    if (ram.areaType.toInt() - 1 != 0) {
+        //> lda #$05                    ;otherwise use adder for bricks without lines
+        adder = 5
+    }
+    //> BWithL: clc                         ;add object ID to adder
+    //> adc $07
+    //> tay                         ;use as offset for metatile
+    val metatileIdx = adder + objId
+    //> DrawQBlk: (falls through)
+    drawQBlk(metatileIdx)
+}
+
+// by Claude - GetAreaObjectID: get value saved from area parser routine
+private fun System.getAreaObjectID(): Int {
+    //> GetAreaObjectID:
+    //> lda $00    ;get value saved from area parser routine
+    //> sec
+    //> sbc #$00   ;possibly residual code
+    //> tay        ;save to Y
+    //> ExitDecBlock: rts
+    // $00 holds the decoded object identifier. In the Kotlin dispatch, for small objects
+    // (rows $00-$0b with d6-d4 clear), temp07 = 0x16 and the when cases are 0x16..0x21.
+    // So objId = when_case - 0x16. For QuestionBlock cases: 0x16-0x16=0, 0x17-0x16=1, 0x18-0x16=2.
+    // For Hidden1UpBlock: 0x19-0x16=3. BrickWithItem: 0x1A-0x16=4, etc.
+    // But we need the value of $00 which is the objId before temp07 is added.
+    // Since we can't access it directly, we need to thread it through.
+    // For now, I'll use a field to pass the value. See the refactored when block.
+    return areaParserObjId
+}
+
+// by Claude - DrawQBlk: shared rendering for question blocks and bricks
+private fun System.drawQBlk(metatileIdx: Int) {
+    val x = ram.objectOffset
+    //> DrawQBlk: lda BrickQBlockMetatiles,y  ;get appropriate metatile for brick/question block
+    val metatile = BrickQBlockMetatiles[metatileIdx]
+    //> pha                         ;save
+    //> jsr GetLrgObjAttrib         ;get row from location byte
+    val attrib = getLrgObjAttrib(x)
+    //> jmp DrawRow
+    //> DrawRow: ldx $07
+    val row = attrib.row.toInt() and 0xFF
+    //> ldy #$00                   ;set vertical height of 1
+    //> pla
+    //> jmp RenderUnderPart        ;render object
+    renderUnderPart(metatile, row, 0)
+}
+
+//> Hole_Empty:
+private fun System.hole_Empty() {
+    val x = ram.objectOffset
+    //> jsr ChkLrgObjLength          ;get lower nybble and save as length
+    val (attrib, fixedLen) = chkLrgObjLength(x)
+    //> bcc NoWhirlP                 ;skip this part if length already loaded
+    if (fixedLen.justStarting) {
+        //> lda AreaType                 ;check for water type level
+        //> bne NoWhirlP                 ;if not water type, skip this part
+        if (ram.areaType == 0.toByte()) {
+            //> ldx Whirlpool_Offset         ;get offset for data used by cannons and whirlpools
+            val wpIdx = ram.cannonOffset.toInt() and 0xFF // whirlpool shares same offset as cannon
+            //> jsr GetAreaObjXPosition      ;get proper horizontal coordinate of where we're at
+            val xPos = getAreaObjXPosition().toInt() and 0xFF
+            //> sec
+            //> sbc #$10                     ;subtract 16 pixels
+            val leftExtent = (xPos - 0x10) and 0xFF
+            //> sta Whirlpool_LeftExtent,x   ;store as left extent of whirlpool
+            ram.cannonXPositions[wpIdx] = leftExtent.toByte()
+            //> lda CurrentPageLoc           ;get page location of where we're at
+            //> sbc #$00                     ;subtract borrow
+            val borrow = if (xPos < 0x10) 1 else 0
+            //> sta Whirlpool_PageLoc,x      ;save as page location of whirlpool
+            ram.cannonPageLocs[wpIdx] = ((ram.currentPageLoc.toInt() - borrow) and 0xFF).toByte()
+            //> iny; iny                     ;increment length by 2
+            val extendedLen = (attrib.length.toInt() and 0xFF) + 2
+            //> tya; asl; asl; asl; asl      ;multiply by 16 to get size of whirlpool
+            val wpLength = (extendedLen shl 4) and 0xFF
+            //> sta Whirlpool_Length,x       ;save size of whirlpool here
+            ram.cannonYPositions[wpIdx] = wpLength.toByte()
+            //> inx
+            var newOffset = wpIdx + 1
+            //> cpx #$05                     ;increment and check offset
+            //> bcc StrWOffset               ;if not yet reached fifth whirlpool, branch to save offset
+            if (newOffset >= 5) {
+                //> ldx #$00                     ;otherwise initialize it
+                newOffset = 0
+            }
+            //> StrWOffset: stx Whirlpool_Offset         ;save new offset here
+            ram.cannonOffset = newOffset.toByte() // whirlpoolOffset is same field
+        }
+    }
+    //> NoWhirlP: ldx AreaType                 ;get appropriate metatile, then
+    val areaType = ram.areaType.toInt() and 0xFF
+    //> lda HoleMetatiles,x          ;render the hole proper
+    val metatile = HoleMetatiles[areaType]
+    //> ldx #$08
+    //> ldy #$0f                     ;start at ninth row and go to bottom, run RenderUnderPart
+    //> (falls through to RenderUnderPart)
+    renderUnderPart(metatile, 0x08, 0x0f)
+}
+
+// by Claude - field used to pass $00 (the decoded object ID) from the when dispatch to object routines
+// internal so verticalPipe.kt (in areaparser package) can access it
+internal var areaParserObjId: Int = 0

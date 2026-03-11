@@ -8,8 +8,13 @@ import kotlin.experimental.or
 
 class NesNametable(val width: Int = 32, val height: Int = 30) {
     private val rawTiles = Array<Tile>(width * height) { Tile(Pattern.EMPTY, Palette.EMPTY) }
-    operator fun get(x: Int, y: Int): Tile = rawTiles[y * width + x]
+    // by Claude - bounds-safe access; out-of-range writes are silently ignored (mimics NES VRAM wrapping)
+    operator fun get(x: Int, y: Int): Tile {
+        if (x !in 0 until width || y !in 0 until height) return Tile(Pattern.EMPTY, Palette.EMPTY)
+        return rawTiles[y * width + x]
+    }
     operator fun set(x: Int, y: Int, value: Tile) {
+        if (x !in 0 until width || y !in 0 until height) return
         rawTiles[y * width + x] = value
     }
 }

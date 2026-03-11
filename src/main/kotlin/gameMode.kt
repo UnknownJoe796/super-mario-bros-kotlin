@@ -237,31 +237,16 @@ fun System.resetPalStar() {
     //> rts
 }
 
-// --- Stubs for subroutines not yet translated ---
-// These are called by GameEngine and GameRoutines.
-// Each will be implemented in its own file as the translation progresses.
-
-// by Claude - GameRoutines dispatch targets (not yet translated)
-fun System.vineAutoClimb(): Unit = TODO("Vine_AutoClimb not yet implemented")
-fun System.sideExitPipeEntry(): Unit = TODO("SideExitPipeEntry not yet implemented")
-fun System.verticalPipeEntry(): Unit = TODO("VerticalPipeEntry not yet implemented")
-fun System.flagpoleSlide(): Unit = TODO("FlagpoleSlide not yet implemented")
-fun System.playerEndLevel(): Unit = TODO("PlayerEndLevel not yet implemented")
-fun System.playerEntrance(): Unit = TODO("PlayerEntrance not yet implemented")
-fun System.playerCtrlRoutine(): Unit = TODO("PlayerCtrlRoutine not yet implemented")
-fun System.playerChangeSize(): Unit = TODO("PlayerChangeSize not yet implemented")
-fun System.playerInjuryBlink(): Unit = TODO("PlayerInjuryBlink not yet implemented")
-fun System.playerDeath(): Unit = TODO("PlayerDeath not yet implemented")
-fun System.playerFireFlower(): Unit = TODO("PlayerFireFlower not yet implemented")
-
-// by Claude - Shared engine stubs (used by both GameEngine and VictoryMode)
-fun System.enemiesAndLoopsCore(): Unit = TODO("EnemiesAndLoopsCore not yet implemented")
-fun System.relativePlayerPosition(): Unit = TODO("RelativePlayerPosition not yet implemented")
-fun System.playerGfxHandler(): Unit = TODO("PlayerGfxHandler not yet implemented")
-
-// by Claude - GameEngine subroutine stubs (not yet translated)
-fun System.procFireballBubble(): Unit = TODO("ProcFireball_Bubble not yet implemented")
-fun System.getPlayerOffscreenBits(): Unit = TODO("GetPlayerOffscreenBits not yet implemented")
+// by Claude - Stubs moved to dedicated files:
+// vineAutoClimb, sideExitPipeEntry, verticalPipeEntry, flagpoleSlide,
+// playerEndLevel, playerEntrance → playerLevelTransitions.kt
+// playerCtrlRoutine → playerCtrlRoutine.kt
+// playerChangeSize, playerInjuryBlink, playerDeath, playerFireFlower → playerStateChanges.kt
+// enemiesAndLoopsCore → enemiesAndLoopsCore.kt
+// relativePlayerPosition → relativePosition.kt
+// playerGfxHandler → playerGfxHandler.kt
+// procFireballBubble → procFireballBubble.kt
+// getPlayerOffscreenBits → offscreenBits.kt
 /**
  * BlockObjMT_Updater: Replaces block objects with their metatiles if the
  * replacement flag is set and the VRAM buffer is free.
@@ -278,10 +263,7 @@ fun System.blockObjMTUpdater() {
         if (ram.vRAMBuffer1.isNotEmpty()) continue
         //> lda Block_RepFlag,x       ;if flag for block object already clear,
         //> beq NextBUpd              ;branch to move onto next block object
-        // Block_RepFlag is at $3ec, indexed by x (0 or 1)
-        // Using blockRepFlag as a simplified single-value for now
-        // TODO: proper indexed access for Block_RepFlag[x]
-        if (ram.blockRepFlag == 0.toByte()) continue
+        if (ram.blockRepFlags[x] == 0.toByte()) continue
         //> lda Block_BBuf_Low,x      ;get low byte of block buffer
         //> sta $06                   ;store into block buffer address
         //> lda #$05
@@ -299,17 +281,16 @@ fun System.blockObjMTUpdater() {
         replaceBlockMetatile(metatile)
         //> lda #$00
         //> sta Block_RepFlag,x       ;clear block object flag
-        ram.blockRepFlag = 0
+        ram.blockRepFlags[x] = 0
         //> NextBUpd:   dex                       ;decrement block object offset
         //> bpl UpdateLoop            ;do this until both block objects are dealt with
     }
     //> rts
 }
-fun System.blockObjectsCore(): Unit = TODO("BlockObjectsCore not yet implemented")
-fun System.miscObjectsCore(): Unit = TODO("MiscObjectsCore not yet implemented")
-fun System.processCannons(): Unit = TODO("ProcessCannons not yet implemented")
-fun System.processWhirlpools(): Unit = TODO("ProcessWhirlpools not yet implemented")
-fun System.flagpoleRoutine(): Unit = TODO("FlagpoleRoutine not yet implemented")
+// by Claude - Engine subroutine stubs moved to dedicated files:
+// blockObjectsCore → blockObjectsCore.kt, miscObjectsCore → miscObjectsCore.kt
+// processCannons → processCannons.kt, processWhirlpools → processWhirlpools.kt
+// flagpoleRoutine → flagpoleRoutine.kt
 /**
  * ForceInjury: Injures or kills the player.
  * If player is small, kills them. If big/fiery, shrinks to small.
