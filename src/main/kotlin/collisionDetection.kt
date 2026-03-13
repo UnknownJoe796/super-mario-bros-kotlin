@@ -8,31 +8,6 @@ import kotlin.experimental.and
 import kotlin.experimental.or
 
 // ---------------------------------------------------------------------------
-// Extension arrays for GameRam fields that need indexed access but are
-// currently scalars. Uses WeakHashMap like boundingBox.kt.
-// ---------------------------------------------------------------------------
-
-// Enemy_CollisionBits ($0491) - one byte per enemy slot, indexed by enemy offset
-private val _enemyCollisionBitsMap = java.util.WeakHashMap<GameRam, ByteArray>()
-val GameRam.enemyCollisionBitsArr: ByteArray
-    get() = _enemyCollisionBitsMap.getOrPut(this) { ByteArray(7) }
-
-// FireballBouncingFlag ($3a) - one byte per fireball slot, indexed by ObjectOffset
-private val _fireballBouncingFlagMap = java.util.WeakHashMap<GameRam, ByteArray>()
-val GameRam.fireballBouncingFlags: ByteArray
-    get() = _fireballBouncingFlagMap.getOrPut(this) { ByteArray(2) }
-
-// Misc_Collision_Flag ($6be) - indexed by misc object offset
-private val _miscCollisionFlagMap = java.util.WeakHashMap<GameRam, ByteArray>()
-val GameRam.miscCollisionFlags: ByteArray
-    get() = _miscCollisionFlagMap.getOrPut(this) { ByteArray(9) }
-
-// PlatformCollisionFlag ($3a2) - indexed by enemy offset
-private val _platformCollisionFlagMap = java.util.WeakHashMap<GameRam, ByteArray>()
-val GameRam.platformCollisionFlags: ByteArray
-    get() = _platformCollisionFlagMap.getOrPut(this) { ByteArray(7) }
-
-// ---------------------------------------------------------------------------
 // Data tables
 // ---------------------------------------------------------------------------
 
@@ -1446,15 +1421,14 @@ fun System.playerBGCollision() {
         ram.playerState = 1
     } else {
         //> lda Player_State; beq SetFallS; cmp #$03; bne ChkOnScr
+        // State 0: beq branches to SetFallS → state = 2
+        // State 3: cmp #$03 sets Z flag, bne does NOT branch → falls through to SetFallS → state = 2
+        // States 1,2: bne branches to ChkOnScr → no change
         val pState = ram.playerState.toInt() and 0xFF
-        if (pState == 0) {
+        if (pState == 0 || pState == 3) {
             //> SetFallS: lda #$02; SetPSte: sta Player_State
             ram.playerState = 2
         }
-        // If state is 3 (climbing), also set to fall:
-        // Actually re-reading: if state == 0, set to 2 (falling).
-        // If state == 3 (climbing), skip (bne ChkOnScr goes to ChkOnScr).
-        // The code only sets state for state==0 or swimming.
     }
 
     //> ChkOnScr: lda Player_Y_HighPos; cmp #$01; bne ExPBGCol
@@ -1562,7 +1536,7 @@ fun System.playerBGCollision() {
 
         if (leftFootMT != 0) {
             // bne ChkFootMTile
-            processFootMetatile(leftFootMT, leftFootResult, rightFootMT, adderY)
+            if (processFootMetatile(leftFootMT, leftFootResult, rightFootMT, adderY)) return
         } else if (rightFootMT != 0) {
             //> lda $00; beq DoPlayerSideCheck
             //> jsr CheckForCoinMTiles; bcc ChkFootMTile
@@ -1570,7 +1544,7 @@ fun System.playerBGCollision() {
                 handleCoinMetatile(rightFootResult)
                 return
             }
-            processFootMetatile(rightFootMT, rightFootResult, rightFootMT, adderY)
+            if (processFootMetatile(rightFootMT, rightFootResult, rightFootMT, adderY)) return
         }
         // else: both are 0, fall through to DoPlayerSideCheck
     }
@@ -1579,29 +1553,32 @@ fun System.playerBGCollision() {
     doPlayerSideCheck(bbAdderBase)
 }
 
-private fun System.processFootMetatile(metatile: Int, result: BlockBufferResult, rightFootMT: Int, adderY: Int) {
+/**
+ * @return true if caller should skip DoPlayerSideCheck (NES uses jmp to exit entirely)
+ */
+private fun System.processFootMetatile(metatile: Int, result: BlockBufferResult, rightFootMT: Int, adderY: Int): Boolean {
     //> ChkFootMTile:
     //> jsr CheckForClimbMTiles; bcs DoPlayerSideCheck
-    if (checkForClimbMTiles(metatile)) return  // will fall through to side check in caller
+    if (checkForClimbMTiles(metatile)) return false  // falls through to side check
 
     //> ldy Player_Y_Speed; bmi DoPlayerSideCheck
-    if (ram.playerYSpeed < 0) return
+    if (ram.playerYSpeed < 0) return false
 
     //> cmp #$c5; bne ContChk
     if (metatile == 0xc5) {
-        //> jmp HandleAxeMetatile
+        //> jmp HandleAxeMetatile  — exits PlayerBGCollision entirely
         handleAxeMetatile(result)
-        return
+        return true
     }
 
     //> ContChk: jsr ChkInvisibleMTiles; beq DoPlayerSideCheck
-    if (chkInvisibleMTiles(metatile)) return
+    if (chkInvisibleMTiles(metatile)) return false
 
     //> ldy JumpspringAnimCtrl; bne InitSteP
     if (ram.jumpspringAnimCtrl != 0.toByte()) {
         //> InitSteP: lda #$00; sta Player_State
         ram.playerState = 0
-        return
+        return false  // falls through to DoPlayerSideCheck
     }
 
     //> ldy $04; cpy #$05; bcc LandPlyr
@@ -1620,9 +1597,11 @@ private fun System.processFootMetatile(metatile: Int, result: BlockBufferResult,
         ram.stompChainCounter = 0
         //> InitSteP: lda #$00; sta Player_State
         ram.playerState = 0
+        return false  // falls through to DoPlayerSideCheck
     } else {
-        //> lda Player_MovingDir; sta $00; jmp ImpedePlayerMove
+        //> lda Player_MovingDir; sta $00; jmp ImpedePlayerMove  — exits entirely
         impedePlayerMove(ram.playerMovingDir.toInt() and 0xFF)
+        return true
     }
 }
 
@@ -1656,7 +1635,7 @@ private fun System.doPlayerSideCheck(bbAdderBase: Int) {
                     if (checkForClimbMTiles(sideMT)) {
                         // climbable: skip to BHalf
                     } else {
-                        checkSideMTiles(sideMT, sideResult)
+                        checkSideMTiles(sideMT, sideResult, counter)
                         return
                     }
                 }
@@ -1676,7 +1655,7 @@ private fun System.doPlayerSideCheck(bbAdderBase: Int) {
         val sideMT2 = sideResult2.metatile.toInt() and 0xFF
         //> bne CheckSideMTiles
         if (sideMT2 != 0) {
-            checkSideMTiles(sideMT2, sideResult2)
+            checkSideMTiles(sideMT2, sideResult2, counter)
             return
         }
 
@@ -1686,7 +1665,7 @@ private fun System.doPlayerSideCheck(bbAdderBase: Int) {
     //> ExSCH: rts
 }
 
-private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult) {
+private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult, sideCounter: Int) {
     //> CheckSideMTiles:
     //> jsr ChkInvisibleMTiles; beq ExCSM
     if (chkInvisibleMTiles(metatile)) return
@@ -1709,26 +1688,26 @@ private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult) {
         //> lda JumpspringAnimCtrl; bne ExCSM
         if (ram.jumpspringAnimCtrl != 0.toByte()) return
         //> jmp StopPlayerMove
-        stopPlayerMove()
+        stopPlayerMove(sideCounter)
         return
     }
 
     //> ChkPBtm: ldy Player_State; cpy #$00; bne StopPlayerMove
     if (ram.playerState != 0.toByte()) {
-        stopPlayerMove()
+        stopPlayerMove(sideCounter)
         return
     }
 
     //> ldy PlayerFacingDir; dey; bne StopPlayerMove
     if ((ram.playerFacingDir.toInt() and 0xFF) != 1) {
-        stopPlayerMove()
+        stopPlayerMove(sideCounter)
         return
     }
 
     //> cmp #$6c; beq PipeDwnS
     //> cmp #$1f; bne StopPlayerMove
     if (metatile != 0x6c && metatile != 0x1f) {
-        stopPlayerMove()
+        stopPlayerMove(sideCounter)
         return
     }
 
@@ -1752,16 +1731,19 @@ private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult) {
 
     //> ChkGERtn: lda GameEngineSubroutine; cmp #$07; beq ExCSM
     val geSub = ram.gameEngineSubroutine.toInt() and 0xFF
-    if (geSub == 0x07 || geSub == 0x08) return
+    if (geSub == 0x07) return
+    //> cmp #$08; bne ExCSM  — only set pipe entry when currently running PlayerCtrlRoutine
+    if (geSub != 0x08) return
 
     //> lda #$02; sta GameEngineSubroutine
     ram.gameEngineSubroutine = 0x02
 }
 
-private fun System.stopPlayerMove() {
+private fun System.stopPlayerMove(sideCounter: Int) {
     //> StopPlayerMove:
     //> jsr ImpedePlayerMove
-    impedePlayerMove(ram.playerMovingDir.toInt() and 0xFF)
+    // NES reads $00 (the side check loop counter) — NOT playerMovingDir
+    impedePlayerMove(sideCounter)
 }
 
 // =====================================================================
@@ -1770,75 +1752,58 @@ private fun System.stopPlayerMove() {
 
 /**
  * Impedes player horizontal movement based on collision side.
- * @param side 1 = left side collision, 2 = right side collision
+ * @param side 1 = left side collision, 2 = right side collision (from $00)
  */
 private fun System.impedePlayerMove(side: Int) {
     //> ImpedePlayerMove:
-    var a = 0
-    val playerXSpeed = ram.playerXSpeed
-    val sideIdx = side - 1  // 0 = left, 1 = right
-
-    if (sideIdx == 0) {
-        //> Left side collision
-        //> cpy #$00; bmi ExIPM  ;if player moving left, just clear collision bit
-        if (playerXSpeed < 0) {
-            // ExIPM: clear collision bit
-            val mask = (side xor 0xFF) and 0xFF  // actually: txa; eor #$ff
-            ram.playerCollisionBits = (ram.playerCollisionBits.toInt() and mask).toByte()
+    //> lda #$00
+    val displacement: Int
+    val xMask: Int
+    //> ldy Player_X_Speed
+    val speedU = ram.playerXSpeed.toInt() and 0xFF
+    //> ldx $00; dex; bne RImpd
+    if (side == 1) {
+        // Left side collision
+        //> inx
+        xMask = 1
+        //> cpy #$00; bmi ExIPM  ;if player moving to the left, just clear bit
+        if (speedU >= 0x80) {
+            ram.playerCollisionBits = (ram.playerCollisionBits.toInt() and (xMask xor 0xFF)).toByte()
             return
         }
-        //> lda #$ff
-        a = 0xFF
+        //> lda #$ff; jmp NXSpd
+        displacement = 0xFF
     } else {
-        //> Right side collision
-        //> cpy #$01; bpl ExIPM  ;if player moving right, just clear collision bit
-        if (playerXSpeed >= 0) {
-            val mask = (side xor 0xFF) and 0xFF
-            ram.playerCollisionBits = (ram.playerCollisionBits.toInt() and mask).toByte()
+        // Right side collision
+        //> RImpd: ldx #$02
+        xMask = 2
+        //> cpy #$01; bpl ExIPM  ;if player moving to the right, just clear bit
+        // NES bpl: branches when (speed - 1) bit 7 is 0, i.e., speed in $01-$80
+        if (speedU in 1..0x80) {
+            ram.playerCollisionBits = (ram.playerCollisionBits.toInt() and (xMask xor 0xFF)).toByte()
             return
         }
         //> lda #$01
-        a = 0x01
+        displacement = 0x01
     }
 
-    //> NXSpd:
-    //> ldy #$10; sty SideCollisionTimer
+    //> NXSpd: ldy #$10; sty SideCollisionTimer
     ram.sideCollisionTimer = 0x10
     //> ldy #$00; sty Player_X_Speed
     ram.playerXSpeed = 0
-
     //> cmp #$00; bpl PlatF; dey
-    val highBits = if (a >= 0x80) 0xFF else 0x00
-
+    val highBits = if (displacement >= 0x80) 0xFF else 0x00
     //> PlatF: sty $00
     //> clc; adc Player_X_Position; sta Player_X_Position
-    val newX = (ram.playerXPosition.toInt() and 0xFF) + (a.toByte().toInt()) // signed add
+    val currentX = ram.playerXPosition.toInt() and 0xFF
+    val newX = currentX + displacement
     ram.playerXPosition = (newX and 0xFF).toUByte()
     //> lda Player_PageLoc; adc $00; sta Player_PageLoc
-    val carry = if (a == 0xFF && (newX and 0xFF) < (ram.playerXPosition.toInt() and 0xFF)) -1
-                else if (newX > 0xFF) 1 else 0
-    // Simplified: just do the 16-bit add properly
-    val fullAdd = (ram.playerXPosition.toInt() and 0xFF) // already stored
-    val pageAdd = (ram.playerPageLoc.toInt() and 0xFF) + highBits + (if (newX > 0xFF || (a == 0xFF.toByte().toInt() && newX >= 0)) 1 else 0)
-    // This is getting complex. Let me simplify using proper 16-bit arithmetic.
-    // Actually, the assembly does: A (signed displacement) + Player_X_Position, with carry propagating to PageLoc
-    // by Claude - use named scalars, not flat arrays (coherence fix)
-    val displacement = a.toByte().toInt()  // signed: $FF = -1, $01 = +1
-    val currentX = ram.playerXPosition.toInt() and 0xFF
-    val result = currentX + displacement
-    ram.playerXPosition = (result and 0xFF).toUByte()
-    val pageCarry = if (displacement < 0) { if (result < 0) -1 else 0 } else { if (result > 0xFF) 1 else 0 }
-    // For $FF: highBits = $FF. adc $00 means PageLoc + $FF + carry
-    // carry from "clc; adc Player_X_Position" where A=$FF:
-    //   if playerX + $FF > $FF, carry=1, so PageLoc + $FF + 1 = PageLoc + 0 (no change)
-    //   if playerX + $FF <= $FF, carry=0, so PageLoc + $FF + 0 = PageLoc - 1
-    val carryFromAdd = if ((currentX + (a and 0xFF)) > 0xFF) 1 else 0
-    val newPage = ((ram.playerPageLoc.toInt() and 0xFF) + (highBits and 0xFF) + carryFromAdd) and 0xFF
-    ram.playerPageLoc = newPage.toByte()
+    val carry = if (newX > 0xFF) 1 else 0
+    ram.playerPageLoc = ((ram.playerPageLoc.toInt() and 0xFF) + highBits + carry).toByte()
 
     //> ExIPM: txa; eor #$ff; and Player_CollisionBits; sta Player_CollisionBits
-    val clearMask = (side.inv()) and 0xFF
-    ram.playerCollisionBits = (ram.playerCollisionBits.toInt() and clearMask).toByte()
+    ram.playerCollisionBits = (ram.playerCollisionBits.toInt() and (xMask xor 0xFF)).toByte()
 }
 
 // =====================================================================
@@ -1863,7 +1828,9 @@ private fun System.eraseAreaContentsMetatile(result: BlockBufferResult) {
         result.blockBuffer[idx] = 0
     }
     //> jmp RemoveCoin_Axe
-    removeCoinOrAxe()
+    // Reconstruct NES $06 value from BlockBufferResult
+    val bbLow = if (result.blockBuffer === ram.blockBuffer2) (0xD0 + result.blockBufferBase) else result.blockBufferBase
+    removeCoinOrAxe(bbLow, result.vertOffset)
 }
 
 private fun System.handleAxeMetatile(result: BlockBufferResult) {
@@ -1889,6 +1856,9 @@ private fun System.handleClimbing(metatile: Int, result: BlockBufferResult) {
     if (metatile == 0x24 || metatile == 0x25) {
         //> FlagpoleCollision:
         flagpoleCollision(metatile)
+        //> jmp PutPlayerOnVine  ;all FlagpoleCollision paths fall through to PutPlayerOnVine
+        putPlayerOnVine(result)
+        return
     } else if (metatile == 0x26) {
         //> VineCollision:
         val playerY = ram.playerYPosition.toInt() and 0xFF

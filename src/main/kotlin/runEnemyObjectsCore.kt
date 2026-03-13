@@ -775,7 +775,7 @@ fun System.moveLakitu() {
  * Takes player scroll speed into account for smoother tracking.
  * by Claude - fixed: indexed LakituMoveSpeed/Direction, distance guard, ChkEmySpd logic, loop count
  */
-private fun System.playerLakituDiff(x: Int) {
+internal fun System.playerLakituDiff(x: Int) {
     //> PlayerLakituDiff:
     var dirY = 0
     val (lowDiff, highDiff) = playerEnemyDiff()
@@ -945,7 +945,7 @@ fun System.procFirebar() {
     //> bne SusFbar                 ;ahead of this part
     if (ram.timerControl == 0.toByte()) {
         //> lda FirebarSpinSpeed,x      ;load spinning speed of firebar
-        val spinSpeed = ram.firebarSpinSpeed.toInt() and 0xFF
+        val spinSpeed = ram.firebarSpinSpeed[x].toInt() and 0xFF
         //> jsr FirebarSpin             ;modify current spinstate
         val spinResult = firebarSpin(spinSpeed, x)
         //> and #%00011111              ;mask out all but 5 LSB
@@ -1051,7 +1051,7 @@ private fun System.firebarSpin(spinSpeed: Int, x: Int): Int {
     //> FirebarSpin:
     //> sta $07                     ;save spinning speed here
     //> lda FirebarSpinDirection,x  ;check spinning direction
-    val direction = ram.firebarSpinDirection.toInt() and 0xFF
+    val direction = ram.firebarSpinDirection[x].toInt() and 0xFF
     //> bne SpinCounterClockwise
 
     val spinLow = ram.sprObjXSpeed[1 + x].toInt() and 0xFF

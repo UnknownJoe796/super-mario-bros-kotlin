@@ -10,9 +10,9 @@ import java.io.File
 
 class PictureProcessingUnit {
     val backgroundTiles = Array(2) { NesNametable() }
-    val backgroundPalettes = Array(4) { IndirectPalette(Palette.EMPTY, "background $it") }
+    val backgroundPalettes = Array(4) { IndirectPalette(Palette.RGB, "background $it") }
     val sprites = Array(64) { Sprite() }
-    val spritePalettes = Array(4) { IndirectPalette(Palette.EMPTY, "foreground $it") }
+    val spritePalettes = Array(4) { IndirectPalette(Palette.RGB, "foreground $it") }
 
     /**
      * NES universal background color ($3F00). On the NES, all palette color-0 entries
@@ -101,8 +101,13 @@ class PictureProcessingUnit {
                         val existing = nt[tx, ty]
                         nt[tx, ty] = existing.copy(pattern = OriginalRom.backgrounds[tileIdx])
                     }
+                } else {
+                    // Attribute table writes ($23C0-$23FF etc)
+                    val attrOffset = offset - 0x3C0 // 0..63
+                    val ax = attrOffset % 8
+                    val ay = attrOffset / 8
+                    applyAttributeCellToPpu(this, ntIdx.toByte(), ax.toByte(), ay.toByte(), value.toUByte())
                 }
-                // Attribute table writes ($23C0-$23FF etc) ignored here — handled by buffered updates
             }
             // Palette RAM: $3F00-$3F1F
             addr in 0x3F00..0x3F1F -> {
@@ -130,6 +135,48 @@ class PictureProcessingUnit {
             dst.x = src.x
             dst.attributes = src.attributes
             dst.pattern = OriginalRom.sprites[src.tilenumber.toInt() and 0xFF]
+        }
+    }
+}
+
+fun applyAttributeCellToPpu(ppu: PictureProcessingUnit, nametable: Byte, ax: Byte, ay: Byte, value: UByte) {
+    val nt = ppu.backgroundTiles[nametable.toInt() and 0x01]
+    val baseX = (ax.toInt() and 0x1F) * 4
+    val baseY = (ay.toInt() and 0x1F) * 4
+    fun paletteForQuadrant(q: Int): Palette {
+        val idx = (value.toInt() shr (q * 2)) and 0x03
+        return ppu.backgroundPalettes[idx]
+    }
+    // Top-left quadrant (bits 0-1): tiles (0..1, 0..1)
+    val palTL = paletteForQuadrant(0)
+    for (dy in 0..1) for (dx in 0..1) {
+        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
+            val t = nt[baseX + dx, baseY + dy]
+            nt[baseX + dx, baseY + dy] = t.copy(palette = palTL)
+        }
+    }
+    // Top-right quadrant (bits 2-3): (2..3, 0..1)
+    val palTR = paletteForQuadrant(1)
+    for (dy in 0..1) for (dx in 2..3) {
+        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
+            val t = nt[baseX + dx, baseY + dy]
+            nt[baseX + dx, baseY + dy] = t.copy(palette = palTR)
+        }
+    }
+    // Bottom-left quadrant (bits 4-5): (0..1, 2..3)
+    val palBL = paletteForQuadrant(2)
+    for (dy in 2..3) for (dx in 0..1) {
+        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
+            val t = nt[baseX + dx, baseY + dy]
+            nt[baseX + dx, baseY + dy] = t.copy(palette = palBL)
+        }
+    }
+    // Bottom-right quadrant (bits 6-7): (2..3, 2..3)
+    val palBR = paletteForQuadrant(3)
+    for (dy in 2..3) for (dx in 2..3) {
+        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
+            val t = nt[baseX + dx, baseY + dy]
+            nt[baseX + dx, baseY + dy] = t.copy(palette = palBR)
         }
     }
 }

@@ -3,12 +3,6 @@ package com.ivieleague.smbtranslation
 
 import com.ivieleague.smbtranslation.utils.*
 
-// by Claude - VineObjOffset in assembly is a 3-byte array at $039a (one per vine segment).
-// GameRam only stores a single byte, so we use WeakHashMap-backed extension.
-private val _vineObjOffsetsMap = java.util.WeakHashMap<GameRam, ByteArray>()
-val GameRam.vineObjOffsets: ByteArray
-    get() = _vineObjOffsetsMap.getOrPut(this) { ByteArray(3) }
-
 // -------------------------------------------------------------------------------------
 // ROM data tables
 // -------------------------------------------------------------------------------------
@@ -233,13 +227,22 @@ fun System.moveNormalEnemy() {
             moveSteadyEnemy(x)
             return
         }
-        //> cmp #$05; beq FallE        ;spiny egg state -> FallE
-        //> cmp #$03; bcs ReviveStunned ;states $03 or $04 -> revive stunned
+    //> cmp #$05; beq FallE        ;spiny egg state -> FallE
+    //> cmp #$03; bcs ReviveStunned ;states $03 or $04 -> revive stunned
+    if (lowBits == 0x02) {
+        // State 2: Stomped/Dying Goomba.
+        // Assembly runs MoveD_EnemyVertically (physics) then MoveEnemyHorizontally.
+        moveD_EnemyVertically()
+        moveEnemyHorizontally()
+        // Then it calls ReviveStunned path (via BPL ChkKillGoomba at 9340)
+        reviveStunned(x)
+        return
+    }
         if (lowBits != 5 && lowBits >= 3) {
             reviveStunned(x)
             return
         }
-        // lowBits 1, 2, or 5: fall through to FallE
+        // lowBits 1, or 5: fall through to FallE
     }
     // else: d6 set, also falls through to FallE
 
@@ -250,6 +253,8 @@ fun System.moveNormalEnemy() {
     if (stateAfterFall == 0x02) {
         //> MEHor: jmp MoveEnemyHorizontally
         moveEnemyHorizontally()
+        // by Claude - If state 2, also run ReviveStunned to handle timer/erasure
+        reviveStunned(x)
         return
     }
     //> and #%01000000; beq SteadM
@@ -602,7 +607,7 @@ fun System.vineObjectHandler() {
         //> lda FrameCounter          ;get frame counter
         //> lsr; lsr                  ;shift d1 into carry
         //> bcc RunVSubs              ;if d1 not set (2 frames every 4) skip this part
-        if (((ram.frameCounter.toInt() and 0xFF) ushr 2) and 0x01 != 0) {
+        if ((ram.frameCounter.toInt() and 0x02) != 0) {
             //> lda Enemy_Y_Position+5
             //> sbc #$01                  ;subtract vertical position of vine (carry is set from lsr)
             //> sta Enemy_Y_Position+5    ;one pixel every frame it's time

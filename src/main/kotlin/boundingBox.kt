@@ -50,93 +50,58 @@ private val boundBoxCtrlData = intArrayOf(
 // Layout: [UL_X, UL_Y, DR_X, DR_Y] per object, 4 bytes each
 // Index 0-3 = player, 4-7 = enemy 0, 8-11 = enemy 1, ..., 28-31 = fireball 0, etc.
 // EnemyBoundingBoxCoord ($4b0) = boundBoxCoords + 4
-private val _boundBoxCoordsMap = java.util.WeakHashMap<GameRam, ByteArray>()
-val GameRam.boundBoxCoords: ByteArray
-    get() = _boundBoxCoordsMap.getOrPut(this) { ByteArray(100) }  // 25 sprite objects × 4 bytes each
-
-// EnemyOffscrBitsMasked ($3d8) array, one byte per enemy slot (0-6)
-private val _enemyOffscrBitsMaskedMap = java.util.WeakHashMap<GameRam, ByteArray>()
-val GameRam.enemyOffscrBitsMaskeds: ByteArray
-    get() = _enemyOffscrBitsMaskedMap.getOrPut(this) { ByteArray(7) }
+// boundBoxCoords is now a proper member of GameRam with @RamLocation(0x4AC, size = 60)
 
 // ---------------------------------------------------------------------------
 // Helper: read relative X coordinate by condensed offset
-// Condensed offsets: 0=player, 1=enemy, 2=fireball, 3=bubble, 4=block, 6=misc
+// Assembly: lda SprObject_Rel_XPos,y reads the condensed array at $3AD+y.
 // ---------------------------------------------------------------------------
 
 private fun GameRam.getRelXPos(condensedOffset: Int): Int {
-    return when (condensedOffset) {
-        0 -> playerRelXPos.toInt() and 0xFF
-        1 -> enemyRelXPos.toInt() and 0xFF
-        2 -> fireballRelXPos.toInt() and 0xFF
-        3 -> bubbleRelXPos.toInt() and 0xFF
-        4 -> blockRelXPos.toInt() and 0xFF
-        6 -> miscRelXPos.toInt() and 0xFF
-        else -> 0
-    }
+    return relXPos[condensedOffset].toInt() and 0xFF
 }
 
 // ---------------------------------------------------------------------------
 // Helper: read relative Y coordinate by condensed offset
+// Assembly: lda SprObject_Rel_YPos,y reads the condensed array at $3B8+y.
 // ---------------------------------------------------------------------------
 
 private fun GameRam.getRelYPos(condensedOffset: Int): Int {
-    return when (condensedOffset) {
-        0 -> playerRelYPos.toInt() and 0xFF
-        1 -> enemyRelYPos.toInt() and 0xFF
-        2 -> fireballRelYPos.toInt() and 0xFF
-        3 -> bubbleRelYPos.toInt() and 0xFF
-        4 -> blockRelYPos.toInt() and 0xFF
-        6 -> miscRelYPos.toInt() and 0xFF
-        else -> 0
-    }
+    return relYPos[condensedOffset].toInt() and 0xFF
 }
 
 // ---------------------------------------------------------------------------
 // Helper: read SprObj_BoundBoxCtrl by SprObject offset
-// Assembly layout: $0499=player, $049a=enemy, $04a0=fireball, $04a2=misc
-// In the assembly, Enemy_BoundBoxCtrl is indexed by enemy slot (,x) but
-// the current GameRam only stores the single "current" value. For the
-// bounding box routines, this is always accessed for the current ObjectOffset.
+// Assembly: lda SprObj_BoundBoxCtrl,x reads $0499+x as a flat indexed array.
+// Layout: $0499=player, $049A-$049F=enemy[0-5], $04A0-$04A1=fireball[0-1],
+//         $04A2+=block/misc
 // ---------------------------------------------------------------------------
 
 private fun GameRam.getSprObjBoundBoxCtrl(sprObjOffset: Int): Int {
     return when (sprObjOffset) {
         0 -> playerBoundBoxCtrl.toInt() and 0xFF
-        in 1..6 -> enemyBoundBoxCtrl.toInt() and 0xFF
-        7, 8 -> fireballBoundBoxCtrl.toInt() and 0xFF
-        else -> miscBoundBoxCtrl.toInt() and 0xFF
+        in 1..6 -> enemyBoundBoxCtrls[sprObjOffset - 1].toInt() and 0xFF
+        7, 8 -> fireballBoundBoxCtrls[sprObjOffset - 7].toInt() and 0xFF
+        else -> miscBoundBoxCtrls[sprObjOffset - 9].toInt() and 0xFF
     }
 }
 
 // ---------------------------------------------------------------------------
 // Helper: read SprObject_X_Position by SprObject offset
+// Assembly: lda SprObject_X_Position,x reads the flat array at $86+x.
 // ---------------------------------------------------------------------------
 
 private fun GameRam.getSprObjXPos(sprObjOffset: Int): Int {
-    return when (sprObjOffset) {
-        0 -> playerXPosition.toInt() and 0xFF
-        in 1..6 -> enemyXPosition.toInt() and 0xFF
-        7, 8 -> fireballXPosition.toInt() and 0xFF
-        9, 10 -> blockXPosition.toInt() and 0xFF
-        in 13..16 -> miscXPosition.toInt() and 0xFF
-        else -> 0
-    }
+    return sprObjXPos[sprObjOffset].toInt() and 0xFF
 }
 
 // ---------------------------------------------------------------------------
 // Helper: read SprObject_PageLoc by SprObject offset
+// Assembly: lda SprObject_PageLoc,x reads the flat array at $6D+x.
 // ---------------------------------------------------------------------------
 
 private fun GameRam.getSprObjPageLoc(sprObjOffset: Int): Int {
-    return when (sprObjOffset) {
-        0 -> playerPageLoc.toInt() and 0xFF
-        in 1..6 -> enemyPageLoc.toInt() and 0xFF
-        7, 8 -> fireballPageLoc.toInt() and 0xFF
-        9, 10 -> blockPageLoc.toInt() and 0xFF
-        in 13..16 -> miscPageLoc.toInt() and 0xFF
-        else -> 0
-    }
+    return sprObjPageLoc[sprObjOffset].toInt() and 0xFF
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +138,10 @@ fun System.playerEnemyDiff(): Pair<Int, Int> {
     val enemyPage = ram.sprObjPageLoc[1 + x].toInt() and 0xFF
     val playerPage = ram.playerPageLoc.toInt() and 0xFF
     val highDiff = (enemyPage - playerPage - borrow) and 0xFF
+
+    if (debugEnemyTrace && x == 1) {
+        println("[PED] eX=$enemyX pX=$playerX eP=$enemyPage pP=$playerPage borrow=$borrow lowDiff=${lowDiff.toString(16)} highDiff=${highDiff.toString(16)}")
+    }
 
     //> rts
     return Pair(lowDiff, highDiff)
@@ -482,13 +451,15 @@ private fun System.getMaskedOffScrBits(x: Int, rightMask: Int, leftMask: Int) {
     //> sec                         ;to the left side of the screen
     //> sbc ScreenLeft_X_Pos
     //> sta $01                     ;store here
-    val enemyX = ram.enemyXPosition.toInt() and 0xFF
+    // by Claude - Enemy_X_Position,x = sprObjXPos[1+x], indexed by enemy slot
+    val enemyX = ram.sprObjXPos[1 + x].toInt() and 0xFF
     val screenX = ram.screenLeftXPos.toInt() and 0xFF
 
     //> lda Enemy_PageLoc,x         ;subtract borrow from current page location
     //> sbc ScreenLeft_PageLoc      ;of left side
     val borrow1 = if (enemyX < screenX) 1 else 0
-    val enemyPage = ram.enemyPageLoc.toInt() and 0xFF
+    // by Claude - Enemy_PageLoc,x = sprObjPageLoc[1+x], indexed by enemy slot
+    val enemyPage = ram.sprObjPageLoc[1 + x].toInt() and 0xFF
     val screenPage = ram.screenLeftPageLoc.toInt() and 0xFF
     val pageDiff = (enemyPage - screenPage - borrow1) and 0xFF
 

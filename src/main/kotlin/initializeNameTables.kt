@@ -4,7 +4,7 @@ import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.utils.InexactBitSetting
 
 
-fun System.initializeNameTables() {
+fun System.initializeNameTables(nextAction: () -> Unit) {
     //> InitializeNameTables:
     //> lda PPU_STATUS            ;reset flip-flop
     // This does not apply here.
@@ -25,7 +25,7 @@ fun System.initializeNameTables() {
     //> lda #$20                  ;and then set it to name table 0
     // We'll call these two after the declaration.
 
-    fun writeNtAddr(highByte: Byte) {
+    fun writeNtAddr(highByte: Byte, nextAction: () -> Unit) {
         //> WriteNTAddr:  sta PPU_ADDRESS
         //> lda #$00
         //> sta PPU_ADDRESS
@@ -67,11 +67,16 @@ fun System.initializeNameTables() {
 
         //> jmp InitScroll            ;initialize scroll registers to zero
         // The original code uses a subroutine to run this twice.
-        return initScroll(0x0)
+        initScroll(0x0)
+        waitForFrame(nextAction)
+        return
     }
     // These come from above the subroutine declaration
-    writeNtAddr(0x24.toByte())
-    writeNtAddr(0x20.toByte())
+    writeNtAddr(0x24.toByte()) {
+        writeNtAddr(0x20.toByte()) {
+            nextAction()
+        }
+    }
 }
 
 fun System.initScroll(a: Byte) {

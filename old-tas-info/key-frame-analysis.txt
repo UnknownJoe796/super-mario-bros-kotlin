@@ -1,0 +1,58 @@
+=== Detailed Comparison at Key Frames ===
+
+FCEUX Frame 41 state:
+  $0009 (FrameCounter) = 34
+  $000a (A_B_Buttons) = 0
+  $000c (Left_Right_Buttons) = 0
+  $001d (Player_State) = 0
+  $0057 (Player_X_Speed) = 0
+  $006d (Player_PageLoc) = 0
+  $0086 (Player_X_Position) = 40
+  $009f (Player_Y_Speed) = 0
+  $00ce (Player_Y_Position) = 176
+  $0704 (SwimmingFlag) = 0
+  $071a (ScreenLeft_PageLoc) = 0
+  $0754 (PlayerSize) = 1
+  $075a (NumberofLives) = 2
+  $075f (WorldNumber) = 0
+  $0760 (LevelNumber) = 0
+  $0770 (OperMode) = 1
+  $0772 (OperMode_Task) = 0
+  $077f (IntervalTimerControl) = 7
+  $06fc (SavedJoypad1Bits) = 16
+
+Finding best matching interpreter frame...
+  Interp Frame 38: total diff score = 30
+  Interp Frame 39: total diff score = 28
+  Interp Frame 40: total diff score = 26
+  Interp Frame 41: total diff score = 24
+  Interp Frame 42: total diff score = 24
+  Interp Frame 43: total diff score = 22
+  Interp Frame 44: total diff score = 22
+  Interp Frame 45: total diff score = 22
+  Interp Frame 46: total diff score = 24
+  Interp Frame 47: total diff score = 26
+  Interp Frame 48: total diff score = 28
+
+Best match: Interpreter frame 43 (diff score: 22)
+
+Comparison (FCEUX frame 41 vs Interpreter frame 43):
+  $0009 (FrameCounter): FCEUX=34 = INTERP=34
+  $000a (A_B_Buttons): FCEUX=0 = INTERP=0
+  $000c (Left_Right_Buttons): FCEUX=0 = INTERP=0
+  $001d (Player_State): FCEUX=0 = INTERP=0
+  $0057 (Player_X_Speed): FCEUX=0 = INTERP=0
+  $006d (Player_PageLoc): FCEUX=0 = INTERP=0
+  $0086 (Player_X_Position): FCEUX=40 = INTERP=40
+  $009f (Player_Y_Speed): FCEUX=0 = INTERP=0
+  $00ce (Player_Y_Position): FCEUX=176 = INTERP=176
+  $0704 (SwimmingFlag): FCEUX=0 = INTERP=0
+  $071a (ScreenLeft_PageLoc): FCEUX=0 = INTERP=0
+  $0754 (PlayerSize): FCEUX=1 = INTERP=1
+  $075a (NumberofLives): FCEUX=2 = INTERP=2
+  $075f (WorldNumber): FCEUX=0 = INTERP=0
+  $0760 (LevelNumber): FCEUX=0 = INTERP=0
+  $0770 (OperMode): FCEUX=1 != INTERP=0
+  $0772 (OperMode_Task): FCEUX=0 != INTERP=3
+  $077f (IntervalTimerControl): FCEUX=7 != INTERP=9
+  $06fc (SavedJoypad1Bits): FCEUX=16 != INTERP=0

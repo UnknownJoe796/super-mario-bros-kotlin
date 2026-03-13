@@ -92,7 +92,7 @@ fun System.scrollHandler() {
  * Applies the computed scroll amount: updates ScrollAmount, ScrollThirtyTwo,
  * screen left position, horizontal scroll register, page locations, and PPU nametable bit.
  */
-private fun System.scrollScreen(scrollValue: Int) {
+fun System.scrollScreen(scrollValue: Int) {
     //> ScrollScreen:
     //> tya
     //> sta ScrollAmount          ;save value here

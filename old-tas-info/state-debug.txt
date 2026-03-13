@@ -1,0 +1,273 @@
+Frame 0: Mode=0 Level=256-1 pg=0 x=255 FC=0 -> inputIdx=0 btn=0x0
+Frame 38: Mode=0 Level=1-1 pg=0 x=40 FC=29 -> inputIdx=28 btn=0x0
+Frame 39: Mode=0 Level=1-1 pg=0 x=40 FC=30 -> inputIdx=29 btn=0x0
+Frame 40: Mode=0 Level=1-1 pg=0 x=40 FC=31 -> inputIdx=30 btn=0x0
+Frame 41: Mode=0 Level=1-1 pg=0 x=40 FC=32 -> inputIdx=31 btn=0x0
+Frame 42: Mode=0 Level=1-1 pg=0 x=40 FC=33 -> inputIdx=32 btn=0x0
+Frame 43: Mode=0 Level=1-1 pg=0 x=40 FC=33 -> inputIdx=33 btn=0x0
+Frame 44: Mode=0 Level=1-1 pg=0 x=40 FC=34 -> inputIdx=34 btn=0x0
+Frame 45: Mode=0 Level=1-1 pg=0 x=40 FC=35 -> inputIdx=35 btn=0x0
+Frame 46: Mode=0 Level=1-1 pg=0 x=40 FC=36 -> inputIdx=36 btn=0x0
+Frame 47: Mode=0 Level=1-1 pg=0 x=40 FC=37 -> inputIdx=37 btn=0x0
+Frame 48: Mode=0 Level=1-1 pg=0 x=40 FC=38 -> inputIdx=38 btn=0x0
+>>> GAMEPLAY STARTED at interpreter frame 52
+Frame 52: Level transition to 1-1
+Frame 180: Mode=1 Level=1-1 pg=0 x=0 FC=127 -> inputIdx=184 btn=0x0
+Frame 181: Mode=1 Level=1-1 pg=0 x=0 FC=128 -> inputIdx=185 btn=0x0
+Frame 182: Mode=1 Level=1-1 pg=0 x=0 FC=129 -> inputIdx=186 btn=0x0
+Frame 183: Mode=1 Level=1-1 pg=0 x=0 FC=130 -> inputIdx=187 btn=0x0
+Frame 184: Mode=1 Level=1-1 pg=0 x=0 FC=131 -> inputIdx=188 btn=0x0
+Frame 185: Mode=1 Level=1-1 pg=0 x=0 FC=132 -> inputIdx=189 btn=0x0
+Frame 186: Mode=1 Level=1-1 pg=0 x=0 FC=133 -> inputIdx=190 btn=0x0
+Frame 187: Mode=1 Level=1-1 pg=0 x=0 FC=134 -> inputIdx=191 btn=0x0
+=== Frame 187 (G150) Controller Debug ===
+  Before setButtons: inputIdx=191 buttons=0x00
+  CTRL: setButtons(0x00) player1Buttons was 0x00
+  CTRL: writeStrobe(1) strobe=false->true shiftReg=0x00 player1Buttons=0x00
+  CTRL: Latched buttons -> shiftReg=0x00
+  CTRL: writeStrobe(0) strobe=true->false shiftReg=0x00 player1Buttons=0x00
+  CTRL: Strobe cycle complete, read 8 bits = 0x00
+  CTRL: read() #0 shiftReg=0x00 -> bit=0
+  CTRL: read() #1 shiftReg=0x00 -> bit=0
+  CTRL: read() #2 shiftReg=0x00 -> bit=0
+  CTRL: read() #3 shiftReg=0x00 -> bit=0
+  CTRL: read() #4 shiftReg=0x00 -> bit=0
+  CTRL: read() #5 shiftReg=0x00 -> bit=0
+  CTRL: read() #6 shiftReg=0x00 -> bit=0
+  CTRL: read() #7 shiftReg=0x00 -> bit=0
+  END OF FRAME 187: $0A=0x00 $0C=0x00 $6FC=0x00
+Frame 188: Mode=1 Level=1-1 pg=0 x=0 FC=135 -> inputIdx=192 btn=0x0
+=== Frame 188 (G151) Controller Debug ===
+  Before setButtons: inputIdx=192 buttons=0x00
+  CTRL: setButtons(0x00) player1Buttons was 0x00
+  CTRL: writeStrobe(1) strobe=false->true shiftReg=0x00 player1Buttons=0x00
+  CTRL: Latched buttons -> shiftReg=0x00
+  CTRL: writeStrobe(0) strobe=true->false shiftReg=0x00 player1Buttons=0x00
+  CTRL: Strobe cycle complete, read 8 bits = 0x00
+  CTRL: read() #0 shiftReg=0x00 -> bit=0
+  CTRL: read() #1 shiftReg=0x00 -> bit=0
+  CTRL: read() #2 shiftReg=0x00 -> bit=0
+  CTRL: read() #3 shiftReg=0x00 -> bit=0
+  CTRL: read() #4 shiftReg=0x00 -> bit=0
+  CTRL: read() #5 shiftReg=0x00 -> bit=0
+  CTRL: read() #6 shiftReg=0x00 -> bit=0
+  CTRL: read() #7 shiftReg=0x00 -> bit=0
+  END OF FRAME 188: $0A=0x00 $0C=0x00 $6FC=0x00
+Frame 189: Mode=1 Level=1-1 pg=0 x=0 FC=136 -> inputIdx=193 btn=0x0
+=== Frame 189 (G152) Controller Debug ===
+  Before setButtons: inputIdx=193 buttons=0x00
+  CTRL: setButtons(0x00) player1Buttons was 0x00
+  CTRL: writeStrobe(1) strobe=false->true shiftReg=0x00 player1Buttons=0x00
+  CTRL: Latched buttons -> shiftReg=0x00
+  CTRL: writeStrobe(0) strobe=true->false shiftReg=0x00 player1Buttons=0x00
+  CTRL: Strobe cycle complete, read 8 bits = 0x00
+  CTRL: read() #0 shiftReg=0x00 -> bit=0
+  CTRL: read() #1 shiftReg=0x00 -> bit=0
+  CTRL: read() #2 shiftReg=0x00 -> bit=0
+  CTRL: read() #3 shiftReg=0x00 -> bit=0
+  CTRL: read() #4 shiftReg=0x00 -> bit=0
+  CTRL: read() #5 shiftReg=0x00 -> bit=0
+  CTRL: read() #6 shiftReg=0x00 -> bit=0
+  CTRL: read() #7 shiftReg=0x00 -> bit=0
+  END OF FRAME 189: $0A=0x00 $0C=0x00 $6FC=0x00
+Frame 190: Mode=1 Level=1-1 pg=0 x=0 FC=137 -> inputIdx=194 btn=0x0
+=== Frame 190 (G153) Controller Debug ===
+  Before setButtons: inputIdx=194 buttons=0x00
+  CTRL: setButtons(0x00) player1Buttons was 0x00
+  CTRL: writeStrobe(1) strobe=false->true shiftReg=0x00 player1Buttons=0x00
+  CTRL: Latched buttons -> shiftReg=0x00
+  CTRL: writeStrobe(0) strobe=true->false shiftReg=0x00 player1Buttons=0x00
+  CTRL: Strobe cycle complete, read 8 bits = 0x00
+  CTRL: read() #0 shiftReg=0x00 -> bit=0
+  CTRL: read() #1 shiftReg=0x00 -> bit=0
+  CTRL: read() #2 shiftReg=0x00 -> bit=0
+  CTRL: read() #3 shiftReg=0x00 -> bit=0
+  CTRL: read() #4 shiftReg=0x00 -> bit=0
+  CTRL: read() #5 shiftReg=0x00 -> bit=0
+  CTRL: read() #6 shiftReg=0x00 -> bit=0
+  CTRL: read() #7 shiftReg=0x00 -> bit=0
+  END OF FRAME 190: $0A=0x00 $0C=0x00 $6FC=0x00
+Frame 191: Mode=1 Level=1-1 pg=0 x=0 FC=138 -> inputIdx=195 btn=0xc0
+=== Frame 191 (G154) Controller Debug ===
+  Before setButtons: inputIdx=195 buttons=0xc0
+  CTRL: setButtons(0xc0) player1Buttons was 0x00
+  CTRL: writeStrobe(1) strobe=false->true shiftReg=0x00 player1Buttons=0xc0
+  CTRL: Latched buttons -> shiftReg=0xc0
+  CTRL: writeStrobe(0) strobe=true->false shiftReg=0xc0 player1Buttons=0xc0
+  CTRL: Strobe cycle complete, read 8 bits = 0x00
+  CTRL: read() #0 shiftReg=0xc0 -> bit=0
+  CTRL: read() #1 shiftReg=0x60 -> bit=0
+  CTRL: read() #2 shiftReg=0x30 -> bit=0
+  CTRL: read() #3 shiftReg=0x18 -> bit=0
+  CTRL: read() #4 shiftReg=0x0c -> bit=0
+  CTRL: read() #5 shiftReg=0x06 -> bit=0
+  CTRL: read() #6 shiftReg=0x03 -> bit=1
+  CTRL: read() #7 shiftReg=0x01 -> bit=1
+  END OF FRAME 191: $0A=0x00 $0C=0x00 $6FC=0x03
+Frame 192: Mode=1 Level=1-1 pg=0 x=0 FC=139 -> inputIdx=196 btn=0x81
+=== Frame 192 (G155) Controller Debug ===
+  Before setButtons: inputIdx=196 buttons=0x81
+  CTRL: setButtons(0x81) player1Buttons was 0xc0
+  CTRL: writeStrobe(1) strobe=false->true shiftReg=0x00 player1Buttons=0x81
+  CTRL: Latched buttons -> shiftReg=0x81
+  CTRL: writeStrobe(0) strobe=true->false shiftReg=0x81 player1Buttons=0x81
+  CTRL: Strobe cycle complete, read 8 bits = 0xc0
+  CTRL: read() #0 shiftReg=0x81 -> bit=1
+  CTRL: read() #1 shiftReg=0x40 -> bit=0
+  CTRL: read() #2 shiftReg=0x20 -> bit=0
+  CTRL: read() #3 shiftReg=0x10 -> bit=0
+  CTRL: read() #4 shiftReg=0x08 -> bit=0
+  CTRL: read() #5 shiftReg=0x04 -> bit=0
+  CTRL: read() #6 shiftReg=0x02 -> bit=0
+  CTRL: read() #7 shiftReg=0x01 -> bit=1
+  END OF FRAME 192: $0A=0x00 $0C=0x00 $6FC=0x81
+Frame 193: Mode=1 Level=1-1 pg=0 x=0 FC=140 -> inputIdx=197 btn=0x80
+=== Frame 193 (G156) Controller Debug ===
+  Before setButtons: inputIdx=197 buttons=0x80
+  CTRL: setButtons(0x80) player1Buttons was 0x81
+  CTRL: writeStrobe(1) strobe=false->true shiftReg=0x00 player1Buttons=0x80
+  CTRL: Latched buttons -> shiftReg=0x80
+  CTRL: writeStrobe(0) strobe=true->false shiftReg=0x80 player1Buttons=0x80
+  CTRL: Strobe cycle complete, read 8 bits = 0x81
+  CTRL: read() #0 shiftReg=0x80 -> bit=0
+  CTRL: read() #1 shiftReg=0x40 -> bit=0
+  CTRL: read() #2 shiftReg=0x20 -> bit=0
+  CTRL: read() #3 shiftReg=0x10 -> bit=0
+  CTRL: read() #4 shiftReg=0x08 -> bit=0
+  CTRL: read() #5 shiftReg=0x04 -> bit=0
+  CTRL: read() #6 shiftReg=0x02 -> bit=0
+  CTRL: read() #7 shiftReg=0x01 -> bit=1
+  END OF FRAME 193: $0A=0x00 $0C=0x00 $6FC=0x01
+Frame 194: Mode=1 Level=1-1 pg=0 x=0 FC=141 -> inputIdx=198 btn=0x80
+=== Frame 194 (G157) Controller Debug ===
+  Before setButtons: inputIdx=198 buttons=0x80
+  CTRL: setButtons(0x80) player1Buttons was 0x80
+  CTRL: writeStrobe(1) strobe=false->true shiftReg=0x00 player1Buttons=0x80
+  CTRL: Latched buttons -> shiftReg=0x80
+  CTRL: writeStrobe(0) strobe=true->false shiftReg=0x80 player1Buttons=0x80
+  CTRL: Strobe cycle complete, read 8 bits = 0x80
+  CTRL: read() #0 shiftReg=0x80 -> bit=0
+  CTRL: read() #1 shiftReg=0x40 -> bit=0
+  CTRL: read() #2 shiftReg=0x20 -> bit=0
+  CTRL: read() #3 shiftReg=0x10 -> bit=0
+  CTRL: read() #4 shiftReg=0x08 -> bit=0
+  CTRL: read() #5 shiftReg=0x04 -> bit=0
+  CTRL: read() #6 shiftReg=0x02 -> bit=0
+  CTRL: read() #7 shiftReg=0x01 -> bit=1
+  END OF FRAME 194: $0A=0x00 $0C=0x00 $6FC=0x01
+Frame 195: Mode=1 Level=1-1 pg=0 x=0 FC=142 -> inputIdx=199 btn=0x80
+=== Frame 195 (G158) Controller Debug ===
+  Before setButtons: inputIdx=199 buttons=0x80
+  CTRL: setButtons(0x80) player1Buttons was 0x80
+  CTRL: writeStrobe(1) strobe=false->true shiftReg=0x00 player1Buttons=0x80
+  CTRL: Latched buttons -> shiftReg=0x80
+  CTRL: writeStrobe(0) strobe=true->false shiftReg=0x80 player1Buttons=0x80
+  CTRL: Strobe cycle complete, read 8 bits = 0x80
+  CTRL: read() #0 shiftReg=0x80 -> bit=0
+  CTRL: read() #1 shiftReg=0x40 -> bit=0
+  CTRL: read() #2 shiftReg=0x20 -> bit=0
+  CTRL: read() #3 shiftReg=0x10 -> bit=0
+  CTRL: read() #4 shiftReg=0x08 -> bit=0
+  CTRL: read() #5 shiftReg=0x04 -> bit=0
+  CTRL: read() #6 shiftReg=0x02 -> bit=0
+  CTRL: read() #7 shiftReg=0x01 -> bit=1
+  END OF FRAME 195: $0A=0x00 $0C=0x00 $6FC=0x01
+Frame 196: Mode=1 Level=1-1 pg=0 x=0 FC=143 -> inputIdx=200 btn=0x80
+=== Frame 196 (G159) Controller Debug ===
+  Before setButtons: inputIdx=200 buttons=0x80
+  CTRL: setButtons(0x80) player1Buttons was 0x80
+  CTRL: writeStrobe(1) strobe=false->true shiftReg=0x00 player1Buttons=0x80
+  CTRL: Latched buttons -> shiftReg=0x80
+  CTRL: writeStrobe(0) strobe=true->false shiftReg=0x80 player1Buttons=0x80
+  CTRL: Strobe cycle complete, read 8 bits = 0x80
+  CTRL: read() #0 shiftReg=0x80 -> bit=0
+  CTRL: read() #1 shiftReg=0x40 -> bit=0
+  CTRL: read() #2 shiftReg=0x20 -> bit=0
+  CTRL: read() #3 shiftReg=0x10 -> bit=0
+  CTRL: read() #4 shiftReg=0x08 -> bit=0
+  CTRL: read() #5 shiftReg=0x04 -> bit=0
+  CTRL: read() #6 shiftReg=0x02 -> bit=0
+  CTRL: read() #7 shiftReg=0x01 -> bit=1
+  END OF FRAME 196: $0A=0x00 $0C=0x00 $6FC=0x01
+Frame 197: Mode=1 Level=1-1 pg=0 x=0 FC=144 -> inputIdx=201 btn=0x80
+=== Frame 197 (G160) Controller Debug ===
+  Before setButtons: inputIdx=201 buttons=0x80
+  CTRL: setButtons(0x80) player1Buttons was 0x80
+  CTRL: writeStrobe(1) strobe=false->true shiftReg=0x00 player1Buttons=0x80
+  CTRL: Latched buttons -> shiftReg=0x80
+  CTRL: writeStrobe(0) strobe=true->false shiftReg=0x80 player1Buttons=0x80
+  CTRL: Strobe cycle complete, read 8 bits = 0x80
+  CTRL: read() #0 shiftReg=0x80 -> bit=0
+  CTRL: read() #1 shiftReg=0x40 -> bit=0
+  CTRL: read() #2 shiftReg=0x20 -> bit=0
+  CTRL: read() #3 shiftReg=0x10 -> bit=0
+  CTRL: read() #4 shiftReg=0x08 -> bit=0
+  CTRL: read() #5 shiftReg=0x04 -> bit=0
+  CTRL: read() #6 shiftReg=0x02 -> bit=0
+  CTRL: read() #7 shiftReg=0x01 -> bit=1
+  END OF FRAME 197: $0A=0x00 $0C=0x00 $6FC=0x01
+Frame 198: Mode=1 Level=1-1 pg=0 x=0 FC=145 -> inputIdx=202 btn=0x80
+Frame 199: Mode=1 Level=1-1 pg=0 x=0 FC=146 -> inputIdx=203 btn=0x80
+Frame 200: Mode=1 Level=1-1 pg=0 x=0 FC=147 -> inputIdx=204 btn=0x80
+Frame 500: Mode=1 Level=1-1 pg=0 x=100 FC=191 -> inputIdx=504 btn=0x0
+Frame 650: Mode=1 Level=1-1 pg=0 x=102 FC=84 -> inputIdx=654 btn=0x40
+Frame 651: Mode=1 Level=1-1 pg=0 x=102 FC=85 -> inputIdx=655 btn=0x40
+Frame 652: Mode=1 Level=1-1 pg=0 x=102 FC=86 -> inputIdx=656 btn=0x40
+Frame 653: Mode=1 Level=1-1 pg=0 x=102 FC=86 -> inputIdx=657 btn=0x80
+Frame 654: Mode=1 Level=1-1 pg=0 x=102 FC=88 -> inputIdx=658 btn=0x80
+Frame 655: Mode=1 Level=1-1 pg=0 x=102 FC=89 -> inputIdx=659 btn=0x80
+Frame 656: Mode=1 Level=1-1 pg=0 x=102 FC=90 -> inputIdx=660 btn=0x80
+Frame 657: Mode=1 Level=1-1 pg=0 x=102 FC=91 -> inputIdx=661 btn=0x80
+Frame 658: Mode=1 Level=1-1 pg=0 x=102 FC=92 -> inputIdx=662 btn=0x0
+Frame 659: Mode=1 Level=1-1 pg=0 x=102 FC=93 -> inputIdx=663 btn=0x80
+Frame 660: Mode=1 Level=1-1 pg=0 x=102 FC=94 -> inputIdx=664 btn=0x80
+Frame 661: Mode=1 Level=1-1 pg=0 x=102 FC=95 -> inputIdx=665 btn=0x80
+Frame 662: Mode=1 Level=1-1 pg=0 x=102 FC=96 -> inputIdx=666 btn=0x80
+Frame 663: Mode=1 Level=1-1 pg=0 x=103 FC=97 -> inputIdx=667 btn=0x80
+Frame 664: Mode=1 Level=1-1 pg=0 x=103 FC=98 -> inputIdx=668 btn=0x80
+Frame 665: Mode=1 Level=1-1 pg=0 x=103 FC=99 -> inputIdx=669 btn=0x80
+Frame 666: Mode=1 Level=1-1 pg=0 x=103 FC=100 -> inputIdx=670 btn=0x80
+Frame 667: Mode=1 Level=1-1 pg=0 x=104 FC=101 -> inputIdx=671 btn=0x80
+Frame 668: Mode=1 Level=1-1 pg=0 x=104 FC=102 -> inputIdx=672 btn=0x80
+Frame 669: Mode=1 Level=1-1 pg=0 x=105 FC=103 -> inputIdx=673 btn=0x80
+Frame 670: Mode=1 Level=1-1 pg=0 x=105 FC=104 -> inputIdx=674 btn=0x80
+Frame 671: Mode=1 Level=1-1 pg=0 x=106 FC=105 -> inputIdx=675 btn=0x80
+Frame 672: Mode=1 Level=1-1 pg=0 x=106 FC=106 -> inputIdx=676 btn=0x80
+Frame 673: Mode=1 Level=1-1 pg=0 x=107 FC=107 -> inputIdx=677 btn=0x80
+Frame 674: Mode=1 Level=1-1 pg=0 x=108 FC=108 -> inputIdx=678 btn=0x80
+Frame 675: Mode=1 Level=1-1 pg=0 x=108 FC=109 -> inputIdx=679 btn=0x80
+Frame 676: Mode=1 Level=1-1 pg=0 x=109 FC=110 -> inputIdx=680 btn=0x80
+Frame 677: Mode=1 Level=1-1 pg=0 x=110 FC=111 -> inputIdx=681 btn=0x80
+Frame 678: Mode=1 Level=1-1 pg=0 x=110 FC=112 -> inputIdx=682 btn=0x80
+Frame 679: Mode=1 Level=1-1 pg=0 x=111 FC=113 -> inputIdx=683 btn=0x80
+Frame 680: Mode=1 Level=1-1 pg=1 x=112 FC=114 -> inputIdx=684 btn=0x80
+Frame 681: Mode=1 Level=1-1 pg=1 x=113 FC=115 -> inputIdx=685 btn=0x80
+Frame 682: Mode=1 Level=1-1 pg=1 x=114 FC=116 -> inputIdx=686 btn=0x80
+Frame 683: Mode=1 Level=1-1 pg=1 x=115 FC=117 -> inputIdx=687 btn=0x80
+Frame 684: Mode=1 Level=1-1 pg=1 x=116 FC=118 -> inputIdx=688 btn=0x81
+Frame 685: Mode=1 Level=1-1 pg=1 x=117 FC=119 -> inputIdx=689 btn=0x81
+Frame 686: Mode=1 Level=1-1 pg=1 x=118 FC=120 -> inputIdx=690 btn=0x81
+Frame 687: Mode=1 Level=1-1 pg=1 x=119 FC=120 -> inputIdx=691 btn=0x81
+Frame 688: Mode=1 Level=1-1 pg=1 x=120 FC=122 -> inputIdx=692 btn=0x81
+Frame 689: Mode=1 Level=1-1 pg=1 x=122 FC=123 -> inputIdx=693 btn=0x81
+Frame 690: Mode=1 Level=1-1 pg=1 x=123 FC=124 -> inputIdx=694 btn=0x81
+Frame 691: Mode=1 Level=1-1 pg=1 x=124 FC=125 -> inputIdx=695 btn=0x81
+Frame 692: Mode=1 Level=1-1 pg=1 x=125 FC=126 -> inputIdx=696 btn=0x81
+Frame 693: Mode=1 Level=1-1 pg=1 x=127 FC=127 -> inputIdx=697 btn=0x81
+Frame 694: Mode=1 Level=1-1 pg=1 x=128 FC=128 -> inputIdx=698 btn=0x80
+Frame 695: Mode=1 Level=1-1 pg=1 x=130 FC=129 -> inputIdx=699 btn=0x80
+Frame 696: Mode=1 Level=1-1 pg=1 x=131 FC=130 -> inputIdx=700 btn=0x80
+Frame 697: Mode=1 Level=1-1 pg=1 x=132 FC=131 -> inputIdx=701 btn=0x80
+Frame 698: Mode=1 Level=1-1 pg=1 x=134 FC=132 -> inputIdx=702 btn=0x0
+Frame 699: Mode=1 Level=1-1 pg=1 x=135 FC=133 -> inputIdx=703 btn=0x0
+Frame 700: Mode=1 Level=1-1 pg=1 x=137 FC=134 -> inputIdx=704 btn=0x0
+Frame 1000: Mode=1 Level=1-1 pg=1 x=167 FC=177 -> inputIdx=1004 btn=0x0
+Frame 1500: Mode=1 Level=1-1 pg=1 x=178 FC=165 -> inputIdx=1504 btn=0x0
+Frame 2000: Mode=1 Level=1-1 pg=1 x=178 FC=152 -> inputIdx=2004 btn=0x0
+Frame 2500: Mode=1 Level=1-1 pg=1 x=178 FC=139 -> inputIdx=2504 btn=0x80
+Frame 3000: Mode=1 Level=1-1 pg=2 x=113 FC=127 -> inputIdx=3004 btn=0x1
+Frame 3500: Mode=1 Level=1-1 pg=2 x=210 FC=115 -> inputIdx=3504 btn=0x82
+Frame 4000: Mode=1 Level=1-1 pg=2 x=146 FC=102 -> inputIdx=4004 btn=0x81
+Frame 4500: Mode=1 Level=1-1 pg=0 x=123 FC=213 -> inputIdx=4504 btn=0x82
+Frame 5000: Mode=1 Level=1-1 pg=1 x=178 FC=201 -> inputIdx=5004 btn=0x82
+Frame 5500: Mode=1 Level=1-1 pg=1 x=178 FC=189 -> inputIdx=5504 btn=0x0

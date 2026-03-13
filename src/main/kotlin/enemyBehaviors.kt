@@ -57,27 +57,27 @@ fun System.runNormalEnemies() {
     //> sta Enemy_SprAttrib,x
     ram.sprAttrib[1 + x] = 0  // by Claude - indexed by x (Enemy_SprAttrib,x)
     //> jsr GetEnemyOffscreenBits
-    getEnemyOffscreenBits()
+    shadow?.validated("getenemyoffscreenbits", this) { getEnemyOffscreenBits() } ?: getEnemyOffscreenBits()
     //> jsr RelativeEnemyPosition
-    relativeEnemyPosition()
+    shadow?.validated("relativeenemyposition", this) { relativeEnemyPosition() } ?: relativeEnemyPosition()
     //> jsr EnemyGfxHandler
     enemyGfxHandler()
     //> jsr GetEnemyBoundBox
-    getEnemyBoundBox()
+    shadow?.validated("getenemyboundbox", this) { getEnemyBoundBox() } ?: getEnemyBoundBox()
     //> jsr EnemyToBGCollisionDet
-    enemyToBGCollisionDet()
+    shadow?.validated("enemytobgcollisiondet", this) { enemyToBGCollisionDet() } ?: enemyToBGCollisionDet()
     //> jsr EnemiesCollision
-    enemiesCollision()
+    shadow?.validated("enemiescollision", this) { enemiesCollision() } ?: enemiesCollision()
     //> jsr PlayerEnemyCollision
-    playerEnemyCollision()
+    shadow?.validated("playerenemycollision", this) { playerEnemyCollision() } ?: playerEnemyCollision()
     //> ldy TimerControl          ;if master timer control set, skip to last routine
     //> bne SkipMove
     if (ram.timerControl == 0.toByte()) {
         //> jsr EnemyMovementSubs
-        enemyMovementSubs()
+        shadow?.validated("enemymovementsubs", this) { enemyMovementSubs() } ?: enemyMovementSubs()
     }
     //> SkipMove: jmp OffscreenBoundsCheck
-    offscreenBoundsCheck()
+    shadow?.validated("offscreenboundscheck", this) { offscreenBoundsCheck() } ?: offscreenBoundsCheck()
 }
 
 /**

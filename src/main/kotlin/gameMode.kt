@@ -16,7 +16,13 @@ fun System.gameCoreRoutine() {
     //> sta SavedJoypadBits        ;as the master controller bits
     ram.savedJoypadBits = if (ram.currentPlayer == 0.toByte()) ram.savedJoypad1Bits else ram.savedJoypad2Bits
     //> jsr GameRoutines           ;execute one of many possible subs
-    gameRoutines()
+    if (debugEnemyTrace) {
+        println("[GCR-pre] pX=${ram.playerXPosition.toInt() and 0xFF} pP=${ram.playerPageLoc.toInt() and 0xFF}")
+    }
+    shadow?.validated("gameroutines", this) { gameRoutines() } ?: gameRoutines()
+    if (debugEnemyTrace) {
+        println("[GCR-post] pX=${ram.playerXPosition.toInt() and 0xFF} pP=${ram.playerPageLoc.toInt() and 0xFF}")
+    }
     //> lda OperMode_Task          ;check major task of operating mode
     //> cmp #$03                   ;if we are supposed to be here,
     //> bcs GameEngine             ;branch to the game engine itself
@@ -69,9 +75,12 @@ fun System.gameRoutines() {
  * Called after GameRoutines when OperMode_Task >= 3.
  */
 fun System.gameEngine() {
+    if (debugEnemyTrace) {
+        println("[GE-start] pX=${ram.playerXPosition.toInt() and 0xFF} pP=${ram.playerPageLoc.toInt() and 0xFF} eX1=${ram.sprObjXPos[2].toInt() and 0xFF} eP1=${ram.sprObjPageLoc[2].toInt() and 0xFF} eState1=${ram.enemyState[1].toInt() and 0xFF} eDir1=${ram.enemyMovingDirs[1].toInt() and 0xFF}")
+    }
     //> GameEngine:
     //> jsr ProcFireball_Bubble    ;process fireballs and air bubbles
-    procFireballBubble()
+    shadow?.validated("procfireballBubble", this) { procFireballBubble() } ?: procFireballBubble()
 
     //> ldx #$00
     //> ProcELoop:
@@ -81,44 +90,44 @@ fun System.gameEngine() {
         //> jsr EnemiesAndLoopsCore    ;process enemy objects
         enemiesAndLoopsCore()
         //> jsr FloateyNumbersRoutine  ;process floatey numbers
-        floateyNumbersRoutine(x.toByte())
+        shadow?.validated("floateynumbersroutine", this) { floateyNumbersRoutine(x.toByte()) } ?: floateyNumbersRoutine(x.toByte())
         //> inx
         //> cpx #$06                   ;do these two subroutines until the whole buffer is done
         //> bne ProcELoop
     }
 
     //> jsr GetPlayerOffscreenBits ;get offscreen bits for player object
-    getPlayerOffscreenBits()
+    shadow?.validated("getplayeroffscreenbits", this) { getPlayerOffscreenBits() } ?: getPlayerOffscreenBits()
     //> jsr RelativePlayerPosition ;get relative coordinates for player object
-    relativePlayerPosition()
+    shadow?.validated("relativeplayerposition", this) { relativePlayerPosition() } ?: relativePlayerPosition()
     //> jsr PlayerGfxHandler       ;draw the player
-    playerGfxHandler()
+    shadow?.validated("playergfxhandler", this) { playerGfxHandler() } ?: playerGfxHandler()
     //> jsr BlockObjMT_Updater     ;replace block objects with metatiles if necessary
-    blockObjMTUpdater()
+    shadow?.validated("blockobjmtUpdater", this) { blockObjMTUpdater() } ?: blockObjMTUpdater()
 
     //> ldx #$01
     //> stx ObjectOffset           ;set offset for second
     ram.objectOffset = 1
     //> jsr BlockObjectsCore       ;process second block object
-    blockObjectsCore()
+    shadow?.validated("blockobjectscore", this) { blockObjectsCore() } ?: blockObjectsCore()
     //> dex
     //> stx ObjectOffset           ;set offset for first
     ram.objectOffset = 0
     //> jsr BlockObjectsCore       ;process first block object
-    blockObjectsCore()
+    shadow?.validated("blockobjectscore", this) { blockObjectsCore() } ?: blockObjectsCore()
 
     //> jsr MiscObjectsCore        ;process misc objects (hammer, jumping coins)
-    miscObjectsCore()
+    shadow?.validated("miscobjectscore", this) { miscObjectsCore() } ?: miscObjectsCore()
     //> jsr ProcessCannons         ;process bullet bill cannons
-    processCannons()
+    shadow?.validated("processcannons", this) { processCannons() } ?: processCannons()
     //> jsr ProcessWhirlpools      ;process whirlpools
-    processWhirlpools()
+    shadow?.validated("processwhirlpools", this) { processWhirlpools() } ?: processWhirlpools()
     //> jsr FlagpoleRoutine        ;process the flagpole
-    flagpoleRoutine()
+    shadow?.validated("flagpoleroutine", this) { flagpoleRoutine() } ?: flagpoleRoutine()
     //> jsr RunGameTimer           ;count down the game timer
-    runGameTimer()
+    shadow?.validated("rungametimer", this) { runGameTimer() } ?: runGameTimer()
     //> jsr ColorRotation          ;cycle one of the background colors
-    colorRotation()
+    shadow?.validated("colorrotation", this) { colorRotation() } ?: colorRotation()
 
     //> lda Player_Y_HighPos
     //> cmp #$02                   ;if player is below the screen, don't bother with the music
@@ -180,7 +189,7 @@ fun System.gameEngine() {
     ram.leftRightButtons = 0
 
     //> UpdScrollVar: (fall through from SaveAB)
-    updScrollVar()
+    shadow?.validated("updscrollvar", this) { updScrollVar() } ?: updScrollVar()
 }
 
 /**
@@ -290,7 +299,7 @@ fun System.blockObjMTUpdater() {
             buffer[bufIdx] = metatile.toByte()
         }
         //> jsr ReplaceBlockMetatile  ;do sub to replace metatile where block object is
-        replaceBlockMetatile(metatile)
+        replaceBlockMetatile(metatile, bbLow, vertOfs)
         //> lda #$00
         //> sta Block_RepFlag,x       ;clear block object flag
         ram.blockRepFlags[x] = 0

@@ -112,10 +112,8 @@ private fun System.removeBridge(x: Int) {
     val collapseOffset = ram.bridgeCollapseOffset.toInt() and 0xFF
     //> lda BridgeCollapseData,y  ;load low byte of name table address and store here
     //> sta $04
-    // Set currentNTAddr so remBridge writes to the correct nametable location.
-    // Assembly stores in scratch $04/$05; our port routes through currentNTAddr registers.
-    ram.currentNTAddrHigh = 0x22
-    ram.currentNTAddrLow = bridgeCollapseData[collapseOffset]
+    // Assembly stores nametable address in scratch $04/$05 (not currentNTAddr)
+    val ntAddr = (0x22 shl 8) or (bridgeCollapseData[collapseOffset].toInt() and 0xFF)
 
     //> ldy VRAM_Buffer1_Offset   ;increment vram buffer offset
     //> iny
@@ -124,7 +122,7 @@ private fun System.removeBridge(x: Int) {
     //> ldx #$0c                  ;set offset for tile data for sub to draw blank metatile
     //> jsr RemBridge             ;do sub here to remove bowser's bridge metatiles
     // $0c byte offset / 4 bytes per entry = index 3 = blank metatile in blockGfxData
-    remBridge(3)
+    remBridge(3, ntAddr)
 
     //> ldx ObjectOffset          ;get enemy offset
     //> jsr MoveVOffset           ;set new vram buffer offset

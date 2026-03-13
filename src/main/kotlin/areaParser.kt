@@ -698,7 +698,7 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
                 a = ram.areaData!![y]
                 //> and #%00001111             ;mask out higher nybble and jump
                 a = a and 0x0F
-                //> jmp NormObj
+                //> jmp NormObj                ;skip MoveAOId — small objects already have ID in low nibble
             } else {
                 //> LrgObj:   sta $00                    ;store value here (branch for large objects)
                 var temp00: Byte = highBits
@@ -718,7 +718,8 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
                 //> NotWPipe: lda $00                    ;get value and jump ahead
                 a = temp00
                 //> jmp MoveAOId
-                // fallthrough to MoveAOId below
+                // MoveAOId: shift d6-d4 to lower nybble
+                a = (a.toUByte() shr 4.toUByte()).toByte()
             }
         } else {
             //> SpecObj:  iny                        ;branch here for rows 12-15
@@ -727,13 +728,9 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
             a = ram.areaData!![y]
             //> and #%01110000             ;get next byte and mask out all but d6-d4
             a = a and 0b0111_0000.toByte()
-            // fallthrough to MoveAOId
+            // MoveAOId: shift d6-d4 to lower nybble
+            a = (a.toUByte() shr 4.toUByte()).toByte()
         }
-        //> MoveAOId:  lsr                        ;move d6-d4 to lower nybble
-        //>           lsr
-        //>           lsr
-        //>           lsr
-        a = (a.toUByte() shr 4.toUByte()).toByte()
     }
     //> NormObj:  sta $00                    ;store value here (branch for small objects and rows 13 and 14)
     val objId: Byte = a

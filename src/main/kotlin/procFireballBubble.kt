@@ -255,8 +255,10 @@ private fun System.setupBubble(x: Int, randBit: Int) {
 
     //> PosBubl: tya             ;use value loaded as adder
     //> adc Player_X_Position    ;add to player's horizontal position
+    // by Claude - carry from lsr is still set when facing right (d0=1), clear when facing left
+    val carry = ram.playerFacingDir.toInt() and 0x01
     val playerX = ram.playerXPosition.toInt() and 0xFF
-    val bubbleXResult = adder + playerX  // carry from lsr above
+    val bubbleXResult = adder + playerX + carry
     //> sta Bubble_X_Position,x
     ram.sprObjXPos[22 + x] = bubbleXResult.toByte()
     //> lda Player_PageLoc

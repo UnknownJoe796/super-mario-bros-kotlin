@@ -51,6 +51,19 @@ object RomData {
     //> .db $00, $03, $19, $1c
     val areaDataHOffsets = intArrayOf(0x00, 0x03, 0x19, 0x1c)
 
+    //> EnemyDataAddrLow/High: ROM addresses for each enemy data array.
+    // Used to set $E9/$EA (the indirect pointer the assembly uses for (EnemyData),y).
+    // Indexed 0-33, matching enemyDataArrays order.
+    val enemyDataAddresses = intArrayOf(
+        0x9D70, 0x9D97, 0x9DB0, 0x9DDF, 0x9E0A, 0x9E1F,  // CastleArea1-6
+        0x9E59, 0x9E7E, 0x9E9B, 0x9EA9, 0x9ED0, 0x9F01,  // GroundArea1-6
+        0x9F1F, 0x9F3C, 0x9F51, 0x9F7B, 0x9F7C, 0x9FA0,  // GroundArea7-12
+        0x9FA9, 0x9FCE, 0x9FF1, 0x9FFA, 0x9FFB, 0xA035,  // GroundArea13-18
+        0xA060, 0xA08E, 0xA0AA, 0xA0B3,                    // GroundArea19-22
+        0xA0D8, 0xA105, 0xA133,                             // UndergroundArea1-3
+        0xA160, 0xA171, 0xA19B,                             // WaterArea1-3
+    )
+
     // Enemy data arrays indexed 0-33, ordered as in EnemyDataAddrLow/High tables:
     // 0-5: CastleArea1-6, 6-27: GroundArea1-22, 28-30: UndergroundArea1-3, 31-33: WaterArea1-3
     val enemyDataArrays: Array<ByteArray> = arrayOf(
@@ -60,6 +73,19 @@ object RomData {
         E_GroundArea13, E_GroundArea14, E_GroundArea15, E_GroundArea16, E_GroundArea17, E_GroundArea18,
         E_GroundArea19, E_GroundArea20, E_GroundArea21, E_GroundArea22, E_UndergroundArea1,
         E_UndergroundArea2, E_UndergroundArea3, E_WaterArea1, E_WaterArea2, E_WaterArea3,
+    )
+
+    //> AreaDataAddrLow/High: ROM addresses for each area data array.
+    // Used to set $E7/$E8 (the indirect pointer the assembly uses for (AreaData),y).
+    // Indexed 0-33, matching areaDataArrays order.
+    val areaDataAddresses = intArrayOf(
+        0xAE06, 0xAE45, 0xAEC0,                             // WaterArea1-3
+        0xA46B, 0xA4CE, 0xA537, 0xA58A, 0xA619, 0xA68E,  // GroundArea1-6
+        0xA6F3, 0xA748, 0xA7CD, 0xA832, 0xA83B, 0xA87A,  // GroundArea7-12
+        0xA88F, 0xA8F6, 0xA95B, 0xA9CE, 0xA9FF, 0xAA92,  // GroundArea13-18
+        0xAB05, 0xAB7E, 0xABD7, 0xAC02,                    // GroundArea19-22
+        0xAC35, 0xACD8, 0xAD79,                             // UndergroundArea1-3
+        0xA1AF, 0xA210, 0xA28F, 0xA302, 0xA36F, 0xA3FA,  // CastleArea1-6
     )
 
     // Area (level) data arrays indexed 0-33, ordered as in AreaDataAddrLow/High tables:

@@ -12,10 +12,10 @@ fun System.operModeExecutionTree(): Unit {
     //> .dw VictoryMode
     //> .dw GameOverMode
     when(ram.operMode) {
-        OperMode.TitleScreen -> titleScreenMode()
-        OperMode.Game -> gameMode()
-        OperMode.Victory -> victoryMode()
-        OperMode.GameOver -> gameOverMode()
+        OperMode.TitleScreen -> shadow?.validated("titlescreenmode", this) { titleScreenMode() } ?: titleScreenMode()
+        OperMode.Game -> shadow?.validated("gamemode", this) { gameMode() } ?: gameMode()
+        OperMode.Victory -> shadow?.validated("victorymode", this) { victoryMode() } ?: victoryMode()
+        OperMode.GameOver -> shadow?.validated("gameovermode", this) { gameOverMode() } ?: gameOverMode()
     }
 }
 

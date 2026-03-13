@@ -1,0 +1,241 @@
+=== EARLY FRAME ANALYSIS ===
+
+=== FRAME 0 ===
+  ✓ FrameCounter ($0009): FCEUX=0 INTERP=0
+  ✓ IntervalTimerControl ($077f): FCEUX=255 INTERP=255
+  ✓ OperMode ($0770): FCEUX=0 INTERP=0
+  ✓ OperMode_Task ($0772): FCEUX=0 INTERP=0
+  ✓ Player_X_Position ($0086): FCEUX=255 INTERP=255
+  ✓ Player_Y_Position ($00ce): FCEUX=255 INTERP=255
+  ✓ SavedJoypad1Bits ($06fc): FCEUX=255 INTERP=255
+  ✓ PlayerSize ($0754): FCEUX=255 INTERP=255
+  ✓ WorldNumber ($075f): FCEUX=255 INTERP=255
+  Total RAM differences: 0 / 2048 bytes
+
+=== FRAME 1 ===
+  ✓ FrameCounter ($0009): FCEUX=0 INTERP=0
+  ✗ IntervalTimerControl ($077f): FCEUX=255 INTERP=0
+  ✓ OperMode ($0770): FCEUX=0 INTERP=0
+  ✓ OperMode_Task ($0772): FCEUX=0 INTERP=0
+  ✓ Player_X_Position ($0086): FCEUX=255 INTERP=255
+  ✓ Player_Y_Position ($00ce): FCEUX=255 INTERP=255
+  ✓ SavedJoypad1Bits ($06fc): FCEUX=255 INTERP=255
+  ✓ PlayerSize ($0754): FCEUX=255 INTERP=255
+  ✓ WorldNumber ($075f): FCEUX=255 INTERP=255
+  Total RAM differences: 79 / 2048 bytes
+
+=== FRAME 2 ===
+  ✓ FrameCounter ($0009): FCEUX=0 INTERP=0
+  ✗ IntervalTimerControl ($077f): FCEUX=255 INTERP=0
+  ✓ OperMode ($0770): FCEUX=0 INTERP=0
+  ✓ OperMode_Task ($0772): FCEUX=0 INTERP=0
+  ✗ Player_X_Position ($0086): FCEUX=255 INTERP=0
+  ✗ Player_Y_Position ($00ce): FCEUX=255 INTERP=0
+  ✗ SavedJoypad1Bits ($06fc): FCEUX=255 INTERP=0
+  ✗ PlayerSize ($0754): FCEUX=255 INTERP=0
+  ✗ WorldNumber ($075f): FCEUX=255 INTERP=0
+  Total RAM differences: 925 / 2048 bytes
+
+=== FRAME 3 ===
+  ✓ FrameCounter ($0009): FCEUX=0 INTERP=0
+  ✓ IntervalTimerControl ($077f): FCEUX=0 INTERP=0
+  ✓ OperMode ($0770): FCEUX=0 INTERP=0
+  ✓ OperMode_Task ($0772): FCEUX=0 INTERP=0
+  ✗ Player_X_Position ($0086): FCEUX=255 INTERP=0
+  ✗ Player_Y_Position ($00ce): FCEUX=255 INTERP=0
+  ✓ SavedJoypad1Bits ($06fc): FCEUX=0 INTERP=0
+  ✓ PlayerSize ($0754): FCEUX=0 INTERP=0
+  ✓ WorldNumber ($075f): FCEUX=0 INTERP=0
+  Total RAM differences: 246 / 2048 bytes
+
+=== FRAME 4 ===
+  ✗ FrameCounter ($0009): FCEUX=0 INTERP=1
+  ✗ IntervalTimerControl ($077f): FCEUX=0 INTERP=20
+  ✓ OperMode ($0770): FCEUX=0 INTERP=0
+  ✓ OperMode_Task ($0772): FCEUX=0 INTERP=0
+  ✓ Player_X_Position ($0086): FCEUX=0 INTERP=0
+  ✓ Player_Y_Position ($00ce): FCEUX=0 INTERP=0
+  ✓ SavedJoypad1Bits ($06fc): FCEUX=0 INTERP=0
+  ✓ PlayerSize ($0754): FCEUX=0 INTERP=0
+  ✓ WorldNumber ($075f): FCEUX=0 INTERP=0
+  Total RAM differences: 16 / 2048 bytes
+
+=== FRAME 5 ===
+  ✓ FrameCounter ($0009): FCEUX=1 INTERP=1
+  ✓ IntervalTimerControl ($077f): FCEUX=20 INTERP=20
+  ✓ OperMode ($0770): FCEUX=0 INTERP=0
+  ✓ OperMode_Task ($0772): FCEUX=0 INTERP=0
+  ✓ Player_X_Position ($0086): FCEUX=0 INTERP=0
+  ✓ Player_Y_Position ($00ce): FCEUX=0 INTERP=0
+  ✓ SavedJoypad1Bits ($06fc): FCEUX=0 INTERP=0
+  ✓ PlayerSize ($0754): FCEUX=0 INTERP=0
+  ✓ WorldNumber ($075f): FCEUX=0 INTERP=0
+  Total RAM differences: 1 / 2048 bytes
+
+=== CHANGES FROM FRAME 0 TO FRAME 1 ===
+
+FCEUX changes:
+
+Interpreter changes:
+  $0006 : 255 -> 0
+  $0007 : 255 -> 7
+  $01fe : 255 -> 45
+  $01ff : 255 -> 128
+  $076c : 255 -> 0
+  $076d : 255 -> 0
+  $076e : 255 -> 0
+  $076f : 255 -> 0
+  $0774 : 255 -> 0
+  $0775 : 255 -> 0
+  $0776 : 255 -> 0
+  $0777 : 255 -> 0
+  $077c : 255 -> 0
+  $077d : 255 -> 0
+  $077e : 255 -> 0
+  $077f IntervalTimerControl: 255 -> 0
+  $0784 : 255 -> 0
+  $0785 : 255 -> 0
+  $0786 : 255 -> 0
+  $0787 : 255 -> 0
+  $078c : 255 -> 0
+  $078d : 255 -> 0
+  $078e : 255 -> 0
+  $078f : 255 -> 0
+  $0794 : 255 -> 0
+  $0795 : 255 -> 0
+  $0796 : 255 -> 0
+  $0797 : 255 -> 0
+  $079c : 255 -> 0
+  $079d : 255 -> 0
+  $079e : 255 -> 0
+  $079f : 255 -> 0
+  $07a4 : 255 -> 0
+  $07a5 : 255 -> 0
+  $07a6 : 255 -> 0
+  $07a7 : 255 -> 0
+  $07ac : 255 -> 0
+  $07ad : 255 -> 0
+  $07ae : 255 -> 0
+  $07af : 255 -> 0
+  $07b4 : 255 -> 0
+  $07b5 : 255 -> 0
+  $07b6 : 255 -> 0
+  $07b7 : 255 -> 0
+  $07bc : 255 -> 0
+  $07bd : 255 -> 0
+  $07be : 255 -> 0
+  $07bf : 255 -> 0
+  $07c4 : 255 -> 0
+  $07c5 : 255 -> 0
+  $07c6 : 255 -> 0
+  $07c7 : 255 -> 0
+  $07cc : 255 -> 0
+  $07cd : 255 -> 0
+  $07ce : 255 -> 0
+  $07cf : 255 -> 0
+  $07d4 : 255 -> 0
+  $07d5 : 255 -> 0
+  $07d6 : 255 -> 0
+  $07d7 : 255 -> 0
+  $07dc : 255 -> 0
+  $07dd : 255 -> 0
+  $07de : 255 -> 0
+  $07df : 255 -> 0
+  $07e4 : 255 -> 0
+  $07e5 : 255 -> 0
+  $07e6 : 255 -> 0
+  $07e7 : 255 -> 0
+  $07ec : 255 -> 0
+  $07ed : 255 -> 0
+  $07ee : 255 -> 0
+  $07ef : 255 -> 0
+  $07f4 : 255 -> 0
+  $07f5 : 255 -> 0
+  $07f6 : 255 -> 0
+  $07f7 : 255 -> 0
+  $07fc : 255 -> 0
+  $07fd : 255 -> 0
+  $07fe : 255 -> 0
+
+=== ADDRESSES WHERE ONLY INTERPRETER CHANGED (FRAME 0->1) ===
+  $0006 : FCEUX stayed 255, INTERP 255 -> 0
+  $0007 : FCEUX stayed 255, INTERP 255 -> 7
+  $01fe : FCEUX stayed 255, INTERP 255 -> 45
+  $01ff : FCEUX stayed 255, INTERP 255 -> 128
+  $076c : FCEUX stayed 255, INTERP 255 -> 0
+  $076d : FCEUX stayed 255, INTERP 255 -> 0
+  $076e : FCEUX stayed 255, INTERP 255 -> 0
+  $076f : FCEUX stayed 255, INTERP 255 -> 0
+  $0774 : FCEUX stayed 255, INTERP 255 -> 0
+  $0775 : FCEUX stayed 255, INTERP 255 -> 0
+  $0776 : FCEUX stayed 255, INTERP 255 -> 0
+  $0777 : FCEUX stayed 255, INTERP 255 -> 0
+  $077c : FCEUX stayed 255, INTERP 255 -> 0
+  $077d : FCEUX stayed 255, INTERP 255 -> 0
+  $077e : FCEUX stayed 255, INTERP 255 -> 0
+  $077f IntervalTimerControl: FCEUX stayed 255, INTERP 255 -> 0
+  $0784 : FCEUX stayed 255, INTERP 255 -> 0
+  $0785 : FCEUX stayed 255, INTERP 255 -> 0
+  $0786 : FCEUX stayed 255, INTERP 255 -> 0
+  $0787 : FCEUX stayed 255, INTERP 255 -> 0
+  $078c : FCEUX stayed 255, INTERP 255 -> 0
+  $078d : FCEUX stayed 255, INTERP 255 -> 0
+  $078e : FCEUX stayed 255, INTERP 255 -> 0
+  $078f : FCEUX stayed 255, INTERP 255 -> 0
+  $0794 : FCEUX stayed 255, INTERP 255 -> 0
+  $0795 : FCEUX stayed 255, INTERP 255 -> 0
+  $0796 : FCEUX stayed 255, INTERP 255 -> 0
+  $0797 : FCEUX stayed 255, INTERP 255 -> 0
+  $079c : FCEUX stayed 255, INTERP 255 -> 0
+  $079d : FCEUX stayed 255, INTERP 255 -> 0
+  $079e : FCEUX stayed 255, INTERP 255 -> 0
+  $079f : FCEUX stayed 255, INTERP 255 -> 0
+  $07a4 : FCEUX stayed 255, INTERP 255 -> 0
+  $07a5 : FCEUX stayed 255, INTERP 255 -> 0
+  $07a6 : FCEUX stayed 255, INTERP 255 -> 0
+  $07a7 : FCEUX stayed 255, INTERP 255 -> 0
+  $07ac : FCEUX stayed 255, INTERP 255 -> 0
+  $07ad : FCEUX stayed 255, INTERP 255 -> 0
+  $07ae : FCEUX stayed 255, INTERP 255 -> 0
+  $07af : FCEUX stayed 255, INTERP 255 -> 0
+  $07b4 : FCEUX stayed 255, INTERP 255 -> 0
+  $07b5 : FCEUX stayed 255, INTERP 255 -> 0
+  $07b6 : FCEUX stayed 255, INTERP 255 -> 0
+  $07b7 : FCEUX stayed 255, INTERP 255 -> 0
+  $07bc : FCEUX stayed 255, INTERP 255 -> 0
+  $07bd : FCEUX stayed 255, INTERP 255 -> 0
+  $07be : FCEUX stayed 255, INTERP 255 -> 0
+  $07bf : FCEUX stayed 255, INTERP 255 -> 0
+  $07c4 : FCEUX stayed 255, INTERP 255 -> 0
+  $07c5 : FCEUX stayed 255, INTERP 255 -> 0
+  $07c6 : FCEUX stayed 255, INTERP 255 -> 0
+  $07c7 : FCEUX stayed 255, INTERP 255 -> 0
+  $07cc : FCEUX stayed 255, INTERP 255 -> 0
+  $07cd : FCEUX stayed 255, INTERP 255 -> 0
+  $07ce : FCEUX stayed 255, INTERP 255 -> 0
+  $07cf : FCEUX stayed 255, INTERP 255 -> 0
+  $07d4 : FCEUX stayed 255, INTERP 255 -> 0
+  $07d5 : FCEUX stayed 255, INTERP 255 -> 0
+  $07d6 : FCEUX stayed 255, INTERP 255 -> 0
+  $07d7 : FCEUX stayed 255, INTERP 255 -> 0
+  $07dc : FCEUX stayed 255, INTERP 255 -> 0
+  $07dd : FCEUX stayed 255, INTERP 255 -> 0
+  $07de : FCEUX stayed 255, INTERP 255 -> 0
+  $07df : FCEUX stayed 255, INTERP 255 -> 0
+  $07e4 : FCEUX stayed 255, INTERP 255 -> 0
+  $07e5 : FCEUX stayed 255, INTERP 255 -> 0
+  $07e6 : FCEUX stayed 255, INTERP 255 -> 0
+  $07e7 : FCEUX stayed 255, INTERP 255 -> 0
+  $07ec : FCEUX stayed 255, INTERP 255 -> 0
+  $07ed : FCEUX stayed 255, INTERP 255 -> 0
+  $07ee : FCEUX stayed 255, INTERP 255 -> 0
+  $07ef : FCEUX stayed 255, INTERP 255 -> 0
+  $07f4 : FCEUX stayed 255, INTERP 255 -> 0
+  $07f5 : FCEUX stayed 255, INTERP 255 -> 0
+  $07f6 : FCEUX stayed 255, INTERP 255 -> 0
+  $07f7 : FCEUX stayed 255, INTERP 255 -> 0
+  $07fc : FCEUX stayed 255, INTERP 255 -> 0
+  $07fd : FCEUX stayed 255, INTERP 255 -> 0
+  $07fe : FCEUX stayed 255, INTERP 255 -> 0
+
+=== ADDRESSES WHERE ONLY FCEUX CHANGED (FRAME 0->1) ===

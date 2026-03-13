@@ -56,19 +56,20 @@ private fun System.initScreen() {
     //> jsr MoveAllSpritesOffscreen ;initialize all sprites including sprite #0
     moveAllSpritesOffscreen()
     //> jsr InitializeNameTables    ;and erase both name and attribute tables
-    initializeNameTables()
-    //> lda OperMode
-    //> beq NextSubtask             ;if mode still 0, do not load
-    if (ram.operMode == OperMode.TitleScreen) return nextSubtask()
-    //> ldx #$03                    ;into buffer pointer
-    //> jmp SetVRAMAddr_A
-    // We model SetVRAMAddr_A as selecting which VRAM update buffer address control to use.
-    // The original sets a buffer pointer/index to 3 here; reflect by storing to vRAMBufferAddrCtrl.
-    ram.vRAMBufferAddrCtrl = 0x03.toByte()
-    // In the original, SetVRAMAddr_A would use X to index a table of addresses; here we just advance the task.
-    //> SetVRAMAddr_A: stx VRAM_Buffer_AddrCtrl ;store offset into buffer control
-    //> NextSubtask:   jmp IncSubtask           ;move onto next task
-    return nextSubtask()
+    initializeNameTables {
+        //> lda OperMode
+        //> beq NextSubtask             ;if mode still 0, do not load
+        if (ram.operMode == OperMode.TitleScreen) return@initializeNameTables nextSubtask()
+        //> ldx #$03                    ;into buffer pointer
+        //> jmp SetVRAMAddr_A
+        // We model SetVRAMAddr_A as selecting which VRAM update buffer address control to use.
+        // The original sets a buffer pointer/index to 3 here; reflect by storing to vRAMBufferAddrCtrl.
+        ram.vRAMBufferAddrCtrl = 0x03.toByte()
+        // In the original, SetVRAMAddr_A would use X to index a table of addresses; here we just advance the task.
+        //> SetVRAMAddr_A: stx VRAM_Buffer_AddrCtrl ;store offset into buffer control
+        //> NextSubtask:   jmp IncSubtask           ;move onto next task
+        nextSubtask()
+    }
 }
 
 //-------------------------------------------------------------------------------------
@@ -251,22 +252,29 @@ private fun System.areaParserTaskControl() {
     //> AreaParserTaskControl:
     //> inc DisableScreenFlag     ;turn off screen
     ram.disableScreenFlag = true
-    do {
+
+    fun taskLoop() {
         //> TaskLoop:  jsr AreaParserTaskHandler ;render column set of current area
         areaParserTaskHandler()
         //> lda AreaParserTaskNum     ;check number of tasks
         //> bne TaskLoop              ;if tasks still not all done, do another one
-    } while (ram.areaParserTaskNum != 0.toByte())
-    //> dec ColumnSets            ;do we need to render more column sets?
-    //> bpl OutputCol
-    if (--ram.columnSets < 0) {
-        //> inc ScreenRoutineTask     ;if not, move on to the next task
-        ram.screenRoutineTask++
+        if (ram.areaParserTaskNum != 0.toByte()) {
+            waitForFrame { taskLoop() }
+        }
+
+        //> dec ColumnSets            ;do we need to render more column sets?
+        //> bpl OutputCol
+        if (--ram.columnSets < 0) {
+            //> inc ScreenRoutineTask     ;if not, move on to the next task
+            ram.screenRoutineTask++
+        }
+        //> OutputCol: lda #$06                  ;set vram buffer to output rendered column set
+        //> sta VRAM_Buffer_AddrCtrl  ;on next NMI
+        ram.vRAMBufferAddrCtrl = 0x06.toByte()
+        //> rts
     }
-    //> OutputCol: lda #$06                  ;set vram buffer to output rendered column set
-    //> sta VRAM_Buffer_AddrCtrl  ;on next NMI
-    ram.vRAMBufferAddrCtrl = 0x06.toByte()
-    //> rts
+
+    taskLoop()
 }
 
 // --- Palette selection/data tables translated from disassembly ---
@@ -348,6 +356,8 @@ private fun System.clearBuffersDrawIcon() {
     //> dex
     //> bne TScrClear
     ram.vRAMBuffer1.clear()
+    ram.reset(0x300..<0x400)
+    ram.reset(0x400..<0x500)
     //> jsr DrawMushroomIcon       ;draw player select icon
     drawMushroomIcon()
     //> IncSubtask:  inc ScreenRoutineTask      ;move onto next task

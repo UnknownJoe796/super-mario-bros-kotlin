@@ -315,7 +315,7 @@ fun System.writeGameText(textNumber: Byte) {
     //> bne GameTextLoop         ;do this for 256 bytes if no terminator found
     //> EndGameText:   lda #$00                 ;put null terminator at end
     //> sta VRAM_Buffer1,y
-    assert(ram.vRAMBuffer1.isEmpty())
+    ram.vRAMBuffer1.clear()
     ram.vRAMBuffer1.addAll(text)
 
     //> pla                      ;pull original text number from stack

@@ -80,7 +80,7 @@ private fun System.playerVictoryWalk() {
     //> lda Player_X_Position   ;otherwise get player's horizontal position
     //> cmp #$60                ;compare with preset horizontal position
     //> bcs DontWalk            ;if still on other page, branch ahead
-    if(ram.playerPageLoc == ram.destinationPageLoc || ram.playerXPosition < 0x60u) {
+    if(ram.playerPageLoc != ram.destinationPageLoc || ram.playerXPosition < 0x60u) {
 
         //> PerformWalk: inc VictoryWalkControl  ;otherwise increment value and Y
         ram.victoryWalkControl++
@@ -104,7 +104,7 @@ private fun System.playerVictoryWalk() {
         //> adc #$00                ;add carry from previous addition
         //> tay                     ;use as scroll amount
         //> jsr ScrollScreen        ;do sub to scroll the screen
-        scrollScreen((0x01 + (if(fractionalAddResult > 0xFFu) 1 else 0)).toByte())
+        scrollScreen((0x01 + (if(fractionalAddResult > 0xFFu) 1 else 0)))
         //> jsr UpdScrollVar        ;do another sub to update screen and scroll variables
         updScrollVar()
         //> inc VictoryWalkControl  ;increment value to stay in this routine
@@ -173,7 +173,7 @@ private fun System.thankPlayer(primaryMsgCounter: Byte) {
             if (y >= 4) return setEndTimer(true)
             //> cpy #$03                  ;if counter at 3 (world 1-7 only)
             //> bcs IncMsgCounter         ;branch to keep counting
-            if (y >= 3) incMsgCounter()
+            if (y >= 3) return incMsgCounter()
         }
     }
 
@@ -287,7 +287,5 @@ private fun System.playerEndWorld() {
 // by Claude - terminateGame() moved to victorySubs.kt
 
 // Engine/graphics helpers - now defined in shared files (gameMode.kt, etc.)
-// enemiesAndLoopsCore, relativePlayerPosition, playerGfxHandler are stubs in their respective files
-// autoControlPlayer, scrollScreen are stubs below until properly translated
-private fun System.autoControlPlayer(amount: Byte) { /* Moves player right by amount or no-op if 0. Placeholder. */ }
-private fun System.scrollScreen(amount: Byte) { /* Scrolls screen by amount. Placeholder. */ }
+// enemiesAndLoopsCore, relativePlayerPosition, playerGfxHandler are in their respective files
+// autoControlPlayer, scrollScreen are in playerLevelTransitions.kt and scrollHandler.kt

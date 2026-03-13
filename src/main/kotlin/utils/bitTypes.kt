@@ -115,9 +115,9 @@ value class PpuMask(val byte: Byte) {
     /** Greyscale (0: normal color, 1: greyscale) **/
     val greyscale: Boolean get() = byte.bit(0)
     /** 1: Show background in leftmost 8 pixels of screen, 0: Hide **/
-    val showLeftSprites: Boolean get() = byte.bit(1)
+    val showLeftBackground: Boolean get() = byte.bit(1)
     /** 1: Show sprites in leftmost 8 pixels of screen, 0: Hide **/
-    val showLeftBackground: Boolean get() = byte.bit(2)
+    val showLeftSprites: Boolean get() = byte.bit(2)
     /** 1: Enable background rendering **/
     val backgroundEnabled: Boolean get() = byte.bit(3)
     /** 1: Enable sprite rendering **/
@@ -130,8 +130,8 @@ value class PpuMask(val byte: Byte) {
     val emphasizeBlue: Boolean get() = byte.bit(7)
     constructor(
         greyscale: Boolean = false,
-        showLeftSprites: Boolean = false,
         showLeftBackground: Boolean = false,
+        showLeftSprites: Boolean = false,
         backgroundEnabled: Boolean = false,
         spriteEnabled: Boolean = false,
         emphasizeRed: Boolean = false,
@@ -139,8 +139,8 @@ value class PpuMask(val byte: Byte) {
         emphasizeBlue: Boolean = false,
     ): this((
             (if (greyscale) 0x1 shl 0 else 0) +
-                    (if (showLeftSprites) 0x1 shl 1 else 0) +
-                    (if (showLeftBackground) 0x1 shl 2 else 0) +
+                    (if (showLeftBackground) 0x1 shl 1 else 0) +
+                    (if (showLeftSprites) 0x1 shl 2 else 0) +
                     (if (backgroundEnabled) 0x1 shl 3 else 0) +
                     (if (spriteEnabled) 0x1 shl 4 else 0) +
                     (if (emphasizeRed) 0x1 shl 5 else 0) +
@@ -149,14 +149,14 @@ value class PpuMask(val byte: Byte) {
             ).toByte())
     fun copy(
         greyscale: Boolean = this.greyscale,
-        showLeftSprites: Boolean = this.showLeftSprites,
         showLeftBackground: Boolean = this.showLeftBackground,
+        showLeftSprites: Boolean = this.showLeftSprites,
         backgroundEnabled: Boolean = this.backgroundEnabled,
         spriteEnabled: Boolean = this.spriteEnabled,
         emphasizeRed: Boolean = this.emphasizeRed,
         emphasizeGreen: Boolean = this.emphasizeGreen,
         emphasizeBlue: Boolean = this.emphasizeBlue,
-    ) = PpuMask(greyscale, showLeftSprites, showLeftBackground, backgroundEnabled, spriteEnabled, emphasizeRed, emphasizeGreen, emphasizeBlue)
+    ) = PpuMask(greyscale, showLeftBackground, showLeftSprites, backgroundEnabled, spriteEnabled, emphasizeRed, emphasizeGreen, emphasizeBlue)
 }
 
 @JvmInline

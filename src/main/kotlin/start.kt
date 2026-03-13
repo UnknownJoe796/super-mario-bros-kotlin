@@ -106,16 +106,16 @@ fun System.start() {
 
     // MARK - current position
     //> jsr InitializeNameTables     ;initialize both name tables
-    initializeNameTables()
+    initializeNameTables {
+        //> inc DisableScreenFlag        ;set flag to disable screen output
+        ram.disableScreenFlag = true
 
-    //> inc DisableScreenFlag        ;set flag to disable screen output
-    ram.disableScreenFlag = true
-
-    //> lda Mirror_PPU_CTRL_REG1
-    //> ora #%10000000               ;enable NMIs
-    //> jsr WritePPUReg1
-    ram.mirrorPPUCTRLREG1 = ram.mirrorPPUCTRLREG1.copy(nmiEnabled = true)
-    ppu.control = ram.mirrorPPUCTRLREG1
+        //> lda Mirror_PPU_CTRL_REG1
+        //> ora #%10000000               ;enable NMIs
+        //> jsr WritePPUReg1
+        ram.mirrorPPUCTRLREG1 = ram.mirrorPPUCTRLREG1.copy(nmiEnabled = true)
+        ppu.control = ram.mirrorPPUCTRLREG1
+    }
 
     //> EndlessLoop: jmp EndlessLoop              ;endless loop, need I say more?
 }
@@ -140,7 +140,7 @@ fun System.initializeMemory(zeroToIndex: Short) {
     //> bpl InitPageLoop  ;do this until all pages of memory have been erased
     //> rts
     ram.reset(0x0..<0x160)
-    ram.reset(0x200..<zeroToIndex)
+    ram.reset(0x200..zeroToIndex.toInt())
 }
 
 fun System.secondaryGameSetup() {
@@ -156,6 +156,7 @@ fun System.secondaryGameSetup() {
     // In our high-level model, vRAMBuffer1 is a list of buffered PPU updates. Clearing the $0300-$03ff
     // region corresponds to clearing this buffer.
     ram.vRAMBuffer1.clear()
+    ram.reset(0x300..<0x400)
 
     //> sta GameTimerExpiredFlag  ;clear game timer exp flag
     ram.gameTimerExpiredFlag = false

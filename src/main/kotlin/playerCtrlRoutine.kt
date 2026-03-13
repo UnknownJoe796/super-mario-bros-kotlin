@@ -94,18 +94,6 @@ private val PlayerAnimTmrData: ByteArray = byteArrayOf(
 // scrollHandler() moved to scrollHandler.kt
 // playerBGCollision() moved to collisionDetection.kt
 
-// ---- AutoControlPlayer ----
-
-//> AutoControlPlayer:
-//>       sta SavedJoypadBits         ;override controller bits with contents of A if executing here
-/**
- * Overrides the saved joypad bits with [controlBits] and falls through to [playerCtrlRoutine].
- * Private to avoid conflict with placeholder stub in victoryMode.kt.
- */
-private fun System.autoControlPlayer(controlBits: Byte) {
-    ram.savedJoypadBits = JoypadBits(controlBits)
-    playerCtrlRoutine()
-}
 
 // ---- PlayerCtrlRoutine ----
 
@@ -547,7 +535,7 @@ private fun System.climbingSub() {
     //> beq CSetFDir             ;if so, branch, do not increment
     //> inx                      ;otherwise increment by 1 byte
     var climbX = 0
-    val rightPressed = (ram.leftRightButtons.toInt() and 0x01) != 0
+    val rightPressed = (lrAndCollision.toInt() and 0x01) != 0
     if (!rightPressed) {
         climbX += 2
     }

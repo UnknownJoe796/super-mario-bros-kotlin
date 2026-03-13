@@ -9,49 +9,9 @@ import com.ivieleague.smbtranslation.nes.TwoBits
 import com.ivieleague.smbtranslation.nes.Color
 import com.ivieleague.smbtranslation.nes.DirectPalette
 import com.ivieleague.smbtranslation.nes.Palette
+import com.ivieleague.smbtranslation.nes.applyAttributeCellToPpu
 import com.ivieleague.smbtranslation.utils.*
 
-private fun applyAttributeCell(ppu: PictureProcessingUnit, nametable: TwoBits, ax: FiveBits, ay: FiveBits, value: UByte) {
-    val nt = ppu.backgroundTiles[nametable.toInt() and 0x01]
-    val baseX = (ax.toInt() and 0x1F) * 4
-    val baseY = (ay.toInt() and 0x1F) * 4
-    fun paletteForQuadrant(q: Int): Palette {
-        val idx = (value.toInt() shr (q * 2)) and 0x03
-        return ppu.backgroundPalettes[idx]
-    }
-    // Top-left quadrant (bits 0-1): tiles (0..1, 0..1)
-    val palTL = paletteForQuadrant(0)
-    for (dy in 0..1) for (dx in 0..1) {
-        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
-            val t = nt[baseX + dx, baseY + dy]
-            nt[baseX + dx, baseY + dy] = t.copy(palette = palTL)
-        }
-    }
-    // Top-right quadrant (bits 2-3): (2..3, 0..1)
-    val palTR = paletteForQuadrant(1)
-    for (dy in 0..1) for (dx in 2..3) {
-        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
-            val t = nt[baseX + dx, baseY + dy]
-            nt[baseX + dx, baseY + dy] = t.copy(palette = palTR)
-        }
-    }
-    // Bottom-left quadrant (bits 4-5): (0..1, 2..3)
-    val palBL = paletteForQuadrant(2)
-    for (dy in 2..3) for (dx in 0..1) {
-        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
-            val t = nt[baseX + dx, baseY + dy]
-            nt[baseX + dx, baseY + dy] = t.copy(palette = palBL)
-        }
-    }
-    // Bottom-right quadrant (bits 6-7): (2..3, 2..3)
-    val palBR = paletteForQuadrant(3)
-    for (dy in 2..3) for (dx in 2..3) {
-        if (baseX + dx in 0 until 32 && baseY + dy in 0 until 30) {
-            val t = nt[baseX + dx, baseY + dy]
-            nt[baseX + dx, baseY + dy] = t.copy(palette = palBR)
-        }
-    }
-}
 
 sealed class BufferedPpuUpdate {
     abstract operator fun invoke(ppu: PictureProcessingUnit)
@@ -153,7 +113,7 @@ sealed class BufferedPpuUpdate {
             var ax = ax.toInt() and 0x1F
             var ay = ay.toInt() and 0x1F
             for (v in values) {
-                applyAttributeCell(ppu, nametable, ax.toByte(), ay.toByte(), v)
+                applyAttributeCellToPpu(ppu, nametable, ax.toByte(), ay.toByte(), v)
                 if (drawVertically) {
                     ay++
                     if (ay >= 8) { ay = 0; ax = (ax + 1) % 8 }
@@ -178,7 +138,7 @@ sealed class BufferedPpuUpdate {
             var ax = this.ax.toInt() and 0x1F
             var ay = this.ay.toInt() and 0x1F
             repeat(repetitions) {
-                applyAttributeCell(ppu, nametable, ax.toByte(), ay.toByte(), value)
+                applyAttributeCellToPpu(ppu, nametable, ax.toByte(), ay.toByte(), value)
                 if (drawVertically) {
                     ay++
                     if (ay >= 8) { ay = 0; ax = (ax + 1) % 8 }

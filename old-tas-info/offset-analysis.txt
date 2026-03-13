@@ -1,0 +1,9 @@
+=== Testing Different Frame Offsets ===
+
+Offset -3: 0 perfect matches out of 90 frames (0.0%)
+Offset -2: 0 perfect matches out of 90 frames (0.0%)
+Offset -1: 0 perfect matches out of 90 frames (0.0%)
+Offset 0: 0 perfect matches out of 90 frames (0.0%)
+Offset 1: 0 perfect matches out of 90 frames (0.0%)
+Offset 2: 0 perfect matches out of 90 frames (0.0%)
+Offset 3: 0 perfect matches out of 90 frames (0.0%)

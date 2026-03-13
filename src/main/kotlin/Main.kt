@@ -17,12 +17,14 @@ import javax.swing.SwingUtilities
 
 fun main() {
     val system = System()
-    system.start()
-
+    if (java.lang.System.getProperty("smb.shadow") != "false") {
+        system.shadow = com.ivieleague.smbtranslation.interpreter.ShadowValidator.create("smb.nes")
+    }
+    Runtime.getRuntime().addShutdownHook(Thread { system.shadow?.close() })
+    var startAction: (() -> Unit)? = { system.start() }
     val scale = 3
     val width = 256 * scale
     val height = 240 * scale
-
     val pressedKeys: MutableSet<Int> = Collections.newSetFromMap(ConcurrentHashMap<Int, Boolean>())
     var lastNmiTime = java.lang.System.nanoTime()
     val nmiIntervalNs = 1_000_000_000L / 60
@@ -30,6 +32,10 @@ fun main() {
     SwingUtilities.invokeLater {
         val skiaLayer = SkiaLayer()
         skiaLayer.renderDelegate = object : SkikoRenderDelegate {
+            private var frameCount = 0
+            private var lastDisableScreenFlag = true
+            private var lastPpuMask = 0.toByte()
+
             override fun onRender(canvas: Canvas, width: Int, height: Int, nanoTime: Long) {
                 val now = java.lang.System.nanoTime()
                 if (now - lastNmiTime >= nmiIntervalNs) {
@@ -43,10 +49,34 @@ fun main() {
                     // readJoypads() inside NMI transfers these into ram.savedJoypadBits.
                     system.inputs.joypadPort1 = buildJoypadBits(pressedKeys)
 
-                    system.nonMaskableInterrupt()
+                    val action = startAction
+                    if (action != null) {
+                        try {
+                            startAction = null
+                            action()
+                        } catch (delay: com.ivieleague.smbtranslation.utils.FrameDelay) {
+                            startAction = delay.nextAction
+                            if (frameCount % 60 == 0) {
+                                java.lang.System.err.println("Initializing: Frame delay encountered, resuming in next frame...")
+                            }
+                        }
+                    } else {
+                        system.nonMaskableInterrupt()
+                    }
+
+                    if (system.ram.disableScreenFlag != lastDisableScreenFlag) {
+                        lastDisableScreenFlag = system.ram.disableScreenFlag
+                        java.lang.System.out.println("Screen status changed: disableScreenFlag = $lastDisableScreenFlag")
+                    }
+                    if (system.ppu.mask.byte != lastPpuMask) {
+                        lastPpuMask = system.ppu.mask.byte
+                        java.lang.System.out.println("PPU Mask changed: backgroundEnabled=${system.ppu.mask.backgroundEnabled}, spriteEnabled=${system.ppu.mask.spriteEnabled}")
+                    }
+                    frameCount++
                 }
 
-                PpuRenderer.render(canvas, system.ppu, scale, scrollStartY = 16)
+                val currentScale = (width.toFloat() / 256f).coerceAtMost(height.toFloat() / 240f)
+                PpuRenderer.render(canvas, system.ppu, currentScale.toInt(), scrollStartY = 16)
                 skiaLayer.needRedraw()
             }
         }

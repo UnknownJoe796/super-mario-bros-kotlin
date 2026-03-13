@@ -1,0 +1,36 @@
+# Supervised Execution Summary
+
+Total frames analyzed: 1000
+Clean frames (no divergence): 0
+Frames with ANY divergence: 1000
+Frames with CRITICAL divergence: 629
+
+## Divergence Patterns
+
+### Most Frequently Divergent Addresses
+  $0100 ? [OTHER]: 1000 frames
+  $0101 ? [OTHER]: 1000 frames
+  $0102 ? [OTHER]: 1000 frames
+  $0103 ? [OTHER]: 1000 frames
+  $0104 ? [OTHER]: 1000 frames
+  $0107 ? [OTHER]: 1000 frames
+  $0108 ? [OTHER]: 1000 frames
+  $0109 ? [OTHER]: 1000 frames
+  $010a ? [OTHER]: 1000 frames
+  $010b ? [OTHER]: 1000 frames
+  $010d ? [OTHER]: 1000 frames
+  $0110 ? [OTHER]: 1000 frames
+  $0111 ? [OTHER]: 1000 frames
+  $0112 ? [OTHER]: 1000 frames
+  $0113 ? [OTHER]: 1000 frames
+  $0116 ? [OTHER]: 1000 frames
+  $0118 ? [OTHER]: 1000 frames
+  $0119 ? [OTHER]: 1000 frames
+  $011a ? [OTHER]: 1000 frames
+  $011b ? [OTHER]: 1000 frames
+
+### First CRITICAL Divergence
+Frame: 2
+  SavedJoypad1Bits: FCEUX=0 INTERP=255
+  PlayerSize: FCEUX=0 INTERP=255
+  WorldNumber: FCEUX=0 INTERP=255

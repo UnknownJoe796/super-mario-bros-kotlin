@@ -9,6 +9,7 @@ import com.ivieleague.smbtranslation.utils.PpuMask
  * This has large skipped pieces because SCREW emulating the freaking PPU
  */
 fun System.nonMaskableInterrupt() {
+    shadow?.onFrameStart()
 
     //> NonMaskableInterrupt:
     //> lda Mirror_PPU_CTRL_REG1  ;disable NMIs in mirror reg
@@ -201,7 +202,17 @@ fun System.nonMaskableInterrupt() {
     //> bcs SkipMainOper
     if ((ram.gamePauseStatus.toInt() and 0x01) == 0) {
         //> jsr OperModeExecutionTree ;otherwise do one of many, many possible subroutines
-        operModeExecutionTree()
+        try {
+            val pending = pendingNmiAction
+            if (pending != null) {
+                pendingNmiAction = null
+                pending()
+            } else {
+                operModeExecutionTree()
+            }
+        } catch (delay: FrameDelay) {
+            pendingNmiAction = delay.nextAction
+        }
     }
     //> SkipMainOper:  lda PPU_STATUS            ;reset flip-flop
     //> pla
@@ -225,7 +236,7 @@ private fun System.decTimers() {
         0x23
     } else 0x14 // see above DecTimers: ldx #$14
     //> DecTimersLoop: lda Timers,x              ;check current timer
-    for (index in highestTimerToDecrement downTo 0) {
+    for (index in 0..highestTimerToDecrement) {
         //> beq SkipExpTimer          ;if current timer expired, branch to skip,
         if(ram.timers[index] != 0x0.toByte()) {
             //> dec Timers,x              ;otherwise decrement the current timer

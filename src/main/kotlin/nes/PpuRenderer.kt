@@ -33,9 +33,6 @@ object PpuRenderer {
         val screenH = 240
         val paint = Paint()
 
-        // Nametable X offset from PPU control register bit 0
-        val ntOffsetX = (ppu.control.baseNametableAddress.toInt() and 1) * 256
-
         // Fill with PPU universal background color ($3F00)
         val backgroundColor = ppu.universalBackgroundColor
         paint.color = backgroundColor.argb
@@ -44,77 +41,101 @@ object PpuRenderer {
             paint
         )
 
-        // Look up background tile + color index at a screen pixel
+        /**
+         * Resolves the nametable index and local tile coordinates for a given virtual (vx, vy).
+         * SMB uses vertical mirroring:
+         * - Nametables at $2000 and $2800 are mirrored (physical index 0)
+         * - Nametables at $2400 and $2C00 are mirrored (physical index 1)
+         * This results in a 512x240 logical space mirrored vertically.
+         */
         fun bgLookup(sx: Int, sy: Int): Pair<Tile, Byte> {
             val vx: Int
             val vy: Int
+            val baseNt: Int = ppu.control.baseNametableAddress.toInt()
             if (sy >= scrollStartY) {
-                vx = (sx + ppu.scrollX + ntOffsetX) % 512
-                vy = sy + ppu.scrollY
+                // Combine base nametable address with scroll registers for full 15-bit internal scroll position
+                // Bit 0 of baseNt is X scroll (bit 8), Bit 1 of baseNt is Y scroll (bit 8)
+                vx = (sx + ppu.scrollX + (baseNt and 0x01) * 256) % 512
+                vy = (sy + ppu.scrollY + (baseNt and 0x02) / 2 * 240) % 480
             } else {
+                // Status bar usually fixed at Nametable 0
                 vx = sx
                 vy = sy
             }
+
+            // Vertical mirroring: physical nametable is based on X coordinate only
             val ntIdx = (vx / 256) and 1
             val tx = (vx and 255) / tileSize
-            val ty = (vy / tileSize).coerceIn(0, 29)
+            val ty = (vy % 240) / tileSize
+            
             val tile = ppu.backgroundTiles[ntIdx][tx, ty]
             return tile to tile.pattern.colorIndex(vx % tileSize, vy % tileSize)
         }
 
         // Draw background — iterate over screen pixels, look up from correct nametable
-        for (sy in 0 until screenH) {
-            for (sx in 0 until screenW) {
-                val (tile, ci) = bgLookup(sx, sy)
-                if (ci == 0.toByte()) continue // bg color already filled
-                paint.color = tile.palette.colors[ci].argb
-                canvas.drawRect(
-                    Rect.Companion.makeXYWH(
-                        (sx * scale).toFloat(), (sy * scale).toFloat(),
-                        scale.toFloat(), scale.toFloat()
-                    ), paint
-                )
+        if (ppu.mask.backgroundEnabled) {
+            for (sy in 0 until screenH) {
+                val hideLeft = !ppu.mask.showLeftBackground
+                for (sx in 0 until screenW) {
+                    if (hideLeft && sx < 8) continue
+                    val (tile, ci) = bgLookup(sx, sy)
+                    if (ci == 0.toByte()) continue // bg color already filled
+                    paint.color = tile.palette.colors[ci].argb
+                    canvas.drawRect(
+                        Rect.Companion.makeXYWH(
+                            (sx * scale).toFloat(), (sy * scale).toFloat(),
+                            scale.toFloat(), scale.toFloat()
+                        ), paint
+                    )
+                }
             }
         }
 
         // Draw sprites
-        for (i in 0 until ppu.sprites.size) {
-            val spr = ppu.sprites[i]
-            val xBase = spr.x.toInt()
-            val yBase = spr.y.toInt()
-            val flags = spr.attributes
-            val paletteIndex = (flags.palette.toInt() and 0x03)
-            val palette = ppu.spritePalettes.getOrNull(paletteIndex)
-            val flipH = flags.flipHorizontal
-            val flipV = flags.flipVertical
-            val behind = flags.behindBackground
+        if (ppu.mask.spriteEnabled) {
+            for (i in ppu.sprites.size - 1 downTo 0) {
+                val spr = ppu.sprites[i]
+                val xBase = spr.x.toUByte().toInt()
+                val yBase = spr.y.toUByte().toInt()
+                if (yBase >= 240) continue
+                val flags = spr.attributes
+                val paletteIndex = flags.palette.toInt()
+                val palette = ppu.spritePalettes.getOrNull(paletteIndex)
+                val flipH = flags.flipHorizontal
+                val flipV = flags.flipVertical
+                val behind = flags.behindBackground
+                val hideLeft = !ppu.mask.showLeftSprites
 
-            // Skip if palette is missing
-            if (palette == null) continue
+                // Skip if palette is missing
+                if (palette == null) continue
 
-            for (py in 0 until tileSize) {
-                val srcY = if (flipV) (tileSize - 1 - py) else py
-                val y = yBase + py
-                for (px in 0 until tileSize) {
-                    val srcX = if (flipH) (tileSize - 1 - px) else px
-                    val x = xBase + px
+                for (py in 0 until tileSize) {
+                    val srcY = if (flipV) (tileSize - 1 - py) else py
+                    val y = yBase + py + 1
+                    if (y >= 240) continue
+                    for (px in 0 until tileSize) {
+                        val srcX = if (flipH) (tileSize - 1 - px) else px
+                        val x = xBase + px
+                        if (x >= 256) continue
+                        if (hideLeft && x < 8) continue
 
-                    val ci = spr.pattern.colorIndex(srcX, srcY)
-                    if (ci == 0.toByte()) continue // transparent sprite pixel
+                        val ci = spr.pattern.colorIndex(srcX, srcY)
+                        if (ci == 0.toByte()) continue // transparent sprite pixel
 
-                    if (behind) {
-                        // If behind background, only draw where background is CI 0
-                        val (_, bgCi) = bgLookup(x, y)
-                        if (bgCi != 0.toByte()) continue
+                        if (behind) {
+                            // If behind background, only draw where background is CI 0
+                            val (_, bgCi) = bgLookup(x, y)
+                            if (bgCi != 0.toByte()) continue
+                        }
+
+                        val colorIdx = ci
+                        val argb = palette.colors[colorIdx].argb
+                        paint.color = argb
+                        canvas.drawRect(
+                            Rect.Companion.makeXYWH((x * scale).toFloat(), (y * scale).toFloat(), scale.toFloat(), scale.toFloat()),
+                            paint
+                        )
                     }
-
-                    val colorIdx = ci
-                    val argb = palette.colors[colorIdx].argb
-                    paint.color = argb
-                    canvas.drawRect(
-                        Rect.Companion.makeXYWH((x * scale).toFloat(), (y * scale).toFloat(), scale.toFloat(), scale.toFloat()),
-                        paint
-                    )
                 }
             }
         }

@@ -243,6 +243,9 @@ fun System.enemyToBGCollisionDet() {
 
     //> YesIn: jsr ChkUnderEnemy ;if enemy object < $07, or = $12 or $2e, do this sub
     val underResult = chkUnderEnemyFull(x)
+    if (debugEnemyTrace && x == 1) {
+        println("[BGColl] slot=$x metatile=${(underResult.metatile.toInt() and 0xFF).toString(16)} lowNybble=${underResult.lowNybble}")
+    }
     //> bne HandleEToBGCollision ;if block underneath enemy, branch
     if (underResult.metatile == 0.toByte()) {
         //> NoEToBGCollision:
@@ -406,11 +409,10 @@ private fun System.chkToStunEnemiesLocal(x: Int) {
     //> cmp #PiranhaPlant; bcc SetStun
     if (enemyId in 0x09 until 0x11) {
         if (enemyId < 0x0a || enemyId >= (Constants.PiranhaPlant.toInt() and 0xFF)) {
-            // SetStun path
-        } else {
             //> Demote: and #%00000001; sta Enemy_ID,x
             ram.enemyID[x] = (enemyId and 0x01).toByte()
         }
+        // else: SetStun path (fall through to SetStun below)
     }
 
     //> SetStun: lda Enemy_State,x; and #%11110000; ora #%00000010; sta Enemy_State,x
@@ -464,6 +466,9 @@ private fun System.landEnemyProperly(x: Int) {
     val bbResult = lastEnemyBBResult
     val lowNybble = bbResult?.lowNybble ?: 0
     val adjusted = (lowNybble - 0x08) and 0xFF
+    if (debugEnemyTrace && x == 1) {
+        println("[LandEP] slot=$x lowNybble=$lowNybble adjusted=$adjusted (>=5? ${adjusted >= 5}) state=${ram.enemyState[x].toInt() and 0xFF}")
+    }
     if (adjusted >= 0x05) {
         chkForRedKoopa(x)
         return
@@ -554,10 +559,13 @@ private fun System.procEnemyDirection(x: Int) {
     //> InvtD: ldy #$01
     var dir = 1
     //> jsr PlayerEnemyDiff; bpl CNwCDir; iny
-    val (_, highDiff) = playerEnemyDiff()
+    val (lowDiff, highDiff) = playerEnemyDiff()
     if (highDiff.toByte() < 0) dir = 2
 
     //> CNwCDir: tya; cmp Enemy_MovingDir,x; bne LandEnemyInitState
+    if (debugEnemyTrace && x == 1) {
+        println("[ProcED] slot=$x dir=$dir highDiff=${highDiff.toString(16)} lowDiff=${lowDiff.toString(16)} movingDir=${ram.enemyMovingDirs[x].toInt() and 0xFF} match=${dir.toByte() == ram.enemyMovingDirs[x]}")
+    }
     if (dir.toByte() != ram.enemyMovingDirs[x]) {
         landEnemyInitState(x)
         return
@@ -895,8 +903,11 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
     //> DBlockSte: sta Block_State,x
     ram.blockStates[x] = blockState.toByte()
 
+    // Reconstruct NES $06 value from BlockBufferResult
+    val bbLow = if (result.blockBuffer === ram.blockBuffer2) (0xD0 + result.blockBufferBase) else result.blockBufferBase
+
     //> jsr DestroyBlockMetatile
-    destroyBlockMetatile()
+    destroyBlockMetatile(bbLow, result.vertOffset)
 
     //> ldx SprDataOffset_Ctrl
     //> lda $02; sta Block_Orig_YPos,x
@@ -904,12 +915,7 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
 
     //> tay
     //> lda $06; sta Block_BBuf_Low,x
-    // NES $06 = col for buffer 1, 0xD0+col for buffer 2 (buffer base low byte)
-    ram.blockBBufLow[x] = if (result.blockBuffer === ram.blockBuffer2) {
-        (0xD0 + result.blockBufferBase).toByte()
-    } else {
-        result.blockBufferBase.toByte()
-    }
+    ram.blockBBufLow[x] = bbLow.toByte()
 
     //> lda ($06),y              ;get contents of block buffer at old address
     val bufIdx = result.blockBufferBase + result.vertOffset
@@ -1217,7 +1223,7 @@ private fun System.checkTopOfBlock(x: Int) {
     //> lda #$00; sta ($06),y
     buffer[idx] = 0
     //> jsr RemoveCoin_Axe
-    removeCoinOrAxe()
+    removeCoinOrAxe(bbLow, newVertOffset)
     //> ldx SprDataOffset_Ctrl; jsr SetupJumpCoin
     val fakeResult = BlockBufferResult(
         metatile = 0,

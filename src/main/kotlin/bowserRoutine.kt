@@ -350,7 +350,7 @@ fun System.bowserGfxHandler() {
 
     //> BowserGfxHandler:
     //> jsr ProcessBowserHalf    ;do a sub here to process bowser's front
-    if (!processBowserHalf()) return
+    processBowserHalf()
 
     //> ldy #$10                 ;load default value here to position bowser's rear
     //> lda Enemy_MovingDir,x    ;check moving direction
@@ -459,7 +459,7 @@ private fun System.processBowserHalf(): Boolean {
  * Increments the flame timer control index (wrapping 0-7).
  * @return the flame timer value (unsigned)
  */
-private fun System.setFlameTimer(): Int {
+internal fun System.setFlameTimer(): Int {
     //> SetFlameTimer:
     //> ldy BowserFlameTimerCtrl  ;load counter as offset
     val y = ram.bowserFlameTimerCtrl.toInt() and 0xFF

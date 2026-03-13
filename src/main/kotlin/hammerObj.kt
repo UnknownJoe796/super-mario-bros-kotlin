@@ -67,11 +67,7 @@ fun System.spawnHammerObj(): Boolean {
     ram.miscStates[y] = 0x90.toByte()
     //> lda #$07
     //> sta Misc_BoundBoxCtrl,y  ;set something else entirely, here
-    // NOTE: Misc_BoundBoxCtrl is an indexed field at $04A2+y.
-    // GameRam.miscBoundBoxCtrl is a single byte; we'd need an array for proper indexed access.
-    // For now, only write to the single field (effective for the active misc object).
-    // TODO: GameRam needs miscBoundBoxCtrls: ByteArray(9) for proper indexed access.
-    ram.miscBoundBoxCtrl = 0x07
+    ram.miscBoundBoxCtrls[y] = 0x07
     //> sec                      ;return with carry set
     //> rts
     return true
@@ -145,7 +141,7 @@ fun System.procHammerObj() {
             ram.enemyState[enemyOfs] = (ram.enemyState[enemyOfs].toInt() and 0b11110111).toByte()
             //> ldx Enemy_MovingDir,y      ;get enemy's moving direction
             //> dex                        ;decrement to use as offset
-            val dirOfs = (ram.enemyMovingDirs[enemyOfs].toInt() and 0xFF) - 1
+            val dirOfs = ((ram.enemyMovingDirs[enemyOfs].toInt() and 0xFF) - 1) and 0x01
             //> lda HammerXSpdData,x       ;get proper speed to use based on moving direction
             val hammerSpeed = HammerXSpdData[dirOfs]
             //> ldx ObjectOffset           ;reobtain hammer's buffer offset

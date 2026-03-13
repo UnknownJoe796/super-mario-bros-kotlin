@@ -1,0 +1,876 @@
+Initialized native services in: /Users/jivie/.gradle/native
+Initialized jansi services in: /Users/jivie/.gradle/native
+The client will now receive all logging from the daemon (pid: 33416). The daemon log file: /Users/jivie/.gradle/daemon/8.14/daemon-33416.out.log
+Starting 42nd build in daemon [uptime: 4 hrs 47 mins 12.917 secs, performance: 100%, GC rate: 0.00/s, heap usage: 7% of 512 MiB, non-heap usage: 22% of 384 MiB]
+Using 10 worker leases.
+Invalidating in-memory cache of /Users/jivie/Projects/smb-translation/.gradle/8.14/fileHashes/fileHashes.bin
+Invalidating in-memory cache of /Users/jivie/Projects/smb-translation/.gradle/buildOutputCleanup/outputFiles.bin
+Invalidating in-memory cache of /Users/jivie/Projects/smb-translation/.gradle/8.14/fileHashes/resourceHashesCache.bin
+Now considering [/Users/jivie/Projects/smb-translation] as hierarchies to watch
+Watching the file system is configured to be enabled if available
+File system watching is active
+Starting Build
+Resolved plugin [id: 'org.gradle.toolchains.foojay-resolver-convention', version: '0.8.0']
+Invalidating in-memory cache of /Users/jivie/.gradle/caches/journal-1/file-access.bin
+Invalidating in-memory cache of /Users/jivie/.gradle/caches/8.14/fileHashes/fileHashes.bin
+Invalidating in-memory cache of /Users/jivie/.gradle/caches/8.14/fileHashes/resourceHashesCache.bin
+Settings evaluated using settings file '/Users/jivie/Projects/smb-translation/settings.gradle.kts'.
+Projects loaded. Root project using build file '/Users/jivie/Projects/smb-translation/build.gradle.kts'.
+Included projects: [root project 'smb-translation']
+
+> Configure project :
+Evaluating root project 'smb-translation' using build file '/Users/jivie/Projects/smb-translation/build.gradle.kts'.
+Resolved plugin [id: 'org.jetbrains.kotlin.jvm', version: '2.2.0']
+Resolved plugin [id: 'org.gradle.application']
+Build 4c775627-a466-4877-b403-2715ebac9e7e is started
+Using Kotlin Gradle Plugin gradle813 variant
+kotlin scripting plugin: created the scripting discovery configuration: kotlinScriptDef
+kotlin scripting plugin: created the scripting discovery configuration: testKotlinScriptDef
+All projects evaluated.
+Task name matched 'test'
+Selected primary task 'test' from project :
+Starting process 'command '/usr/libexec/java_home''. Working directory: /Users/jivie/.gradle/daemon/8.14 Command: /usr/libexec/java_home -V
+Successfully started process 'command '/usr/libexec/java_home''
+Tasks to be executed: [task ':checkKotlinGradlePluginConfigurationErrors', task ':compileKotlin', task ':compileJava', task ':processResources', task ':classes', task ':jar', task ':compileTestKotlin', task ':compileTestJava', task ':processTestResources', task ':testClasses', task ':test']
+Tasks that were excluded: []
+Resolve mutations for :checkKotlinGradlePluginConfigurationErrors (Thread[Execution worker,5,main]) started.
+:checkKotlinGradlePluginConfigurationErrors (Thread[Execution worker,5,main]) started.
+Invalidating in-memory cache of /Users/jivie/Projects/smb-translation/.gradle/8.14/executionHistory/executionHistory.bin
+
+> Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+Skipping task ':checkKotlinGradlePluginConfigurationErrors' as task onlyIf 'errorDiagnostics are present' is false.
+Resolve mutations for :compileKotlin (Thread[Execution worker,5,main]) started.
+:compileKotlin (Thread[Execution worker,5,main]) started.
+Resolve mutations for :processResources (Thread[Execution worker Thread 7,5,main]) started.
+:processResources (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :processResources NO-SOURCE
+Skipping task ':processResources' as it has no source files and no previous output files.
+Resolve mutations for :processTestResources (Thread[Execution worker Thread 7,5,main]) started.
+:processTestResources (Thread[Execution worker Thread 7,5,main]) started.
+
+> Task :processTestResources NO-SOURCE
+Skipping task ':processTestResources' as it has no source files and no previous output files.
+
+> Task :compileKotlin
+Caching disabled for task ':compileKotlin' because:
+  Build cache is disabled
+Task ':compileKotlin' is not up-to-date because:
+  Input property 'sources' file /Users/jivie/Projects/smb-translation/src/main/kotlin/utils/FrameDelay.kt has changed.
+file or directory '/Users/jivie/Projects/smb-translation/src/main/java', not found
+file or directory '/Users/jivie/Projects/smb-translation/src/main/java', not found
+file or directory '/Users/jivie/Projects/smb-translation/src/main/java', not found
+file or directory '/Users/jivie/Projects/smb-translation/src/main/java', not found
+Kotlin source files: /Users/jivie/Projects/smb-translation/src/main/kotlin/interpreter/ShadowValidator.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/interpreter/NESLoader.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/interpreter/BinaryInterpreter6502.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/interpreter/Memory6502.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/interpreter/CPU6502.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/relativePosition.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/blockMetatileRoutines.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/chr/rawChrData.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/scrollHandler.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/processWhirlpools.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/GameRam.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/screenRoutinesRenderAreaGraphics.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/hammerObj.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/platformRoutines.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/runEnemyObjectsCore.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/gravity.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/screenRoutines.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/colorRotation.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/nes/PictureProcessingUnit.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/nes/PpuRenderer.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/nes/Inputs.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/nes/AudioProcessingUnit.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/nes/HighLevelPictureProcessingUnit.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/boundingBox.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/enemyBGCollision.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/operModeExecutionTree.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/collisionDetection.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/floateyNumbers.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/romData.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/PpuMap.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/areaEntrance.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/flagpoleRoutine.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/bowserRoutine.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/printStatusBarNumbers.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/drawRoutines.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/victorySubs.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/playerGfxHandler.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/offscreenBits.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/titleScreenMode.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/powerUpVine.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/enemiesAndLoopsCore.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/initializeNameTables.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/utils/bitTypes.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/utils/casing.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/utils/AutoTranslate.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/utils/annotations.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/utils/AddressMapping.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/utils/bitops2.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/utils/ByteAccess.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/utils/FrameDelay.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/utils/TranslationProgress.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/miscObjectsCore.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/jumpEngine.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/Main.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/eraseEnemyObject.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/vramBuffers.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/decompiler/AssemblyParsing.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/jCoinGfxHandler.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/areaparser/shared.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/areaparser/verticalPipe.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/victoryMode.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/enemyGfxHandler.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/playerCtrlRoutine.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/enemyBehaviors.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/screenRoutinesRenderAttributeTables.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/System.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/procFireballBubble.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/processCannons.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/areaParser.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/nonMaskableInterrupt.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/start.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/updateScreen.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/movement.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/gameMode.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/GameRamMapper.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/BufferedPpuUpdate.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/blockObjectsCore.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/screenRoutinesWriteGameText.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/playerLoseLife.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/playerStateChanges.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/Constants.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/playerLevelTransitions.kt, /Users/jivie/Projects/smb-translation/src/main/kotlin/scoring.kt
+Java source files: 
+Script source files: 
+Script file extensions: 
+Using Kotlin/JVM incremental compilation
+[KOTLIN] Kotlin compilation 'jdkHome' argument: /opt/homebrew/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home
+Options for KOTLIN DAEMON: IncrementalCompilationOptions(super=CompilationOptions(compilerMode=INCREMENTAL_COMPILER, targetPlatform=JVM, reportCategories=[0, 3], reportSeverity=2, requestedCompilationResults=[0], kotlinScriptExtensions=[]), sourceChanges=org.jetbrains.kotlin.buildtools.api.SourcesChanges$Known@6950dfc3, classpathChanges=NoChanges, workingDir=/Users/jivie/Projects/smb-translation/build/kotlin/compileKotlin/cacheable, multiModuleICSettings=MultiModuleICSettings(buildHistoryFile=/Users/jivie/Projects/smb-translation/build/kotlin/compileKotlin/local-state/build-history.bin, useModuleDetection=false), icFeatures=IncrementalCompilationFeatures(usePreciseJavaTracking=true, withAbiSnapshot=false, preciseCompilationResultsBackup=true, keepIncrementalCompilationCachesInMemory=true, enableUnsafeIncrementalCompilationForMultiplatform=false, enableMonotonousIncrementalCompileSetExpansion=true), outputFiles=[/Users/jivie/Projects/smb-translation/build/classes/kotlin/main, /Users/jivie/Projects/smb-translation/build/kotlin/compileKotlin/cacheable, /Users/jivie/Projects/smb-translation/build/kotlin/compileKotlin/local-state])
+Finished executing kotlin compiler using DAEMON strategy
+Resolve mutations for :compileJava (Thread[Execution worker,5,main]) started.
+:compileJava (Thread[Execution worker,5,main]) started.
+
+> Task :compileJava NO-SOURCE
+Skipping task ':compileJava' as it has no source files and no previous output files.
+Resolve mutations for :classes (Thread[Execution worker,5,main]) started.
+:classes (Thread[Execution worker,5,main]) started.
+
+> Task :classes UP-TO-DATE
+Skipping task ':classes' as it has no actions.
+Resolve mutations for :jar (Thread[Execution worker,5,main]) started.
+:jar (Thread[Execution worker,5,main]) started.
+
+> Task :jar
+Caching disabled for task ':jar' because:
+  Build cache is disabled
+  Not worth caching
+Task ':jar' is not up-to-date because:
+  Input property 'rootSpec$1' file /Users/jivie/Projects/smb-translation/build/classes/kotlin/main/com/ivieleague/smbtranslation/InitializeNameTablesKt.class has changed.
+  Input property 'rootSpec$1' file /Users/jivie/Projects/smb-translation/build/classes/kotlin/main/com/ivieleague/smbtranslation/ScreenRoutinesKt.class has changed.
+  Input property 'rootSpec$1' file /Users/jivie/Projects/smb-translation/build/classes/kotlin/main/com/ivieleague/smbtranslation/utils/FrameDelayKt.class has changed.
+file or directory '/Users/jivie/Projects/smb-translation/build/classes/java/main', not found
+file or directory '/Users/jivie/Projects/smb-translation/build/resources/main', not found
+Resolve mutations for :compileTestKotlin (Thread[Execution worker,5,main]) started.
+:compileTestKotlin (Thread[Execution worker,5,main]) started.
+
+> Task :compileTestKotlin
+Caching disabled for BuildToolsApiClasspathEntrySnapshotTransform: /Users/jivie/Projects/smb-translation/build/classes/kotlin/main because:
+  Build cache is disabled
+Caching disabled for task ':compileTestKotlin' because:
+  Build cache is disabled
+Task ':compileTestKotlin' is not up-to-date because:
+  Input property 'classpathSnapshotProperties.classpathSnapshot' file /Users/jivie/.gradle/caches/8.14/transforms/9c3dcf5a9ce543bf4c17585c11d56371/transformed/main-snapshot.bin has been removed.
+  Input property 'classpathSnapshotProperties.classpathSnapshot' file /Users/jivie/.gradle/caches/8.14/transforms/c7e7ff376eefe397260a0a1e14fa8998/transformed/main-snapshot.bin has been added.
+file or directory '/Users/jivie/Projects/smb-translation/src/test/java', not found
+file or directory '/Users/jivie/Projects/smb-translation/src/test/java', not found
+file or directory '/Users/jivie/Projects/smb-translation/src/test/java', not found
+file or directory '/Users/jivie/Projects/smb-translation/src/test/java', not found
+Kotlin source files: /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/interpreter/BinaryInterpreterTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/interpreter/TASReplayTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/interpreter/SubroutineComparisonTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/interpreter/BulkSubroutineComparisonTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/AttributeWrappingTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/DrawTitleScreenTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/GameRamTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/nes/RenderAllPatterns.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/DigitsMathRoutineTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/SpriteShufflerTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/VisualVerificationTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/PlayerLoseLifeTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/BitOps2Test.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/BufferTranslation.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/ProjectSmokeTest.kt, /Users/jivie/Projects/smb-translation/src/test/kotlin/com/ivieleague/smbtranslation/VramBufferParserTest.kt
+Java source files: 
+Script source files: 
+Script file extensions: 
+Using Kotlin/JVM incremental compilation
+[KOTLIN] Kotlin compilation 'jdkHome' argument: /opt/homebrew/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home
+Options for KOTLIN DAEMON: IncrementalCompilationOptions(super=CompilationOptions(compilerMode=INCREMENTAL_COMPILER, targetPlatform=JVM, reportCategories=[0, 3], reportSeverity=2, requestedCompilationResults=[0], kotlinScriptExtensions=[]), sourceChanges=org.jetbrains.kotlin.buildtools.api.SourcesChanges$Known@48eb1350, classpathChanges=ToBeComputedByIncrementalCompiler, workingDir=/Users/jivie/Projects/smb-translation/build/kotlin/compileTestKotlin/cacheable, multiModuleICSettings=MultiModuleICSettings(buildHistoryFile=/Users/jivie/Projects/smb-translation/build/kotlin/compileTestKotlin/local-state/build-history.bin, useModuleDetection=false), icFeatures=IncrementalCompilationFeatures(usePreciseJavaTracking=true, withAbiSnapshot=false, preciseCompilationResultsBackup=true, keepIncrementalCompilationCachesInMemory=true, enableUnsafeIncrementalCompilationForMultiplatform=false, enableMonotonousIncrementalCompileSetExpansion=true), outputFiles=[/Users/jivie/Projects/smb-translation/build/classes/kotlin/test, /Users/jivie/Projects/smb-translation/build/kotlin/compileTestKotlin/cacheable, /Users/jivie/Projects/smb-translation/build/kotlin/compileTestKotlin/local-state])
+Finished executing kotlin compiler using DAEMON strategy
+Resolve mutations for :compileTestJava (Thread[Execution worker,5,main]) started.
+:compileTestJava (Thread[Execution worker,5,main]) started.
+
+> Task :compileTestJava NO-SOURCE
+Skipping task ':compileTestJava' as it has no source files and no previous output files.
+Resolve mutations for :testClasses (Thread[Execution worker,5,main]) started.
+:testClasses (Thread[Execution worker,5,main]) started.
+
+> Task :testClasses UP-TO-DATE
+Skipping task ':testClasses' as it has no actions.
+Resolve mutations for :test (Thread[Execution worker,5,main]) started.
+:test (Thread[Execution worker,5,main]) started.
+Gradle Test Executor 25 started executing tests.
+
+> Task :test
+Caching disabled for task ':test' because:
+  Build cache is disabled
+Task ':test' is not up-to-date because:
+  Input property 'stableClasspath' file /Users/jivie/Projects/smb-translation/build/classes/kotlin/main/com/ivieleague/smbtranslation/InitializeNameTablesKt.class has changed.
+  Input property 'stableClasspath' file /Users/jivie/Projects/smb-translation/build/classes/kotlin/main/com/ivieleague/smbtranslation/ScreenRoutinesKt.class has changed.
+  Input property 'stableClasspath' file /Users/jivie/Projects/smb-translation/build/classes/kotlin/main/com/ivieleague/smbtranslation/utils/FrameDelayKt.class has changed.
+file or directory '/Users/jivie/Projects/smb-translation/build/classes/java/test', not found
+Starting process 'Gradle Test Executor 25'. Working directory: /Users/jivie/Projects/smb-translation Command: /opt/homebrew/Cellar/openjdk@17/17.0.18/libexec/openjdk.jdk/Contents/Home/bin/java -Dorg.gradle.internal.worker.tmpdir=/Users/jivie/Projects/smb-translation/build/tmp/test/work @/Users/jivie/.gradle/.tmp/gradle-worker-classpath10848410140418072037txt -Xmx512m -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -ea worker.org.gradle.process.internal.worker.GradleWorkerMain 'Gradle Test Executor 25'
+Successfully started process 'Gradle Test Executor 25'
+
+TASReplayTest > TAS replay reaches game completion() STANDARD_OUT
+    === TAS Replay Test ===
+    ROM: /Users/jivie/Projects/smb-translation/smb.nes
+    TAS: /Users/jivie/Projects/smb-translation/happylee-warps.fm2
+    FCEUX RAM dump: 18000 frames
+    Comparison mode: ON (full NMI)
+    Loaded 17868 TAS frames
+    RESET done in 19515 steps
+    First NMI done in 24374 steps
+
+    === Running TAS (17868 frames) ===
+    Frame 32 WATCH (18 diffs) M=0 T=3 E=0 PX=0
+      $000e: kotlin=00 fceux=07
+      $0033: kotlin=00 fceux=01
+      $0088: kotlin=00 fceux=60
+      $006e: kotlin=00 fceux=01
+      $006f: kotlin=00 fceux=01
+      $0070: kotlin=00 fceux=01
+      $0071: kotlin=00 fceux=01
+      $0072: kotlin=00 fceux=01
+    Frame 33 WATCH (2 diffs) M=0 T=3 E=7 PX=40
+      $000e: kotlin=07 fceux=08
+      $0087: kotlin=10 fceux=60
+    Frame 42 WATCH (17 diffs) M=1 T=0 E=8 PX=40
+      $000e: kotlin=08 fceux=00
+      $0033: kotlin=01 fceux=00
+      $0088: kotlin=60 fceux=00
+      $006e: kotlin=01 fceux=00
+      $006f: kotlin=01 fceux=00
+      $0070: kotlin=01 fceux=00
+      $0071: kotlin=01 fceux=00
+      $0072: kotlin=01 fceux=00
+    Frame 193 WATCH (18 diffs) M=1 T=3 E=0 PX=0
+      $000e: kotlin=00 fceux=07
+      $0033: kotlin=00 fceux=01
+      $0088: kotlin=00 fceux=60
+      $006e: kotlin=00 fceux=01
+      $006f: kotlin=00 fceux=01
+      $0070: kotlin=00 fceux=01
+      $0071: kotlin=00 fceux=01
+      $0072: kotlin=00 fceux=01
+    Frame 194 WATCH (2 diffs) M=1 T=3 E=7 PX=40
+      $000e: kotlin=07 fceux=08
+      $0087: kotlin=10 fceux=60
+    Frame 195 WATCH (7 diffs) M=1 T=3 E=8 PX=40
+      $0033: kotlin=01 fceux=03
+      $0045: kotlin=00 fceux=01
+      $0057: kotlin=00 fceux=01
+      $0400: kotlin=00 fceux=10
+      $0450: kotlin=00 fceux=e8
+      $0456: kotlin=00 fceux=18
+    Frame 217 WATCH (6 diffs) M=1 T=3 E=8 PX=58
+      $0033: kotlin=03 fceux=01
+      $0057: kotlin=18 fceux=1a
+      $0086: kotlin=3a fceux=3b
+      $0400: kotlin=00 fceux=a0
+      $0450: kotlin=e8 fceux=d8
+      $0456: kotlin=18 fceux=28
+    Frame 218 WATCH (5 diffs) M=1 T=3 E=8 PX=59
+      $0033: kotlin=01 fceux=02
+      $0086: kotlin=3b fceux=3d
+      $0400: kotlin=a0 fceux=40
+      $0450: kotlin=d8 fceux=e8
+      $0456: kotlin=28 fceux=18
+    Frame 240 WATCH (3 diffs) M=1 T=3 E=8 PX=110
+      $0033: kotlin=02 fceux=01
+      $0086: kotlin=6e fceux=71
+      $0400: kotlin=90 fceux=10
+    Frame 500: World=1-1, Mode=Game, Task=3, X=251
+    Frame 636 WATCH (24 diffs) M=1 T=3 E=0 PX=0
+      $000e: kotlin=00 fceux=07
+      $0033: kotlin=00 fceux=01
+      $0088: kotlin=00 fceux=20
+      $00d0: kotlin=00 fceux=e0
+      $006e: kotlin=00 fceux=01
+      $006f: kotlin=00 fceux=01
+      $0070: kotlin=00 fceux=01
+      $0071: kotlin=00 fceux=03
+      $0072: kotlin=00 fceux=03
+    Frame 637 WATCH (9 diffs) M=1 T=3 E=7 PX=24
+      $0088: kotlin=20 fceux=10
+      $001d: kotlin=00 fceux=02
+      $006e: kotlin=01 fceux=03
+      $006f: kotlin=01 fceux=03
+      $0070: kotlin=01 fceux=03
+      $0089: kotlin=20 fceux=10
+    Frame 653 WATCH (1 diffs) M=1 T=3 E=7 PX=24
+      $000e: kotlin=07 fceux=08
+    Frame 707 WATCH (5 diffs) M=1 T=3 E=8 PX=62
+      $0033: kotlin=01 fceux=02
+      $0086: kotlin=3e fceux=40
+      $0400: kotlin=f0 fceux=80
+      $0450: kotlin=d8 fceux=e8
+      $0456: kotlin=28 fceux=18
+    Frame 731 WATCH (3 diffs) M=1 T=3 E=8 PX=118
+      $0033: kotlin=02 fceux=01
+      $0086: kotlin=76 fceux=78
+      $0400: kotlin=60 fceux=e0
+    Frame 764 WATCH (6 diffs) M=1 T=3 E=8 PX=194
+      $000e: kotlin=08 fceux=02
+      $001d: kotlin=01 fceux=00
+      $0086: kotlin=c2 fceux=c4
+      $009f: kotlin=04 fceux=00
+      $00ce: kotlin=ad fceux=b0
+      $0400: kotlin=f0 fceux=c0
+    Frame 926 WATCH (24 diffs) M=1 T=0 E=2 PX=208
+      $000e: kotlin=02 fceux=00
+      $0033: kotlin=01 fceux=00
+      $0088: kotlin=10 fceux=00
+      $00d0: kotlin=e0 fceux=00
+      $0045: kotlin=01 fceux=00
+      $006e: kotlin=03 fceux=00
+      $006f: kotlin=03 fceux=00
+      $0070: kotlin=03 fceux=00
+      $0071: kotlin=03 fceux=00
+    Frame 950 WATCH (16 diffs) M=1 T=3 E=0 PX=0
+      $000e: kotlin=00 fceux=07
+      $0033: kotlin=00 fceux=01
+      $0088: kotlin=00 fceux=60
+      $006d: kotlin=00 fceux=0a
+      $006e: kotlin=00 fceux=01
+      $006f: kotlin=00 fceux=01
+      $0070: kotlin=00 fceux=02
+      $0071: kotlin=00 fceux=03
+    Frame 951 WATCH (11 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=60 fceux=40
+      $006e: kotlin=01 fceux=05
+      $006f: kotlin=01 fceux=06
+      $0070: kotlin=02 fceux=06
+      $0071: kotlin=03 fceux=07
+      $0072: kotlin=05 fceux=07
+    Frame 952 WATCH (21 diffs) M=1 T=3 E=7 PX=56
+      $0016: kotlin=00 fceux=06
+      $0088: kotlin=40 fceux=17
+      $00d0: kotlin=00 fceux=b8
+      $000f: kotlin=00 fceux=01
+      $0010: kotlin=00 fceux=01
+      $0017: kotlin=00 fceux=06
+      $0046: kotlin=00 fceux=02
+      $0047: kotlin=00 fceux=02
+    Frame 953 WATCH (7 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=17 fceux=16
+      $0087: kotlin=ff fceux=fe
+      $00ce: kotlin=ee fceux=ed
+      $03d1: kotlin=00 fceux=0f
+      $03d8: kotlin=01 fceux=00
+      $03d9: kotlin=01 fceux=08
+    Frame 955 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=16 fceux=15
+      $0087: kotlin=fe fceux=fd
+      $00ce: kotlin=ec fceux=eb
+      $0401: kotlin=00 fceux=80
+    Frame 957 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=15 fceux=14
+      $0087: kotlin=fd fceux=fc
+      $00ce: kotlin=ea fceux=e9
+      $0401: kotlin=00 fceux=80
+    Frame 959 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=14 fceux=13
+      $0087: kotlin=fc fceux=fb
+      $00ce: kotlin=e8 fceux=e7
+      $0401: kotlin=00 fceux=80
+    Frame 961 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=13 fceux=12
+      $0087: kotlin=fb fceux=fa
+      $00ce: kotlin=e6 fceux=e5
+      $0401: kotlin=00 fceux=80
+    Frame 963 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=12 fceux=11
+      $0087: kotlin=fa fceux=f9
+      $00ce: kotlin=e4 fceux=e3
+      $0401: kotlin=00 fceux=80
+    Frame 965 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=11 fceux=10
+      $0087: kotlin=f9 fceux=f8
+      $00ce: kotlin=e2 fceux=e1
+      $0401: kotlin=00 fceux=80
+    Frame 967 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=10 fceux=0f
+      $0087: kotlin=f8 fceux=f7
+      $00ce: kotlin=e0 fceux=df
+      $0401: kotlin=00 fceux=80
+    Frame 969 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=0f fceux=0e
+      $0087: kotlin=f7 fceux=f6
+      $00ce: kotlin=de fceux=dd
+      $0401: kotlin=00 fceux=80
+    Frame 971 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=0e fceux=0d
+      $0087: kotlin=f6 fceux=f5
+      $00ce: kotlin=dc fceux=db
+      $0401: kotlin=00 fceux=80
+    Frame 973 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=0d fceux=0c
+      $0087: kotlin=f5 fceux=f4
+      $00ce: kotlin=da fceux=d9
+      $0401: kotlin=00 fceux=80
+    Frame 975 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=0c fceux=0b
+      $0087: kotlin=f4 fceux=f3
+      $00ce: kotlin=d8 fceux=d7
+      $0401: kotlin=00 fceux=80
+    Frame 977 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=0b fceux=0a
+      $0087: kotlin=f3 fceux=f2
+      $00ce: kotlin=d6 fceux=d5
+      $0401: kotlin=00 fceux=80
+    Frame 979 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=0a fceux=09
+      $0087: kotlin=f2 fceux=f1
+      $00ce: kotlin=d4 fceux=d3
+      $0401: kotlin=00 fceux=80
+    Frame 981 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=09 fceux=08
+      $0087: kotlin=f1 fceux=f0
+      $00ce: kotlin=d2 fceux=d1
+      $0401: kotlin=00 fceux=80
+    Frame 983 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=08 fceux=07
+      $0087: kotlin=f0 fceux=ef
+      $00ce: kotlin=d0 fceux=cf
+      $0401: kotlin=00 fceux=80
+    Frame 985 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=07 fceux=06
+      $0087: kotlin=ef fceux=ee
+      $00ce: kotlin=ce fceux=cd
+      $0401: kotlin=00 fceux=80
+    Frame 987 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=06 fceux=05
+      $0087: kotlin=ee fceux=ed
+      $00ce: kotlin=cc fceux=cb
+      $0401: kotlin=00 fceux=80
+    Frame 989 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=05 fceux=04
+      $0087: kotlin=ed fceux=ec
+      $00ce: kotlin=ca fceux=c9
+      $0401: kotlin=00 fceux=80
+    Frame 991 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=04 fceux=03
+      $0087: kotlin=ec fceux=eb
+      $00ce: kotlin=c8 fceux=c7
+      $0401: kotlin=00 fceux=80
+    Frame 993 WATCH (4 diffs) M=1 T=3 E=7 PX=56
+      $0088: kotlin=03 fceux=02
+      $0087: kotlin=eb fceux=ea
+      $00ce: kotlin=c6 fceux=c5
+      $0401: kotlin=00 fceux=80
+    Frame 1000: World=1-1, Mode=Game, Task=3, X=56
+    Frame 1500: World=1-1, Mode=Game, Task=3, X=194
+    Frame 1943: Reached W1-2 (FCEUX Mode=1)
+    Frame 2000: World=1-2, Mode=Game, Task=1, X=0
+    Frame 2000/17868: W1-2 (diffs so far: 376/1993 frames)
+    Frame 2442: Reached W1-3 (FCEUX Mode=1)
+    Frame 2500: World=1-2, Mode=Game, Task=3, X=44
+    Frame 3000: World=1-2, Mode=Game, Task=3, X=231
+    Frame 3500: World=1-2, Mode=Game, Task=3, X=201
+
+    === Frame 3541 AREA PARSER DEBUG ===
+      vRAMBufferAddrCtrl ($0773): 00
+      areaParserTaskNum ($071F): 00
+      scrollThirtyTwo ($073F): bd
+      blockRepFlags ($0130-1): [0]=00, [1]=00
+      AreaData ptr ($E7/$E8): $ac37 → idx=null
+      areaDataOffset ($072C): 92
+      currentPageLoc ($0725): 0b
+      currentColumnPos ($0726): 02
+      ScreenLeft_PageLoc ($071A): 09
+      ScreenRight_PageLoc ($071C): bd
+      areaNumber ($074E): 02
+      worldNumber ($075F): 00
+      Kotlin areaData null? false
+      Kotlin areaData size: 161
+      Enemy flags: [[0]=01, [1]=01, [2]=01, [3]=00, [4]=00]
+      Enemy IDs:   [[0]=26, [1]=26, [2]=34, [3]=00, [4]=00]
+    Frame 3765: Reached W4-1 (FCEUX Mode=1)
+    Frame 4000: World=4-1, Mode=Game, Task=3, X=55
+    Frame 4000/17868: W4-1 (diffs so far: 672/3993 frames)
+    Frame 4500: World=4-1, Mode=Game, Task=3, X=20
+
+    === Frame 4619 W4-1 ENEMY CASCADE DEBUG ===
+      Enemy IDs:    [[0]=12, [1]=11, [2]=12, [3]=12, [4]=12, [5]=2e]
+      Enemy flags:  [[0]=00, [1]=01, [2]=00, [3]=00, [4]=00, [5]=01]
+      Enemy states: [[0]=00, [1]=00, [2]=00, [3]=00, [4]=00, [5]=0f]
+      enemyFrenzyBuffer ($06CB): 12
+      enemyFrenzyQueue ($06CD): 00
+      enemyDataOffset ($0739): 07
+      enemyObjectPageLoc ($073A): 07
+      enemyObjectPageSel ($073B): 01
+      screenRightPageLoc ($071C): cb
+      screenRightXPos ($071E): ff
+      areaParserTaskNum ($071F): 03
+      frenzyEnemyTimer ($06CE): 00
+      lakituReappearTimer ($06D1): 00
+      EnemyData ptr ($E9/$EA): $9e9b
+      enemyAddrToIdx lookup: idx=8
+      enemyData[0..13]: 2e c2 66 e2 11 0f 07 02 11 0f 0c 12 11 ff
+      enemyData[@7..+15]: 02 11 0f 0c 12 11 ff ff ff ff ff ff ff ff ff ff
+      enemyData total size: 14
+      Kotlin enemyIDs: [[0]=12, [1]=11, [2]=12, [3]=12, [4]=12, [5]=2e]
+      Kotlin enemyFlags: [[0]=00, [1]=01, [2]=00, [3]=00, [4]=00, [5]=01]
+
+    === Frame 4620 W4-1 ENEMY CASCADE DEBUG ===
+      Enemy IDs:    [[0]=12, [1]=11, [2]=12, [3]=12, [4]=12, [5]=2e]
+      Enemy flags:  [[0]=00, [1]=01, [2]=00, [3]=00, [4]=00, [5]=01]
+      Enemy states: [[0]=00, [1]=00, [2]=00, [3]=00, [4]=00, [5]=0f]
+      enemyFrenzyBuffer ($06CB): 12
+      enemyFrenzyQueue ($06CD): 00
+      enemyDataOffset ($0739): 07
+      enemyObjectPageLoc ($073A): 07
+      enemyObjectPageSel ($073B): 01
+      screenRightPageLoc ($071C): ce
+      screenRightXPos ($071E): ff
+      areaParserTaskNum ($071F): 02
+      frenzyEnemyTimer ($06CE): 00
+      lakituReappearTimer ($06D1): 00
+      EnemyData ptr ($E9/$EA): $9e9b
+      enemyAddrToIdx lookup: idx=8
+      enemyData[0..13]: 2e c2 66 e2 11 0f 07 02 11 0f 0c 12 11 ff
+      enemyData[@7..+15]: 02 11 0f 0c 12 11 ff ff ff ff ff ff ff ff ff ff
+      enemyData total size: 14
+      Kotlin enemyIDs: [[0]=12, [1]=11, [2]=12, [3]=12, [4]=12, [5]=2e]
+      Kotlin enemyFlags: [[0]=00, [1]=01, [2]=00, [3]=00, [4]=00, [5]=01]
+
+    === Frame 4621 W4-1 ENEMY CASCADE DEBUG ===
+      Enemy IDs:    [[0]=12, [1]=11, [2]=12, [3]=12, [4]=12, [5]=2e]
+      Enemy flags:  [[0]=00, [1]=01, [2]=00, [3]=00, [4]=00, [5]=01]
+      Enemy states: [[0]=00, [1]=00, [2]=00, [3]=00, [4]=00, [5]=0f]
+      enemyFrenzyBuffer ($06CB): 12
+      enemyFrenzyQueue ($06CD): 00
+      enemyDataOffset ($0739): 07
+      enemyObjectPageLoc ($073A): 07
+      enemyObjectPageSel ($073B): 01
+      screenRightPageLoc ($071C): d0
+      screenRightXPos ($071E): ff
+      areaParserTaskNum ($071F): 01
+      frenzyEnemyTimer ($06CE): 00
+      lakituReappearTimer ($06D1): 00
+      EnemyData ptr ($E9/$EA): $9e9b
+      enemyAddrToIdx lookup: idx=8
+      enemyData[0..13]: 2e c2 66 e2 11 0f 07 02 11 0f 0c 12 11 ff
+      enemyData[@7..+15]: 02 11 0f 0c 12 11 ff ff ff ff ff ff ff ff ff ff
+      enemyData total size: 14
+      Kotlin enemyIDs: [[0]=12, [1]=11, [2]=12, [3]=12, [4]=12, [5]=2e]
+      Kotlin enemyFlags: [[0]=00, [1]=01, [2]=00, [3]=00, [4]=00, [5]=01]
+
+    === Frame 4621 POST-NMI STATE ===
+      Kotlin enemyIDs:    [[0]=00, [1]=11, [2]=00, [3]=00, [4]=00, [5]=2e]
+      Kotlin enemyFlags:  [[0]=00, [1]=01, [2]=00, [3]=00, [4]=00, [5]=01]
+      Kotlin enemyStates: [[0]=00, [1]=00, [2]=00, [3]=00, [4]=00, [5]=0f]
+      enemyDataOffset: 07
+      enemyFrenzyBuffer: 12
+      frenzyEnemyTimer: 74
+      lakituReappearTimer: 00
+      enemyObjectPageLoc: 07
+      enemyObjectPageSel: 01
+      FCEUX  enemyIDs:    [[0]=00, [1]=11, [2]=00, [3]=00, [4]=00, [5]=2e]
+      FCEUX  enemyFlags:  [[0]=00, [1]=01, [2]=00, [3]=00, [4]=00, [5]=01]
+      FCEUX  enemyStates: [[0]=00, [1]=00, [2]=00, [3]=00, [4]=00, [5]=0f]
+      FCEUX  enemyDataOffset: 07
+      FCEUX  frenzyBuffer: 12
+      FCEUX  frenzyTimer: 00
+      FCEUX  lakituReappear: 00
+
+    === Frame 4622 W4-1 ENEMY CASCADE DEBUG ===
+      Enemy IDs:    [[0]=00, [1]=11, [2]=00, [3]=00, [4]=00, [5]=2e]
+      Enemy flags:  [[0]=00, [1]=01, [2]=00, [3]=00, [4]=00, [5]=01]
+      Enemy states: [[0]=00, [1]=00, [2]=00, [3]=00, [4]=00, [5]=0f]
+      enemyFrenzyBuffer ($06CB): 12
+      enemyFrenzyQueue ($06CD): 00
+      enemyDataOffset ($0739): 07
+      enemyObjectPageLoc ($073A): 07
+      enemyObjectPageSel ($073B): 01
+      screenRightPageLoc ($071C): d3
+      screenRightXPos ($071E): ff
+      areaParserTaskNum ($071F): 00
+      frenzyEnemyTimer ($06CE): 00
+      lakituReappearTimer ($06D1): 00
+      EnemyData ptr ($E9/$EA): $9e9b
+      enemyAddrToIdx lookup: idx=8
+      enemyData[0..13]: 2e c2 66 e2 11 0f 07 02 11 0f 0c 12 11 ff
+      enemyData[@7..+15]: 02 11 0f 0c 12 11 ff ff ff ff ff ff ff ff ff ff
+      enemyData total size: 14
+      Kotlin enemyIDs: [[0]=00, [1]=11, [2]=00, [3]=00, [4]=00, [5]=2e]
+      Kotlin enemyFlags: [[0]=00, [1]=01, [2]=00, [3]=00, [4]=00, [5]=01]
+    Frame 5000: World=4-1, Mode=Game, Task=3, X=246
+    Frame 5500: World=4-1, Mode=Game, Task=3, X=44
+    Frame 6000: World=4-1, Mode=Game, Task=3, X=114
+    Frame 6000/17868: W4-1 (diffs so far: 712/5993 frames)
+    Frame 6041: Reached W4-2 (FCEUX Mode=1)
+    Frame 6500: World=4-2, Mode=Game, Task=3, X=160
+    Frame 6540: Reached W4-3 (FCEUX Mode=1)
+    Frame 7000: World=4-2, Mode=Game, Task=3, X=163
+
+    === Frame 7037 ENEMY Y DEBUG ===
+      sprObjYPos[2] ($D0): kotlin=78 fceux=00
+      sprObjYPos[6] ($D4): kotlin=b8 fceux=50
+      sprObjYSpeed[2] ($A1): kotlin=00 fceux=00
+      enemyState[1] ($1F): 00
+      enemyState[5] ($23): 00
+      enemyID[1]: 00
+      enemyID[5]: 00
+      enemyFlags[1]: 00
+      enemyFlags[5]: 00
+      gameEngineSubroutine: 08
+      operMode: 01
+
+    === Frame 7039 ENEMY Y DEBUG ===
+      sprObjYPos[2] ($D0): kotlin=00 fceux=00
+      sprObjYPos[6] ($D4): kotlin=50 fceux=4f
+      sprObjYSpeed[2] ($A1): kotlin=00 fceux=00
+      enemyState[1] ($1F): 00
+      enemyState[5] ($23): 00
+      enemyID[1]: 2f
+      enemyID[5]: 2f
+      enemyFlags[1]: 01
+      enemyFlags[5]: 01
+      gameEngineSubroutine: 08
+      operMode: 01
+
+    === Frame 7040 ENEMY Y DEBUG ===
+      sprObjYPos[2] ($D0): kotlin=00 fceux=00
+      sprObjYPos[6] ($D4): kotlin=4f fceux=4e
+      sprObjYSpeed[2] ($A1): kotlin=00 fceux=00
+      enemyState[1] ($1F): 00
+      enemyState[5] ($23): 00
+      enemyID[1]: 2f
+      enemyID[5]: 2f
+      enemyFlags[1]: 01
+      enemyFlags[5]: 01
+      gameEngineSubroutine: 08
+      operMode: 01
+
+    === Frame 7043 ENEMY Y DEBUG ===
+      sprObjYPos[2] ($D0): kotlin=00 fceux=00
+      sprObjYPos[6] ($D4): kotlin=4e fceux=4d
+      sprObjYSpeed[2] ($A1): kotlin=00 fceux=00
+      enemyState[1] ($1F): 00
+      enemyState[5] ($23): 00
+      enemyID[1]: 2f
+      enemyID[5]: 2f
+      enemyFlags[1]: 01
+      enemyFlags[5]: 01
+      gameEngineSubroutine: 08
+      operMode: 01
+
+    === Frame 7044 ENEMY Y DEBUG ===
+      sprObjYPos[2] ($D0): kotlin=00 fceux=00
+      sprObjYPos[6] ($D4): kotlin=4d fceux=4c
+      sprObjYSpeed[2] ($A1): kotlin=00 fceux=00
+      enemyState[1] ($1F): 00
+      enemyState[5] ($23): 00
+      enemyID[1]: 2f
+      enemyID[5]: 2f
+      enemyFlags[1]: 01
+      enemyFlags[5]: 01
+      gameEngineSubroutine: 08
+      operMode: 01
+    Frame 7500: World=4-2, Mode=Game, Task=3, X=107
+    Frame 7722: Reached W8-1 (FCEUX Mode=1)
+    Frame 8000: World=8-1, Mode=Game, Task=3, X=170
+    Frame 8000/17868: W8-1 (diffs so far: 1118/7993 frames)
+    Frame 8500: World=8-1, Mode=Game, Task=3, X=140
+    Frame 9000: World=8-1, Mode=Game, Task=3, X=110
+
+    === Frame 9060 ENEMY SLOT1 DEBUG ===
+      PRE-NMI (synced from FCEUX[9060]):
+        enemyID[1]=00 enemyFlags[1]=01 enemyState[1]=01
+        sprObjXPos[2]=ed sprObjYPos[2]=b4 sprObjPageLoc[2]=0a
+        sprObjYSpeed[2]=00 sprObjXSpeed[2]=f8
+        sprObjYHighPos[2]=01 sprObjYMoveForce[2]=f4
+        gameEngineSubroutine=08 timerControl=00
+        screenLeftPageLoc=0a screenRightPageLoc=91
+        BB check: objX=ed objY=b4 page=10 col=15 vertOfs=a0 bufIdx=175 buf1
+        BB tile: kotlin=00 fceux=00 (addr=$af)
+        subtEnemyYPos: Y+3E=f2 >= 44? true
+      POST-NMI comparison (kotlin vs FCEUX[9061]):
+        sprObjYSpeed[2]: kotlin=00 fceux=01
+        enemyState[1]: kotlin=01 fceux=01
+        sprObjYPos[2]: kotlin=b4 fceux=b5
+        enemyFlags[1]: kotlin=01 fceux=01
+        enemyID[1]: kotlin=00 fceux=00
+        sprObjXSpeed[2] ($59): kotlin=f8 fceux=f8
+        enemyMovingDirs[1] ($47): kotlin=02 fceux=02
+        playerXPos ($86): kotlin=01 fceux=04
+        playerPageLoc ($6D): kotlin=0b fceux=0b
+
+    === Frame 9062 ENEMY SLOT1 DEBUG ===
+      PRE-NMI (synced from FCEUX[9062]):
+        enemyID[1]=00 enemyFlags[1]=01 enemyState[1]=01
+        sprObjXPos[2]=ec sprObjYPos[2]=b6 sprObjPageLoc[2]=0a
+        sprObjYSpeed[2]=01 sprObjXSpeed[2]=f8
+        sprObjYHighPos[2]=01 sprObjYMoveForce[2]=6e
+        gameEngineSubroutine=08 timerControl=00
+        screenLeftPageLoc=0a screenRightPageLoc=96
+        BB check: objX=ec objY=b6 page=10 col=15 vertOfs=a0 bufIdx=175 buf1
+        BB tile: kotlin=00 fceux=00 (addr=$af)
+        subtEnemyYPos: Y+3E=f4 >= 44? true
+      POST-NMI comparison (kotlin vs FCEUX[9063]):
+        sprObjYSpeed[2]: kotlin=01 fceux=01
+        enemyState[1]: kotlin=01 fceux=01
+        sprObjYPos[2]: kotlin=b6 fceux=b7
+        enemyFlags[1]: kotlin=01 fceux=01
+        enemyID[1]: kotlin=00 fceux=00
+        sprObjXSpeed[2] ($59): kotlin=f8 fceux=f8
+        enemyMovingDirs[1] ($47): kotlin=02 fceux=02
+        playerXPos ($86): kotlin=06 fceux=09
+        playerPageLoc ($6D): kotlin=0b fceux=0b
+
+    === Frame 9063 ENEMY SLOT1 DEBUG ===
+      PRE-NMI (synced from FCEUX[9063]):
+        enemyID[1]=00 enemyFlags[1]=01 enemyState[1]=01
+        sprObjXPos[2]=ec sprObjYPos[2]=b7 sprObjPageLoc[2]=0a
+        sprObjYSpeed[2]=01 sprObjXSpeed[2]=f8
+        sprObjYHighPos[2]=01 sprObjYMoveForce[2]=ab
+        gameEngineSubroutine=08 timerControl=00
+        screenLeftPageLoc=0a screenRightPageLoc=99
+        BB check: objX=ec objY=b7 page=10 col=15 vertOfs=a0 bufIdx=175 buf1
+        BB tile: kotlin=00 fceux=00 (addr=$af)
+        subtEnemyYPos: Y+3E=f5 >= 44? true
+      POST-NMI comparison (kotlin vs FCEUX[9064]):
+        sprObjYSpeed[2]: kotlin=01 fceux=01
+        enemyState[1]: kotlin=01 fceux=01
+        sprObjYPos[2]: kotlin=b7 fceux=b9
+        enemyFlags[1]: kotlin=01 fceux=01
+        enemyID[1]: kotlin=00 fceux=00
+        sprObjXSpeed[2] ($59): kotlin=f8 fceux=f8
+        enemyMovingDirs[1] ($47): kotlin=02 fceux=02
+        playerXPos ($86): kotlin=09 fceux=0b
+        playerPageLoc ($6D): kotlin=0b fceux=0b
+
+    === Frame 9064 ENEMY SLOT1 DEBUG ===
+      PRE-NMI (synced from FCEUX[9064]):
+        enemyID[1]=00 enemyFlags[1]=01 enemyState[1]=01
+        sprObjXPos[2]=eb sprObjYPos[2]=b9 sprObjPageLoc[2]=0a
+        sprObjYSpeed[2]=01 sprObjXSpeed[2]=f8
+        sprObjYHighPos[2]=01 sprObjYMoveForce[2]=e8
+        gameEngineSubroutine=08 timerControl=00
+        screenLeftPageLoc=0a screenRightPageLoc=9b
+        BB check: objX=eb objY=b9 page=10 col=15 vertOfs=b0 bufIdx=191 buf1
+        BB tile: kotlin=54 fceux=54 (addr=$bf)
+        subtEnemyYPos: Y+3E=f7 >= 44? true
+      POST-NMI comparison (kotlin vs FCEUX[9065]):
+        sprObjYSpeed[2]: kotlin=01 fceux=00
+        enemyState[1]: kotlin=01 fceux=00
+        sprObjYPos[2]: kotlin=b9 fceux=b8
+        enemyFlags[1]: kotlin=01 fceux=01
+        enemyID[1]: kotlin=00 fceux=00
+        sprObjXSpeed[2] ($59): kotlin=f8 fceux=08
+        enemyMovingDirs[1] ($47): kotlin=02 fceux=01
+        playerXPos ($86): kotlin=0b fceux=0e
+        playerPageLoc ($6D): kotlin=0b fceux=0b
+    [GCR-pre] pX=11 pP=11
+    [GCR-post] pX=14 pP=11
+    [GE-start] pX=14 pP=11 eX1=235 eP1=10 eState1=1 eDir1=2
+      [ELC] slot=0 flag=0 id=0 state=0 aPTN=0
+      [CEF] → processEnemyData offset=35 pageSel=1 pageLoc=13
+      [PED] slot=0 offset=35 firstByte=2b pageSel=1 pageLoc=13
+      [PED] boundary: colPos=20 pageLoc=d scrRX=9d scrRPg=b pageDiff=1 extHigh=c0 extPg=b
+      [PED] → beyond ext boundary, checkFrenzyBuffer
+      [CFB] slot=0 frenzyBuffer=0
+      [CEF] ← processEnemyData offset=35 pageSel=1 pageLoc=13 id=0
+      [ELC] slot=1 flag=1 id=0 state=1 aPTN=0
+    [BGColl] slot=1 metatile=54 lowNybble=9
+    [LandEP] slot=1 lowNybble=9 adjusted=1 (>=5? false) state=1
+    [PED] eX=235 pX=14 eP=10 pP=11 borrow=0 lowDiff=dd highDiff=ff
+    [ProcED] slot=1 dir=2 highDiff=ff lowDiff=dd movingDir=2 match=true
+      [ELC] slot=2 flag=0 id=0 state=0 aPTN=0
+      [CEF] → processEnemyData offset=35 pageSel=1 pageLoc=13
+      [PED] slot=2 offset=35 firstByte=2b pageSel=1 pageLoc=13
+      [PED] boundary: colPos=20 pageLoc=d scrRX=9d scrRPg=b pageDiff=1 extHigh=c0 extPg=b
+      [PED] → beyond ext boundary, checkFrenzyBuffer
+      [CFB] slot=2 frenzyBuffer=0
+      [CEF] ← processEnemyData offset=35 pageSel=1 pageLoc=13 id=0
+      [ELC] slot=3 flag=0 id=0 state=0 aPTN=0
+      [CEF] → processEnemyData offset=35 pageSel=1 pageLoc=13
+      [PED] slot=3 offset=35 firstByte=2b pageSel=1 pageLoc=13
+      [PED] boundary: colPos=20 pageLoc=d scrRX=9d scrRPg=b pageDiff=1 extHigh=c0 extPg=b
+      [PED] → beyond ext boundary, checkFrenzyBuffer
+      [CFB] slot=3 frenzyBuffer=0
+      [CEF] ← processEnemyData offset=35 pageSel=1 pageLoc=13 id=0
+      [ELC] slot=4 flag=0 id=0 state=0 aPTN=0
+      [CEF] → processEnemyData offset=35 pageSel=1 pageLoc=13
+      [PED] slot=4 offset=35 firstByte=2b pageSel=1 pageLoc=13
+      [PED] boundary: colPos=20 pageLoc=d scrRX=9d scrRPg=b pageDiff=1 extHigh=c0 extPg=b
+      [PED] → beyond ext boundary, checkFrenzyBuffer
+      [CFB] slot=4 frenzyBuffer=0
+      [CEF] ← processEnemyData offset=35 pageSel=1 pageLoc=13 id=0
+      [ELC] slot=5 flag=0 id=0 state=0 aPTN=0
+      [CEF] → processEnemyData offset=35 pageSel=1 pageLoc=13
+      [PED] slot=5 offset=35 firstByte=2b pageSel=1 pageLoc=13
+      [CEF] ← processEnemyData offset=35 pageSel=1 pageLoc=13 id=0
+      POST-NMI frame 9064 detailed:
+        xSpeed[2] ($59): k=08 f=08
+        movDir[1] ($47): k=01 f=01
+        pXPos ($86): k=0e f=0e
+        pPage ($6D): k=0b f=0b
+        eState[1] ($1F): k=01 f=00
+        eYSpd[2] ($A1): k=02 f=00
+        eYPos[2] ($D0): k=bb f=b8
+        eXPos[2] ($88): k=ec f=ec
+        eYMF[2] ($435): k=25 f=00
+        ALL 3 diffs:
+          $001f: k=01 f=00
+          $00a1: k=02 f=00
+          $00d0: k=bb f=b8
+
+    === Frame 9065 ENEMY SLOT1 DEBUG ===
+      PRE-NMI (synced from FCEUX[9065]):
+        enemyID[1]=00 enemyFlags[1]=01 enemyState[1]=00
+        sprObjXPos[2]=ec sprObjYPos[2]=b8 sprObjPageLoc[2]=0a
+        sprObjYSpeed[2]=00 sprObjXSpeed[2]=08
+        sprObjYHighPos[2]=01 sprObjYMoveForce[2]=00
+        gameEngineSubroutine=08 timerControl=00
+        screenLeftPageLoc=0a screenRightPageLoc=9e
+        BB check: objX=ec objY=b8 page=10 col=15 vertOfs=b0 bufIdx=191 buf1
+        BB tile: kotlin=54 fceux=54 (addr=$bf)
+        subtEnemyYPos: Y+3E=f6 >= 44? true
+      POST-NMI comparison (kotlin vs FCEUX[9066]):
+        sprObjYSpeed[2]: kotlin=00 fceux=00
+        enemyState[1]: kotlin=00 fceux=00
+        sprObjYPos[2]: kotlin=b8 fceux=b8
+        enemyFlags[1]: kotlin=01 fceux=01
+        enemyID[1]: kotlin=00 fceux=00
+        sprObjXSpeed[2] ($59): kotlin=08 fceux=08
+        enemyMovingDirs[1] ($47): kotlin=01 fceux=01
+        playerXPos ($86): kotlin=0e fceux=10
+        playerPageLoc ($6D): kotlin=0b fceux=0b
+
+    === Frame 9066 ENEMY SLOT1 DEBUG ===
+      PRE-NMI (synced from FCEUX[9066]):
+        enemyID[1]=00 enemyFlags[1]=01 enemyState[1]=00
+        sprObjXPos[2]=ec sprObjYPos[2]=b8 sprObjPageLoc[2]=0a
+        sprObjYSpeed[2]=00 sprObjXSpeed[2]=08
+        sprObjYHighPos[2]=01 sprObjYMoveForce[2]=00
+        gameEngineSubroutine=08 timerControl=00
+        screenLeftPageLoc=0a screenRightPageLoc=a0
+        BB check: objX=ec objY=b8 page=10 col=15 vertOfs=b0 bufIdx=191 buf1
+        BB tile: kotlin=54 fceux=54 (addr=$bf)
+        subtEnemyYPos: Y+3E=f6 >= 44? true
+      POST-NMI comparison (kotlin vs FCEUX[9067]):
+        sprObjYSpeed[2]: kotlin=00 fceux=00
+        enemyState[1]: kotlin=00 fceux=00
+        sprObjYPos[2]: kotlin=b8 fceux=b8
+        enemyFlags[1]: kotlin=01 fceux=01
+        enemyID[1]: kotlin=00 fceux=00
+        sprObjXSpeed[2] ($59): kotlin=08 fceux=08
+        enemyMovingDirs[1] ($47): kotlin=01 fceux=01
+        playerXPos ($86): kotlin=10 fceux=13
+        playerPageLoc ($6D): kotlin=0b fceux=0b
+    Frame 9500: World=8-1, Mode=Game, Task=3, X=80
+    Frame 10000: World=8-1, Mode=Game, Task=3, X=48
+    Frame 10000/17868: W8-1 (diffs so far: 1119/9993 frames)
+    Frame 10500: World=8-1, Mode=Game, Task=3, X=226
+    Frame 10812: Reached W8-2 (FCEUX Mode=1)
+    Frame 11000: World=8-2, Mode=Game, Task=3, X=58
+    Frame 11500: World=8-2, Mode=Game, Task=3, X=25
+    Frame 12000: World=8-2, Mode=Game, Task=3, X=242
+    Frame 12000/17868: W8-2 (diffs so far: 1184/11993 frames)
+    Frame 12500: World=8-2, Mode=Game, Task=3, X=114
+    Frame 12955: Reached W8-3 (FCEUX Mode=1)
+    Frame 13000: World=8-3, Mode=Game, Task=1, X=0
+    Frame 13500: World=8-3, Mode=Game, Task=3, X=180
+    Frame 14000: World=8-3, Mode=Game, Task=3, X=150
+    Frame 14000/17868: W8-3 (diffs so far: 1250/13993 frames)
+    Frame 14500: World=8-3, Mode=Game, Task=3, X=89
+    Frame 15000: World=8-3, Mode=Game, Task=3, X=226
+    Frame 15056: Reached W8-4 (FCEUX Mode=1)
+    Frame 15500: World=8-4, Mode=Game, Task=3, X=175
+    Frame 16000: World=8-4, Mode=Game, Task=3, X=226
+    Frame 16000/17868: W8-4 (diffs so far: 1471/15993 frames)
+    Frame 16500: World=8-4, Mode=Game, Task=3, X=119
+    Frame 17000: World=8-4, Mode=Game, Task=3, X=200
+    Frame 17500: World=8-4, Mode=Game, Task=3, X=56
+    Frame 17866: GAME COMPLETED!
+
+    === Results ===
+    Max level reached: W8-4
+    Reached W8-4: true
+    Game completed: true
+    Errors (exceptions): 0 / 17868 frames
+
+    === Divergence Report ===
+    Compared frames: 17859
+    Frames with errors: 1949 / 17859
+    Lag frames skipped: 13
+    Total divergent bytes: 10179
+    Error rate: 10.91%
+
+    Top 30 divergent addresses (of 171):
+      $00ce: 1343 frames (7.5%) first@32
+      $0400: 1343 frames (7.5%) first@28
+      $0086: 1130 frames (6.3%) first@32
+      $0433: 870 frames (4.9%) first@28
+      $0416: 804 frames (4.5%) first@28
+      $0057: 553 frames (3.1%) first@195
+      $0401: 367 frames (2.1%) first@28
+      $0405: 298 frames (1.7%) first@28
+      $009f: 289 frames (1.6%) first@196
+      $0087: 206 frames (1.2%) first@32
+      $042d: 170 frames (1.0%) first@28
+      $00cf: 164 frames (0.9%) first@32
+      $00d0: 158 frames (0.9%) first@636
+      $0404: 151 frames (0.8%) first@28
+      $0040: 147 frames (0.8%) first@17496
+      $0088: 144 frames (0.8%) first@32
+      $008b: 140 frames (0.8%) first@32
+      $00e4: 115 frames (0.6%) first@16621
+      $00e5: 114 frames (0.6%) first@16621
+      $042e: 108 frames (0.6%) first@28
+      $008a: 106 frames (0.6%) first@32
+      $0033: 76 frames (0.4%) first@32
+      $00e6: 74 frames (0.4%) first@16621
+      $0456: 71 frames (0.4%) first@34
+      $0434: 70 frames (0.4%) first@28
+      $0417: 68 frames (0.4%) first@28
+      $0450: 68 frames (0.4%) first@34
+      $001d: 63 frames (0.4%) first@196
+      $00d3: 60 frames (0.3%) first@11034
+      $0438: 60 frames (0.3%) first@28
+
+    SUCCESS: Translation completed the TAS!
+
+Gradle Test Executor 25 finished executing tests.
+
+> Task :test
+Finished generating test XML results (0.001 secs) into: /Users/jivie/Projects/smb-translation/build/test-results/test
+Generating HTML test report...
+Finished generating test html results (0.001 secs) into: /Users/jivie/Projects/smb-translation/build/reports/tests/test
+w: Detected multiple Kotlin daemon sessions at 
+Build 4c775627-a466-4877-b403-2715ebac9e7e is closed
+
+BUILD SUCCESSFUL in 8s
+4 actionable tasks: 4 executed
+Watched directory hierarchies: [/Users/jivie/Projects/smb-translation]

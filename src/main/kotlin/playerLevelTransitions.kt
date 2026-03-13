@@ -469,7 +469,7 @@ private fun System.nextArea() {
  * full player control routine. This is the entry point used by automatic player
  * movement sequences (entrance, pipe, flagpole, etc.).
  */
-private fun System.autoControlPlayer(controlBits: Byte) {
+fun System.autoControlPlayer(controlBits: Byte) {
     //> AutoControlPlayer:
     //> sta SavedJoypadBits         ;override controller bits with contents of A if executing here
     ram.savedJoypadBits = JoypadBits(controlBits)

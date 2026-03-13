@@ -241,23 +241,21 @@ fun System.offscreenBoundsCheck() {
     //> beq LimitB
     //> cpy #PiranhaPlant       ;check for piranha plant object
     //> bne ExtendLB
+    var carry: Int
     if (enemyId == Constants.HammerBro || enemyId == Constants.PiranhaPlant) {
         //> LimitB: adc #$38    ;add 56 pixels if hammer bro or piranha plant
-        leftBound += 0x38
+        // Carry is SET from cpy (enemyId == HammerBro or PiranhaPlant, both >= compared value)
+        val adcResult = leftBound + 0x38 + 1  // +1 for carry set from cpy
+        leftBound = adcResult and 0xFF
+        carry = if (adcResult > 0xFF) 1 else 0
+    } else {
+        // For non-matching enemies: carry from last cpy #PiranhaPlant
+        // enemyId < PiranhaPlant → carry CLEAR (bne branches, so we reach ExtendLB)
+        carry = if ((enemyId.toInt() and 0xFF) >= (Constants.PiranhaPlant.toInt() and 0xFF)) 1 else 0
     }
     //> ExtendLB: sbc #$48      ;subtract 72 pixels regardless
-    // Note: carry flag state matters here. After adc #$38, carry may be set.
-    // After the original cmp/beq/bne chain, carry is generally set (from cmp).
-    // For hammer bro/piranha: leftBound = screenLeft + 0x38 - 0x48 (carry set from adc if overflow, else clear)
-    // For others: carry is set from the cmp, so sbc #$48 subtracts 0x48
-    // Simplify: the assembly carries through, but the net effect is:
-    //   hammer/piranha: screenLeft + 0x38 - 0x48 = screenLeft - 0x10
-    //   others: screenLeft - 0x48 (with carry set from cmp, so sbc = sub 0x48)
-    // Actually, let me be more precise: the carry flag propagates from the cmp/beq chain.
-    // cpy #HammerBro sets carry if enemyId >= HammerBro. Since we branch on equal,
-    // for non-matching: carry depends on comparison. This is complex, let me just use
-    // the raw arithmetic with typical carry=1 from cmp.
-    val leftBoundResult = leftBound - 0x48  // carry from cmp is typically set
+    // SBC with carry: result = A - operand - (1 - carry)
+    val leftBoundResult = leftBound - 0x48 - (1 - carry)
     val leftX = leftBoundResult and 0xFF
     val leftBorrow = if (leftBoundResult < 0) 1 else 0
 

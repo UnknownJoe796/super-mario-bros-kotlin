@@ -315,11 +315,7 @@ fun System.drawFirebar(sprOfs: Int) {
     //> pla                      ;get from stack
     //> lsr                      ;divide by four again
     //> lsr
-    val flipCtrl = fc ushr 2
-    //> lda #$02                 ;load value $02 to set palette in attrib byte
-    //> bcc FireA                ;if last bit shifted out was not set, skip this
-    //> ora #%11000000           ;otherwise flip both ways every eight frames
-    val attr = if ((flipCtrl and 0x01) != 0) {
+    val attr = if ((fc and 0x02) != 0) {
         (0x02 or 0xC0).toByte()
     } else {
         0x02.toByte()
@@ -339,7 +335,7 @@ fun System.drawExplosionFireball() {
     //> DrawExplosion_Fireball:
     val x = ram.objectOffset.toInt()
     //> ldy Alt_SprDataOffset,x  ;get OAM data offset of alternate sort for fireball's explosion
-    val y = (ram.altSprDataOffset[ram.sprDataOffsetCtrl].toInt() and 0xFF) shr 2
+    val y = (ram.altSprDataOffset[x].toInt() and 0xFF) shr 2
     //> lda Fireball_State,x     ;load fireball state
     val state = ram.fireballStates[x].toInt() and 0xFF
     //> inc Fireball_State,x     ;increment state for next frame

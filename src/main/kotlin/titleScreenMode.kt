@@ -592,10 +592,11 @@ private fun System.getAreaDataAddrs() {
     //> lda EnemyDataAddrHigh,y
     //> sta EnemyDataHigh
     ram.enemyDataBytes = RomData.enemyDataArrays[enemyIdx]
-    // The original stores low/high address bytes; we keep them for compatibility with
-    // code that reads them, but the actual data access uses enemyDataBytes.
-    ram.enemyDataLow = 0  // placeholder — not used for Kotlin data access
-    ram.enemyDataHigh = 0
+    // Store the actual ROM addresses so the shadow validator's interpreter can
+    // use the (EnemyData),y indirect addressing mode correctly.
+    val enemyRomAddr = RomData.enemyDataAddresses[enemyIdx]
+    ram.enemyDataLow = (enemyRomAddr and 0xFF).toByte()
+    ram.enemyDataHigh = ((enemyRomAddr shr 8) and 0xFF).toByte()
 
     // --- Look up area (level) data array ---
     //> ldy AreaType             ;use area type as offset
@@ -610,6 +611,11 @@ private fun System.getAreaDataAddrs() {
     //> sta AreaDataHigh
     val levelData = RomData.areaDataArrays[areaDataIdx]
     ram.areaData = levelData
+    // Store the actual ROM addresses so the shadow validator's interpreter can
+    // use the (AreaData),y indirect addressing mode correctly.
+    val areaRomAddr = RomData.areaDataAddresses[areaDataIdx]
+    ram.areaDataLow = (areaRomAddr and 0xFF).toByte()
+    ram.areaDataHigh = ((areaRomAddr shr 8) and 0xFF).toByte()
 
     // --- Parse 2-byte level header ---
     //> ldy #$00                 ;load first byte of header
@@ -673,6 +679,10 @@ private fun System.getAreaDataAddrs() {
     //> lda AreaDataLow          ;increment area data address by 2 bytes
     //> clc / adc #$02 / sta AreaDataLow
     //> lda AreaDataHigh / adc #$00 / sta AreaDataHigh
+    val finalAreaRomAddr = areaRomAddr + 2
+    ram.areaDataLow = (finalAreaRomAddr and 0xFF).toByte()
+    ram.areaDataHigh = ((finalAreaRomAddr shr 8) and 0xFF).toByte()
+
     // In Kotlin, we advance the areaDataOffset past the 2-byte header so that
     // subsequent reads via areaData[areaDataOffset] start at the object data.
     ram.areaDataOffset = 0x02

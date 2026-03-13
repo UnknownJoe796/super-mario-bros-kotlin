@@ -1,0 +1,5 @@
+
+=== STATE-BASED INPUT SUMMARY ===
+Final level: 1-1
+State index size: 16792
+State lookup mode: enabled

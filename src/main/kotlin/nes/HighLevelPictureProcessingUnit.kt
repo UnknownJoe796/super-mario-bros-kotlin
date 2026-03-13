@@ -46,19 +46,19 @@ class Pattern(val bits: ByteArray = ByteArray(16), val name: String? = null, val
 interface Palette {
     val colors: Array<Color>  // 4 colors, first mostly ignored
     companion object {
-        val RGB = DirectPalette(arrayOf(
+        val RGB get() = DirectPalette(arrayOf(
             Color(0xFF000000.toInt()),
             Color(0xFFFF0000.toInt()),
             Color(0xFF00FF00.toInt()),
             Color(0xFF0000FF.toInt()),
         ))
-        val GRAYSCALE = DirectPalette(arrayOf(
+        val GRAYSCALE get() = DirectPalette(arrayOf(
             Color(0xFF000000.toInt()),
             Color(0xFFFFFFFF.toInt()),
             Color(0xFFBBBBBB.toInt()),
             Color(0xFF666666.toInt()),
         ))
-        val EMPTY = GRAYSCALE
+        val EMPTY get() = GRAYSCALE
     }
 }
 
