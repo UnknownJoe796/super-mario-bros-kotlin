@@ -340,6 +340,8 @@ private fun System.playFlagpoleSlide() {
     ram.squ1SfxLenCounter = 0x40                //> lda #$40; sta Squ1_SfxLenCounter
     setFreqSqu1(0x62)                            //> lda #$62; jsr SetFreq_Squ1
     dumpSqu1Regs(0x99, 0xBC)                     //> ldx #$99; FPS2nd: ldy #$bc; jsr Dump_Squ1_Regs
+    //> bne DecJpFPS → bne BranchToDecLength1 → bne DecrementSfx1Length
+    decrementSfx1Length()
 }
 
 //> PlaySmallJump:
