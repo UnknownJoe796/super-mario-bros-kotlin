@@ -61,9 +61,10 @@ fun System.blockObjectsCore() {
     //> pla                         ;get lower nybble of saved state
     //> ldy Block_Y_HighPos,x       ;check vertical high byte of block object
     val yHighPos = ram.sprObjYHighPos[9 + x].toInt() and 0xFF
-    //> beq UpdSte                  ;if above the screen, branch to kill it
+    //> beq UpdSte                  ;if above the screen, branch to save state
+    // A = lowNybble (from pla), so UpdSte stores lowNybble, not 0
     if (yHighPos == 0) {
-        ram.blockStates[x] = 0
+        ram.blockStates[x] = lowNybble.toByte()
         return
     }
 

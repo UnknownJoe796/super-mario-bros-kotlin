@@ -66,10 +66,11 @@ fun System.initializeNameTables(nextAction: () -> Unit) {
         ram.verticalScroll = 0x00.toByte()
 
         //> jmp InitScroll            ;initialize scroll registers to zero
-        // The original code uses a subroutine to run this twice.
+        // NES runs both nametable clears synchronously (rendering is disabled).
+        // InitScroll ends with RTS which returns to InitializeNameTables, which
+        // either falls through to the second WriteNTAddr or returns to caller.
         initScroll(0x0)
-        waitForFrame(nextAction)
-        return
+        nextAction()
     }
     // These come from above the subroutine declaration
     writeNtAddr(0x24.toByte()) {

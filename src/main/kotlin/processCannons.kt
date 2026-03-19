@@ -181,10 +181,12 @@ private fun System.bulletBillHandler(x: Int) {
     ram.sprObjXSpeed[1 + x] = bulletBillXSpdData[dir - 1].toByte()
 
     //> lda $00                   ;get horizontal difference (low byte)
-    //> adc #$28                  ;add 40 pixels
+    //> adc #$28                  ;add 40 pixels (carry from PlayerEnemyDiff's sbc)
     //> cmp #$50                  ;if less than certain amount, player too close
     //> bcc KillBB                ;to cannon, thus branch
-    val absDiff = lowDiff + 0x28
+    // carry from PlayerEnemyDiff's final sbc Player_PageLoc: set when enemy at/right of player
+    val pedCarry = if ((highDiff and 0x80) == 0) 1 else 0
+    val absDiff = lowDiff + 0x28 + pedCarry
     if ((absDiff and 0xFF) < 0x50) {
         eraseEnemyObject(x)
         return
@@ -257,17 +259,20 @@ fun System.offscreenBoundsCheck() {
     // SBC with carry: result = A - operand - (1 - carry)
     val leftBoundResult = leftBound - 0x48 - (1 - carry)
     val leftX = leftBoundResult and 0xFF
-    val leftBorrow = if (leftBoundResult < 0) 1 else 0
+    val leftBoundCarry = if (leftBoundResult >= 0) 1 else 0
 
     //> sta $01                 ;store result here
     //> lda ScreenLeft_PageLoc
     //> sbc #$00                ;subtract borrow from page location of left side
     //> sta $00
-    val leftPage = (ram.screenLeftPageLoc.toInt() and 0xFF) - leftBorrow
+    val leftPageResult = (ram.screenLeftPageLoc.toInt() and 0xFF) - (1 - leftBoundCarry)
+    val leftPage = leftPageResult and 0xFF
+    // Carry from this sbc flows into the right-bound adc
+    val leftPageCarry = if (leftPageResult >= 0) 1 else 0
 
     //> lda ScreenRight_X_Pos   ;add 72 pixels to the right side horizontal coordinate
-    //> adc #$48
-    val rightBoundResult = (ram.screenRightXPos.toInt() and 0xFF) + 0x48
+    //> adc #$48                ;carry from left-page sbc chains through
+    val rightBoundResult = (ram.screenRightXPos.toInt() and 0xFF) + 0x48 + leftPageCarry
     val rightX = rightBoundResult and 0xFF
     val rightCarry = if (rightBoundResult > 0xFF) 1 else 0
     //> sta $03

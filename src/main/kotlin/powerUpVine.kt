@@ -198,77 +198,84 @@ fun System.moveNormalEnemy() {
 
     //> and #%01000000             ;check enemy state for d6 set
     //> bne FallE                  ;to move enemy vertically, then horizontally if necessary
-    // by Claude - fix: d6 set, lowBits==5, and lowBits 1-2 all share the FallE path.
-    // Previously the d6 and lowBits==5 paths had incomplete post-fall logic.
-    if ((state and 0x40) == 0) {
-        //> lda Enemy_State,x
-        //> asl                        ;check enemy state for d7 set
-        //> bcs SteadM                 ;if set, branch to move enemy horizontally
-        if ((state and 0x80) != 0) {
+    if ((state and 0x40) != 0) {
+        // FallE path
+        moveD_EnemyVertically()
+        val stateAfterFall = ram.enemyState[x].toInt() and 0xFF
+        if ((stateAfterFall and 0x40) == 0) {
             moveSteadyEnemy(x)
             return
         }
-
-        //> lda Enemy_State,x
-        //> and #%00100000             ;check enemy state for d5 set
-        //> bne MoveDefeatedEnemy      ;if set, branch to move defeated enemy object
-        if ((state and 0x20) != 0) {
-            //> MoveDefeatedEnemy:
-            moveD_EnemyVertically()
-            moveEnemyHorizontally()
-            return
-        }
-
-        //> lda Enemy_State,x
-        //> and #%00000111             ;check d2-d0 of enemy state for any set bits
-        val lowBits = state and 0x07
-        //> beq SteadM                 ;if enemy in normal state, branch to move enemy horizontally
-        if (lowBits == 0) {
+        if (ram.enemyID[x] == Constants.PowerUpObject) {
             moveSteadyEnemy(x)
             return
         }
-    //> cmp #$05; beq FallE        ;spiny egg state -> FallE
-    //> cmp #$03; bcs ReviveStunned ;states $03 or $04 -> revive stunned
-    if (lowBits == 0x02) {
-        // State 2: Stomped/Dying Goomba.
-        // Assembly runs MoveD_EnemyVertically (physics) then MoveEnemyHorizontally.
+        moveSlowEnemy(x)
+        return
+    }
+
+    //> lda Enemy_State,x
+    //> asl                        ;check enemy state for d7 set
+    //> bcs SteadM                 ;if set, branch to move enemy horizontally
+    if ((state and 0x80) != 0) {
+        moveSteadyEnemy(x)
+        return
+    }
+
+    //> lda Enemy_State,x
+    //> and #%00100000             ;check enemy state for d5 set
+    //> bne MoveDefeatedEnemy      ;if set, branch to move defeated enemy object
+    if ((state and 0x20) != 0) {
         moveD_EnemyVertically()
         moveEnemyHorizontally()
-        // Then it calls ReviveStunned path (via BPL ChkKillGoomba at 9340)
-        reviveStunned(x)
         return
     }
-        if (lowBits != 5 && lowBits >= 3) {
-            reviveStunned(x)
-            return
-        }
-        // lowBits 1, or 5: fall through to FallE
-    }
-    // else: d6 set, also falls through to FallE
 
-    //> FallE: jsr MoveD_EnemyVertically  ;move enemy downwards
-    moveD_EnemyVertically()
-    //> lda Enemy_State,x; cmp #$02; beq MEHor
-    val stateAfterFall = ram.enemyState[x].toInt() and 0xFF
-    if (stateAfterFall == 0x02) {
-        //> MEHor: jmp MoveEnemyHorizontally
+    //> lda Enemy_State,x
+    //> and #%00000111             ;check d2-d0 of enemy state for any set bits
+    val lowBits = state and 0x07
+    //> beq SteadM                 ;if enemy in normal state, branch to move enemy horizontally
+    if (lowBits == 0) {
+        moveSteadyEnemy(x)
+        return
+    }
+
+    //> cmp #$02; beq FallE        ;if state $02 (stomped goomba), branch to move vertically
+    if (lowBits == 0x02) {
+        // FallE: MoveD_EnemyVertically, then cmp #$02 beq MEHor → just move horizontally, no revive
+        moveD_EnemyVertically()
         moveEnemyHorizontally()
-        // by Claude - If state 2, also run ReviveStunned to handle timer/erasure
+        return
+    }
+
+    //> cmp #$05; beq FallE        ;if state $05 (spiny egg), branch to move vertically
+    if (lowBits == 0x05) {
+        moveD_EnemyVertically()
+        // after FallE: and #%01000000; beq SteadM
+        val stateAfterFall = ram.enemyState[x].toInt() and 0xFF
+        if ((stateAfterFall and 0x40) == 0) {
+            moveSteadyEnemy(x)
+        } else {
+            // cmp #PowerUpObject; beq SteadM; bne SlowM
+            if (ram.enemyID[x] == Constants.PowerUpObject) {
+                moveSteadyEnemy(x)
+            } else {
+                moveSlowEnemy(x)
+            }
+        }
+        return
+    }
+
+    //> cmp #$03; bcs ReviveStunned ;if state $03 or $04 (stunned), branch ahead
+    if (lowBits == 0x03 || lowBits == 0x04) {
         reviveStunned(x)
         return
     }
-    //> and #%01000000; beq SteadM
-    if ((stateAfterFall and 0x40) == 0) {
-        moveSteadyEnemy(x)
-        return
-    }
-    //> lda Enemy_ID,x; cmp #PowerUpObject; beq SteadM
-    if (ram.enemyID[x] == Constants.PowerUpObject) {
-        moveSteadyEnemy(x)
-        return
-    }
-    //> bne SlowM  ;slow horizontal movement for other d6 enemies
-    moveSlowEnemy(x)
+
+    // Default: for states like $01 (Koopa in shell)
+    //> SteadM:
+    moveD_EnemyVertically()
+    moveSteadyEnemy(x)
 }
 
 //> XSpeedAdderData:
@@ -597,7 +604,8 @@ fun System.vineObjectHandler() {
     //> ldy VineFlagOffset
     //> dey                       ;decrement vine flag in Y, use as offset
     val vineFlagOfs = ram.vineFlagOffset.toInt() and 0xFF
-    val y = (vineFlagOfs - 1) and 0xFF
+    if (vineFlagOfs == 0) return  // no vine spawned yet
+    val y = vineFlagOfs - 1
 
     //> lda VineHeight
     val vineHeight = ram.vineHeight.toInt() and 0xFF
@@ -690,16 +698,21 @@ fun System.vineObjectHandler() {
  */
 // by Claude
 private fun System.writeVineClimbingMetatile() {
-    // TODO: Implement full BlockBufferCollision call for vine metatile writing.
-    // The assembly calls BlockBufferCollision with X=6, A=1, Y=$1b which:
-    //   1. Gets the block buffer address for the vine's horizontal/vertical position
-    //   2. Returns the contents at that address
-    //   3. Sets $02 to the vertical high nybble offset
-    //   4. Sets $06/$07 to the block buffer base address
-    // Then checks $02 >= $d0 (beyond block buffer extent) and if the block is empty
-    // before writing climbing metatile $26.
-    //
-    // Full implementation requires BlockBufferCollision to be made accessible.
+    //> ldx #$06                  ;set offset in X to last enemy slot
+    //> lda #$01                  ;set A to obtain horizontal coordinate
+    //> ldy #$1b                  ;set Y to offset to get block at ($04, $10) of coordinates
+    //> jsr BlockBufferCollision
+    val result = blockBufferCollision(sprObjOffset = 6, adderOffset = 0x1b, returnHorizontal = true)
+    //> ldy $02
+    //> cpy #$d0                  ;if vertical high nybble offset beyond extent of
+    //> bcs ExitVH                ;current block buffer, branch to leave, do not write
+    if (result.vertOffset >= 0xd0) return
+    //> lda ($06),y               ;check contents of block buffer at current offset
+    //> bne ExitVH                ;if not empty, branch to leave
+    if (result.blockBuffer[result.blockBufferBase + result.vertOffset] != 0.toByte()) return
+    //> lda #$26
+    //> sta ($06),y               ;write climbing metatile to block buffer
+    result.blockBuffer[result.blockBufferBase + result.vertOffset] = 0x26
 }
 
 // -------------------------------------------------------------------------------------

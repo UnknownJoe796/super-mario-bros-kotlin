@@ -61,14 +61,14 @@ fun System.imposeGravity(
     //> adc $00                      ;add downward force to move force
     //> sta SprObject_Y_MoveForce,x
     val forceResult = (ram.sprObjYMoveForce[sprObjOffset].toInt() and 0xFF) + (downForce and 0xFF)
-    ram.sprObjYMoveForce[sprObjOffset] = forceResult.toByte()
+    ram.sprObjYMoveForce[sprObjOffset] = (forceResult and 0xFF).toByte()
     val forceCarry = if (forceResult > 0xFF) 1 else 0
 
     //> lda SprObject_Y_Speed,x
     //> adc #$00                     ;add carry to speed
     //> sta SprObject_Y_Speed,x
     val newSpeed = (ram.sprObjYSpeed[sprObjOffset].toInt() and 0xFF) + forceCarry
-    ram.sprObjYSpeed[sprObjOffset] = newSpeed.toByte()
+    ram.sprObjYSpeed[sprObjOffset] = (newSpeed and 0xFF).toByte()
 
     //> --- Step 4: Clamp to maximum downward speed ---
     //> cmp $02                      ;compare speed to max (signed)

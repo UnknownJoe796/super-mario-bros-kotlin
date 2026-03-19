@@ -759,7 +759,7 @@ private fun System.checkFrenzyBuffer() {
     //> lda EnemyFrenzyBuffer    ;if enemy object stored in frenzy buffer
     //> bne StrFre               ;then branch ahead to store in enemy object buffer
     val frenzyBuffer = ram.enemyFrenzyBuffer.toInt() and 0xFF
-    if (debugEnemyTrace) println("  [CFB] slot=$x frenzyBuffer=${frenzyBuffer.toString(16)}")
+    if (debugEnemyTrace) println("  [CFB] slot=$x frenzyBuffer=${frenzyBuffer.toString(16)} vineFlagOfs=${ram.vineFlagOffset.toInt() and 0xFF}")
     if (frenzyBuffer != 0) {
         //> StrFre: sta Enemy_ID,x           ;store contents of frenzy buffer into enemy identifier value
         ram.enemyID[x] = frenzyBuffer.toByte()
@@ -1544,8 +1544,13 @@ private fun System.initFlyingCheepCheep(x: Int) {
     ram.enemyMovingDirs[x] = 1
 
     //> lda Player_X_Speed; bne D2XPos1
+    // NES Y register at D2XPos1 depends on code path:
+    // If playerSpeed != 0: Y = speedOfs (from tay after RSeed), skip ldy $00
+    // If playerSpeed == 0: Y = temp00 (from ldy $00)
+    var posY: Int
     if (playerSpeed == 0) {
         //> ldy $00; tya; and #%00000010; beq D2XPos1
+        posY = temp00
         val d1Set = (temp00 and 0x02) != 0
         if (d1Set) {
             //> lda Enemy_X_Speed,x; eor #$ff; clc; adc #$01; sta Enemy_X_Speed,x
@@ -1554,10 +1559,12 @@ private fun System.initFlyingCheepCheep(x: Int) {
             //> inc Enemy_MovingDir,x
             ram.enemyMovingDirs[x] = 2
         }
+    } else {
+        posY = speedOfs  // Y retains speedOfs value, ldy $00 was skipped
     }
 
     //> D2XPos1: tya; and #%00000010; beq D2XPos2
-    val posOfs = temp00
+    val posOfs = posY
     if ((posOfs and 0x02) != 0) {
         //> lda Player_X_Position; clc; adc FlyCCXPositionData,y
         val pX = ram.playerXPosition.toInt() and 0xFF
@@ -2080,11 +2087,23 @@ private fun System.setupVine() {
     //> sta Enemy_Flag,x         ;set flag for enemy object buffer
     ram.enemyFlags[x] = 1
 
-    // Note: Block_PageLoc,y / Block_X_Position,y / Block_Y_Position,y copies
-    // are only meaningful when called from block-hit code. When called from
-    // checkpointEnemyID, position is already set from enemy data parsing.
-    // The assembly shares this routine; we skip the block-coordinate copy here
-    // since the enemy position was already set by processEnemyData.
+    //> lda Block_PageLoc,y      ;copy block coordinates to enemy position
+    //> sta Enemy_PageLoc,x
+    //> lda Block_X_Position,y
+    //> sta Enemy_X_Position,x
+    //> lda Block_Y_Position,y
+    //> sta Enemy_Y_Position,x
+    // NES Y register here = enemyDataOffset + 1 (from processEnemyData's iny).
+    // Block_PageLoc=$76, Block_X_Position=$8F, Block_Y_Position=$D7
+    // These are NES flat RAM reads that can cross SprObject array boundaries.
+    val y = (ram.enemyDataOffset.toInt() and 0xFF) + 1
+    val pageLoc = readNesRamByte(0x76 + y)
+    val xPos = readNesRamByte(0x8F + y)
+    val yPos = readNesRamByte(0xD7 + y)
+    if (debugEnemyTrace) println("[setupVine] y=$y blockIdx=${9+y} nesAddr=\$${(0x76+y).toString(16)}/\$${(0x8F+y).toString(16)}/\$${(0xD7+y).toString(16)} → page=${pageLoc.toInt() and 0xFF} x=${xPos.toInt() and 0xFF} y=${yPos.toInt() and 0xFF}")
+    ram.sprObjPageLoc[1 + x] = pageLoc
+    ram.sprObjXPos[1 + x] = xPos
+    ram.sprObjYPos[1 + x] = yPos
 
     //> ldy VineFlagOffset       ;load vine flag/offset to next available vine slot
     val vineFlagOfs = ram.vineFlagOffset.toInt() and 0xFF
@@ -2097,7 +2116,7 @@ private fun System.setupVine() {
 
     //> NextVO: txa              ;store object offset to next available vine slot
     //> sta VineObjOffset,y      ;using vine flag as offset
-    ram.vineObjOffset = x.toByte()
+    ram.vineObjOffsets[vineFlagOfs] = x.toByte()
 
     //> inc VineFlagOffset       ;increment vine flag offset
     ram.vineFlagOffset = ((vineFlagOfs + 1) and 0xFF).toByte()

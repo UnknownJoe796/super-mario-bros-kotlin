@@ -132,19 +132,14 @@ fun System.gameEngine() {
     //> lda Player_Y_HighPos
     //> cmp #$02                   ;if player is below the screen, don't bother with the music
     //> bpl NoChgMus
-    // Assembly control flow: beq ClrPlrPal jumps PAST NoChgMus cycling code directly to
-    // ResetPalStar, which then falls through to SaveAB. CyclePlayerPalette ends with
-    // jmp SaveAB (skipping ClrPlrPal). So ResetPalStar and CyclePlayerPalette are
-    // mutually exclusive paths.
-    var skipToSaveAB = false
-    if (ram.playerYHighPos < 2) {
+    if (ram.playerYHighPos.toUByte() < 2u) {
         //> lda StarInvincibleTimer    ;if star mario invincibility timer at zero,
         //> beq ClrPlrPal              ;skip this part
         if (ram.starInvincibleTimer == 0.toByte()) {
             //> ClrPlrPal:
             //> jsr ResetPalStar           ;do sub to clear player's palette bits in attributes
             resetPalStar()
-            skipToSaveAB = true  // assembly: ClrPlrPal falls through to SaveAB
+            // assembly: ClrPlrPal falls through to SaveAB
         } else {
             //> cmp #$04
             //> bne NoChgMus               ;if not yet at a certain point, continue
@@ -156,10 +151,26 @@ fun System.gameEngine() {
                     getAreaMusic()
                 }
             }
+            //> NoChgMus:
+            //> ldy StarInvincibleTimer    ;get invincibility timer
+            val starTimer = ram.starInvincibleTimer.toInt() and 0xFF
+            //> lda FrameCounter           ;get frame counter
+            var a = ram.frameCounter.toInt() and 0xFF
+            //> cpy #$08                   ;if timer still above certain point,
+            //> bcs CycleTwo               ;branch to cycle player's palette quickly
+            if (starTimer < 8) {
+                //> lsr                        ;otherwise, divide by 8 to cycle every eighth frame
+                //> lsr
+                a = a shr 2
+            }
+            //> CycleTwo:
+            //> lsr                        ;if branched here, divide by 2 to cycle every other frame
+            a = a shr 1
+            //> jsr CyclePlayerPalette     ;do sub to cycle the palette (note: shares fire flower code)
+            cyclePlayerPalette(a)
+            //> jmp SaveAB                 ;then skip this sub to finish up the game engine
         }
-    }
-
-    if (!skipToSaveAB) {
+    } else {
         //> NoChgMus:
         //> ldy StarInvincibleTimer    ;get invincibility timer
         val starTimer = ram.starInvincibleTimer.toInt() and 0xFF
@@ -209,12 +220,14 @@ fun System.updScrollVar() {
         //> lda ScrollThirtyTwo        ;get horizontal scroll in 0-31 or $00-$20 range
         //> cmp #$20                   ;check to see if exceeded $21
         //> bmi ExitEng                ;branch to leave if not
-        if (ram.scrollThirtyTwo < 0x20) return // signed comparison: bmi means N flag set
+        if ((ram.scrollThirtyTwo.toInt() and 0xFF) < 0x20) return
 
         //> lda ScrollThirtyTwo
         //> sbc #$20                   ;otherwise subtract $20 to set appropriately
         //> sta ScrollThirtyTwo        ;and store
-        ram.scrollThirtyTwo = (ram.scrollThirtyTwo - 0x20).toByte()
+        // Note: sbc #$20 on NES means (A - $20 - (1 - Carry)). Since bmi followed cmp #$20, 
+        // we know A >= $20, so Carry was set. Thus (A - $20).
+        ram.scrollThirtyTwo = (ram.scrollThirtyTwo.toInt() - 0x20).toByte()
         //> lda #$00                   ;reset vram buffer offset used in conjunction with
         //> sta VRAM_Buffer2_Offset    ;level graphics buffer at $0341-$035f
         ram.vRAMBuffer2.clear()
@@ -277,6 +290,9 @@ fun System.blockObjMTUpdater() {
         ram.objectOffset = x.toByte()
         //> lda VRAM_Buffer1          ;if vram buffer already being used here,
         //> bne NextBUpd              ;branch to move onto next block object
+        // In the original, this checks if the first byte of $0300 (buffer control/address) is zero.
+        // In our translation, vRAMBuffer1 is a high-level list.
+        // The shadow log shows divergences when this is not 0.
         if (ram.vRAMBuffer1.isNotEmpty()) continue
         //> lda Block_RepFlag,x       ;if flag for block object already clear,
         //> beq NextBUpd              ;branch to move onto next block object

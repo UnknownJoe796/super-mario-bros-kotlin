@@ -169,15 +169,15 @@ fun System.entranceGameTimerSetup() {
 
     //> SetStPos: lda PlayerStarting_X_Pos,y  ;load appropriate horizontal position
     //> sta Player_X_Position       ;and vertical positions for the player, using
-    ram.playerXPosition = PlayerStarting_X_Pos[ram.altEntranceControl]
+    ram.playerXPosition = PlayerStarting_X_Pos[ram.altEntranceControl.toInt() and 0xFF]
 
     //> lda PlayerStarting_Y_Pos,x  ;AltEntranceControl as offset for horizontal and either $0710
     //> sta Player_Y_Position       ;or value that overwrote $0710 as offset for vertical
-    ram.playerYPosition = PlayerStarting_Y_Pos[playerEntranceCtrl]
+    ram.playerYPosition = PlayerStarting_Y_Pos[playerEntranceCtrl.toInt() and 0xFF]
 
     //> lda PlayerBGPriorityData,x
     //> sta Player_SprAttrib        ;set player sprite attributes using offset in X
-    ram.playerSprAttrib = PlayerBGPriorityData[playerEntranceCtrl]
+    ram.playerSprAttrib = PlayerBGPriorityData[playerEntranceCtrl.toInt() and 0xFF]
 
     //> jsr GetPlayerColors         ;get appropriate player palette
     getPlayerColors()
@@ -234,14 +234,25 @@ fun System.entranceGameTimerSetup() {
 
 // ---- Minimal helpers used by Entrance_GameTimerSetup ----
 
-private fun System.initBlockXYPos(offsetX: Byte) {
-    // Placeholder: the original computes and stores block object X/Y based on player position.
-}
-
-private fun System.setupVine(offsetX: Byte, offsetY: Byte) {
-    // Placeholder: the original grows the vine object in the last enemy slot.
+private fun System.initBlockXYPos(x: Int) {
+    //> InitBlock_XY_Pos:
+    //> lda Player_X_Position; clc; adc #$08; and #$f0; sta Block_X_Position,x
+    val playerX = ram.playerXPosition.toInt() and 0xFF
+    val blockX = (playerX + 0x08) and 0xF0
+    ram.sprObjXPos[9 + x] = blockX.toByte()
+    //> lda Player_PageLoc; adc #$00; sta Block_PageLoc,x; sta Block_PageLoc2,x
+    val carry = if ((playerX + 0x08) > 0xFF) 1 else 0
+    val pageLoc = (ram.playerPageLoc.toInt() and 0xFF) + carry
+    ram.sprObjPageLoc[9 + x] = pageLoc.toByte()
+    ram.blockPageLoc2[x] = pageLoc.toByte()
+    //> lda Player_Y_HighPos; sta Block_Y_HighPos,x
+    ram.sprObjYHighPos[9 + x] = ram.playerYHighPos
 }
 
 private fun System.setupBubble() {
-    // Placeholder: the original initializes bubble timers when entering water areas.
+    // by Claude - On the NES, this calls the same SetupBubble label used by BubbleCheck.
+    // At this point X = VRAM_Buffer1_Offset (0 after initializeArea cleared $0300),
+    // and $07 = 0 (zero page cleared). This initializes bubble slot 0's position
+    // from the player and sets airBubbleTimer so the bubble spawn cycle begins.
+    setupBubble(x = 0, randBit = 0)
 }

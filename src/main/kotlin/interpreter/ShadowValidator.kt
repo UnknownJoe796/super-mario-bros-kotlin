@@ -22,6 +22,10 @@ class ShadowValidator private constructor(
     private var totalComparisons = 0
     private var totalDivergences = 0
     private val divergenceCounts = mutableMapOf<String, Int>()
+    private val snapshotCounts = mutableMapOf<String, Int>()
+    private val maxSnapshotsPerFunction = 3
+
+    private val snapshotDir = File("build/divergence-snapshots").also { it.mkdirs() }
 
     private val logFile: PrintWriter = run {
         val dir = File("build")
@@ -86,6 +90,19 @@ class ShadowValidator private constructor(
         add(0xFE)               // Sound queue
         add(0xFD)               // Sound queue
         add(0xFC)               // Sound queue
+        // VRAM buffer overflow: NES physically writes past VRAM buffer 1 ($300-$3AC)
+        // into adjacent game RAM. Kotlin's ArrayList-based buffer doesn't overflow.
+        add(0x00E3)             // sprObjYPos[21] — unused slot, VRAM overflow target
+        add(0x03BE)             // relYPos[6] — past VRAM buffer 1 end
+        add(0x03EC)             // blockRepFlags[0] — VRAM overflow target
+        add(0x03ED)             // blockRepFlags[1] — VRAM overflow target
+        add(0x03F0)             // blockResidualCounter — VRAM overflow target
+        // Unused SprObject slots (gaps in flat array, written by VRAM overflow)
+        add(0x0078)             // sprObjPageLoc[11]
+        add(0x0091)             // sprObjXPos[11]
+        add(0x00D9)             // sprObjYPos[11]
+        // ObjectOffset ($08) is a transient register modified by composite functions
+        add(0x0008)
     }
 
     private val booleanAddresses: Set<Int> get() = GameRamMapper.booleanAddresses
@@ -188,9 +205,14 @@ class ShadowValidator private constructor(
         syncSystemToInterpreter(system)
 
         // Set interpreter objectOffset register to match Kotlin
-        interpreter.cpu.X = (system.ram.objectOffset.toInt() and 0xFF).toUByte()
+        val cpuX = (system.ram.objectOffset.toInt() and 0xFF).toUByte()
+        interpreter.cpu.X = cpuX
         interpreter.cpu.SP = 0xFFu
         interpreter.cpu.C = false
+
+        // Capture pre-invocation RAM state for potential snapshot saving
+        val shouldSnapshot = (snapshotCounts[name] ?: 0) < maxSnapshotsPerFunction
+        val preInvocationRam = if (shouldSnapshot) captureRamDump() else null
 
         // Run the interpreter subroutine
         runInterpreterSubroutine(address)
@@ -218,9 +240,57 @@ class ShadowValidator private constructor(
             }
             if (diffs.size > 20) logFile.println("  ... and ${diffs.size - 20} more")
             logFile.flush()
+
+            // Save snapshot for regression test generation
+            if (preInvocationRam != null) {
+                saveDivergenceSnapshot(name, address, cpuX.toInt(), preInvocationRam, diffs)
+            }
         }
 
         return result
+    }
+
+    /** Dump RAM $0000-$07FF as a flat 2048-byte array. */
+    private fun captureRamDump(): ByteArray {
+        val ram = ByteArray(2048)
+        for (addr in 0 until 2048) {
+            ram[addr] = interpreter.memory.readByte(addr).toByte()
+        }
+        return ram
+    }
+
+    /** Save pre-invocation state to disk so DivergenceRegressionTest can replay it. */
+    private fun saveDivergenceSnapshot(
+        name: String,
+        address: Int,
+        cpuX: Int,
+        ram: ByteArray,
+        diffs: List<Pair<Int, Pair<UByte, UByte>>>,
+    ) {
+        val count = snapshotCounts[name] ?: 0
+        snapshotCounts[name] = count + 1
+        val tag = "frame${frameNumber}_${name}_$count"
+
+        // Save raw RAM dump
+        File(snapshotDir, "$tag.bin").writeBytes(ram)
+
+        // Save metadata
+        File(snapshotDir, "$tag.meta").writeText(buildString {
+            appendLine("function=$name")
+            appendLine("address=$address")
+            appendLine("frame=$frameNumber")
+            appendLine("objectOffset=$cpuX")
+            appendLine("diffCount=${diffs.size}")
+            for ((i, diff) in diffs.withIndex()) {
+                val addr = diff.first.toString(16).padStart(4, '0')
+                val interp = diff.second.first.toString(16).padStart(2, '0')
+                val kotlin = diff.second.second.toString(16).padStart(2, '0')
+                appendLine("diff.$i=\$$addr:interp=$interp,kotlin=$kotlin")
+            }
+        })
+
+        logFile.println("  -> Snapshot saved: $tag")
+        logFile.flush()
     }
 
     /** Print summary and close log file. */

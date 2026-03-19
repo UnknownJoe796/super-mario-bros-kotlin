@@ -84,7 +84,7 @@ private fun System.tryCreateFireball() {
     //> ldy Player_Y_HighPos       ;if player too high or too low, branch
     //> dey
     //> bne ProcFireballs
-    if ((ram.sprObjYHighPos[0].toInt() and 0xFF) != 1) return
+    if ((ram.sprObjYHighPos[0].toInt() and 0xFF).let { it - 1 } != 0) return
 
     //> lda CrouchingFlag          ;if player crouching, branch
     //> bne ProcFireballs
@@ -244,7 +244,8 @@ private fun System.bubbleCheck(x: Int) {
     moveBubble(x, randBit)
 }
 
-private fun System.setupBubble(x: Int, randBit: Int) {
+// by Claude - internal so areaEntrance.kt can call it for level entry bubble init
+internal fun System.setupBubble(x: Int, randBit: Int) {
     //> SetupBubble:
     //> ldy #$00                 ;load default value here
     //> lda PlayerFacingDir      ;get player's facing direction

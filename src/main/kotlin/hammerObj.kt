@@ -4,12 +4,7 @@
 // getMiscBoundBox() must be removed for these real implementations to be called.
 package com.ivieleague.smbtranslation
 
-// NOTE: GameRam.hammerEnemyOffset is declared as a single Byte but in the NES it's
-// a 9-byte array at $06AE indexed by misc object slot (0..8).
-// GameRam needs hammerEnemyOffsets: ByteArray(9) to fully support this.
-// For now, we use a module-level backing array.
-// TODO: Move this array into GameRam and remove this workaround.
-private val hammerEnemyOffsets = ByteArray(9)
+// hammerEnemyOffsets is now in GameRam as ByteArray(9) at $06AE
 
 //> HammerEnemyOfsData:
 //>       .db $04, $04, $04, $05, $05, $05
@@ -61,7 +56,7 @@ fun System.spawnHammerObj(): Boolean {
     val x = ram.objectOffset.toInt()
     //> txa
     //> sta HammerEnemyOffset,y  ;save here
-    hammerEnemyOffsets[y] = x.toByte()
+    ram.hammerEnemyOffsets[y] = x.toByte()
     //> lda #$90
     //> sta Misc_State,y         ;save hammer's state here
     ram.miscStates[y] = 0x90.toByte()
@@ -94,7 +89,7 @@ fun System.procHammerObj() {
     //> and #%01111111             ;mask out d7
     val state = ram.miscStates[x].toInt() and 0x7F
     //> ldy HammerEnemyOffset,x    ;get enemy object offset that spawned this hammer
-    val enemyOfs = hammerEnemyOffsets[x].toInt() and 0xFF
+    val enemyOfs = ram.hammerEnemyOffsets[x].toInt() and 0xFF
 
     //> cmp #$02                   ;check hammer's state
     //> beq SetHSpd                ;if currently at 2, branch

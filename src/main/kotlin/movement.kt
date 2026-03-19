@@ -73,7 +73,8 @@ fun System.movePlayerHorizontally(): Byte {
     //> MovePlayerHorizontally:
     //> lda JumpspringAnimCtrl  ;if jumpspring currently animating,
     //> bne ExXMove             ;branch to leave
-    if (ram.jumpspringAnimCtrl != 0.toByte()) return 0
+    //  NES: A still holds JumpspringAnimCtrl value when bne branches to ExXMove
+    if (ram.jumpspringAnimCtrl != 0.toByte()) return ram.jumpspringAnimCtrl
     //> tax                     ;X = 0 (A was 0 since JumpspringAnimCtrl was 0)
     //> (falls into MoveObjectHorizontally)
     return moveObjectHorizontally(0)

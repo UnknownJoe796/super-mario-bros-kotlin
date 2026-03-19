@@ -561,7 +561,7 @@ class GameRam {
         set(v) { fireballBouncingFlags[0] = v }
     @RamLocation(0x6ce) var fireballCounter: Byte = 0
     @RamLocation(0x711) var fireballThrowingTimer: Byte = 0
-    @RamLocation(0x6ae) var hammerEnemyOffset: Byte = 0
+    @RamLocation(0x6ae) val hammerEnemyOffsets: ByteArray = ByteArray(9)
     @RamLocation(0x6b7) var jumpCoinMiscOffset: Byte = 0
     @RamLocation(0x500) val blockBuffer1: ByteArray = ByteArray(0xd0)
     @RamLocation(0x5d0) val blockBuffer2: ByteArray = ByteArray(0xd0)

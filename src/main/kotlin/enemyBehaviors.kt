@@ -52,32 +52,45 @@ fun System.runRetainerObj() {
  */
 fun System.runNormalEnemies() {
     val x = ram.objectOffset.toInt()
+    fun traceState(step: String) {
+        if (debugEnemyTrace) {
+            val s = 1 + x
+            println("  [RNE-$step] x=$x state=${ram.enemyState[x].toInt() and 0xFF} flag=${ram.enemyFlags[x].toInt() and 0xFF} ySpd=${ram.sprObjYSpeed[s].toInt() and 0xFF} yPos=${(ram.sprObjYPos[s].toInt() and 0xFF).toString(16)} yHi=${ram.sprObjYHighPos[s].toInt() and 0xFF} offscr=${ram.enemyOffscreenBits.toInt() and 0xFF}")
+        }
+    }
     //> RunNormalEnemies:
     //> lda #$00                  ;init sprite attributes
     //> sta Enemy_SprAttrib,x
     ram.sprAttrib[1 + x] = 0  // by Claude - indexed by x (Enemy_SprAttrib,x)
     //> jsr GetEnemyOffscreenBits
     shadow?.validated("getenemyoffscreenbits", this) { getEnemyOffscreenBits() } ?: getEnemyOffscreenBits()
+    traceState("offscr")
     //> jsr RelativeEnemyPosition
     shadow?.validated("relativeenemyposition", this) { relativeEnemyPosition() } ?: relativeEnemyPosition()
     //> jsr EnemyGfxHandler
     enemyGfxHandler()
+    traceState("gfx")
     //> jsr GetEnemyBoundBox
     shadow?.validated("getenemyboundbox", this) { getEnemyBoundBox() } ?: getEnemyBoundBox()
     //> jsr EnemyToBGCollisionDet
     shadow?.validated("enemytobgcollisiondet", this) { enemyToBGCollisionDet() } ?: enemyToBGCollisionDet()
+    traceState("bgcol")
     //> jsr EnemiesCollision
     shadow?.validated("enemiescollision", this) { enemiesCollision() } ?: enemiesCollision()
+    traceState("ecol")
     //> jsr PlayerEnemyCollision
     shadow?.validated("playerenemycollision", this) { playerEnemyCollision() } ?: playerEnemyCollision()
+    traceState("pcol")
     //> ldy TimerControl          ;if master timer control set, skip to last routine
     //> bne SkipMove
     if (ram.timerControl == 0.toByte()) {
         //> jsr EnemyMovementSubs
         shadow?.validated("enemymovementsubs", this) { enemyMovementSubs() } ?: enemyMovementSubs()
     }
+    traceState("move")
     //> SkipMove: jmp OffscreenBoundsCheck
     shadow?.validated("offscreenboundscheck", this) { offscreenBoundsCheck() } ?: offscreenBoundsCheck()
+    traceState("bounds")
 }
 
 /**

@@ -591,10 +591,13 @@ private fun System.getAreaDataAddrs() {
     //> sta EnemyDataLow
     //> lda EnemyDataAddrHigh,y
     //> sta EnemyDataHigh
-    ram.enemyDataBytes = RomData.enemyDataArrays[enemyIdx]
+    val enemyRomAddr = RomData.enemyDataAddresses[enemyIdx]
+    // Use overflow-safe slice so reads past this area's data return actual
+    // following ROM bytes (needed for W8-4 castle loops where offset > array size).
+    ram.enemyDataBytes = RomData.enemyDataWithOverflow[enemyRomAddr]
+        ?: RomData.enemyDataArrays[enemyIdx]
     // Store the actual ROM addresses so the shadow validator's interpreter can
     // use the (EnemyData),y indirect addressing mode correctly.
-    val enemyRomAddr = RomData.enemyDataAddresses[enemyIdx]
     ram.enemyDataLow = (enemyRomAddr and 0xFF).toByte()
     ram.enemyDataHigh = ((enemyRomAddr shr 8) and 0xFF).toByte()
 

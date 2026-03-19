@@ -253,28 +253,23 @@ private fun System.areaParserTaskControl() {
     //> inc DisableScreenFlag     ;turn off screen
     ram.disableScreenFlag = true
 
-    fun taskLoop() {
-        //> TaskLoop:  jsr AreaParserTaskHandler ;render column set of current area
+    //> TaskLoop:  jsr AreaParserTaskHandler ;render column set of current area
+    //> lda AreaParserTaskNum     ;check number of tasks
+    //> bne TaskLoop              ;if tasks still not all done, do another one
+    do {
         areaParserTaskHandler()
-        //> lda AreaParserTaskNum     ;check number of tasks
-        //> bne TaskLoop              ;if tasks still not all done, do another one
-        if (ram.areaParserTaskNum != 0.toByte()) {
-            waitForFrame { taskLoop() }
-        }
+    } while (ram.areaParserTaskNum != 0.toByte())
 
-        //> dec ColumnSets            ;do we need to render more column sets?
-        //> bpl OutputCol
-        if (--ram.columnSets < 0) {
-            //> inc ScreenRoutineTask     ;if not, move on to the next task
-            ram.screenRoutineTask++
-        }
-        //> OutputCol: lda #$06                  ;set vram buffer to output rendered column set
-        //> sta VRAM_Buffer_AddrCtrl  ;on next NMI
-        ram.vRAMBufferAddrCtrl = 0x06.toByte()
-        //> rts
+    //> dec ColumnSets            ;do we need to render more column sets?
+    //> bpl OutputCol
+    if (--ram.columnSets < 0) {
+        //> inc ScreenRoutineTask     ;if not, move on to the next task
+        ram.screenRoutineTask++
     }
-
-    taskLoop()
+    //> OutputCol: lda #$06                  ;set vram buffer to output rendered column set
+    //> sta VRAM_Buffer_AddrCtrl  ;on next NMI
+    ram.vRAMBufferAddrCtrl = 0x06.toByte()
+    //> rts
 }
 
 // --- Palette selection/data tables translated from disassembly ---

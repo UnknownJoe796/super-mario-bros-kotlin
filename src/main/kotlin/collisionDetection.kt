@@ -287,7 +287,7 @@ private fun System.getBlockBufferAddr(columnIndex: Int): Pair<ByteArray, Int> {
  * @param returnHorizontal if true, return horizontal low nybble in $04; if false, vertical
  * @return the metatile found in the block buffer (0 = nothing)
  */
-private fun System.blockBufferCollision(sprObjOffset: Int, adderOffset: Int, returnHorizontal: Boolean): BlockBufferResult {
+fun System.blockBufferCollision(sprObjOffset: Int, adderOffset: Int, returnHorizontal: Boolean): BlockBufferResult {
     //> BlockBufferCollision:
     var y = adderOffset
 
@@ -780,7 +780,7 @@ fun System.fireballEnemyCollision() {
         //> ldx $01  ;get enemy offset
         //> jsr HandleEnemyFBallCol
         handleEnemyFBallCol(enemyIdx)
-        break  // after handling collision, the assembly continues the loop but the fireball is dead
+        // Assembly continues the loop (NoFToECol → dex → bpl) — do NOT break
     }
     //> ExitFBallEnemy: ldx ObjectOffset; rts
 }
@@ -879,8 +879,9 @@ fun System.shellOrBlockDefeat(x: Int) {
     //> cmp #PiranhaPlant; bne StnE
     if (enemyId == Constants.PiranhaPlant.toInt() and 0xFF) {
         //> lda Enemy_Y_Position,x; adc #$18; sta Enemy_Y_Position,x
+        // carry=1 from cmp #PiranhaPlant (equal), so adc adds $18 + 1 = $19
         val yPos = ram.sprObjYPos[x + 1].toInt() and 0xFF
-        ram.sprObjYPos[x + 1] = (yPos + 0x18).toByte()
+        ram.sprObjYPos[x + 1] = (yPos + 0x19).toByte()
     }
     //> StnE: jsr ChkToStunEnemies
     chkToStunEnemies(x)

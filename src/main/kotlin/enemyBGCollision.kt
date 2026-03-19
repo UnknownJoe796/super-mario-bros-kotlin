@@ -573,6 +573,8 @@ private fun System.procEnemyDirection(x: Int) {
 
     //> jsr ChkForBump_HammerBroJ
     chkForBumpHammerBroJ(x)
+    // Assembly fall-through: after JSR returns, execution continues to LandEnemyInitState
+    landEnemyInitState(x)
 }
 
 /**
@@ -1099,19 +1101,10 @@ private fun System.extraLifeMushBlock(x: Int) {
 
 private fun System.vineBlock(x: Int) {
     //> VineBlock:
-    //> ldx #$05; ldy SprDataOffset_Ctrl; jsr Setup_Vine
-    val enemySlot = 5
-    ram.enemyID[enemySlot] = Constants.VineObject
-    ram.enemyFlags[enemySlot] = 1
-    ram.enemyState[enemySlot] = 1
-    ram.sprObjPageLoc[enemySlot + 1] = ram.sprObjPageLoc[9 + x]
-    ram.sprObjXPos[enemySlot + 1] = ram.sprObjXPos[9 + x]
-    ram.sprObjYHighPos[enemySlot + 1] = ram.sprObjYHighPos[9 + x]
-    ram.sprObjYPos[enemySlot + 1] = ram.sprObjYPos[9 + x]
-    ram.vineStartYPosition = ram.sprObjYPos[9 + x]
-    ram.vineFlagOffset = ram.sprDataOffsetCtrl
-    ram.vineObjOffset = 5
-    ram.vineHeight = 0
+    //> ldx #$05                ;load last slot for enemy object buffer
+    //> ldy SprDataOffset_Ctrl  ;get control bit
+    //> jsr Setup_Vine          ;set up vine object
+    setupVine(enemySlot = 5, blockSlot = x)
 }
 
 private fun System.coinBlock(x: Int) {

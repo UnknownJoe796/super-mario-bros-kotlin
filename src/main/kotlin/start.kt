@@ -48,7 +48,14 @@ fun System.start() {
     //> bpl VBlank1
     //> VBlank2:     lda PPU_STATUS
     //> bpl VBlank2
+    waitForFrame {
+        waitForFrame {
+            startAfterVBlank()
+        }
+    }
+}
 
+private fun System.startAfterVBlank() {
     var useColdBoot = false
     //> ldy #ColdBootOffset          ;load default cold boot pointer
     //> ldx #$05                     ;this is where we check for a warm boot

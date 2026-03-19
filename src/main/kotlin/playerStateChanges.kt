@@ -50,6 +50,10 @@ fun System.playerInjuryBlink() {
     val tc = ram.timerControl.toInt() and 0xFF
     if (tc >= 0xF0) {
         //> ExitBlink: bne ExitBoth           ;do unconditional branch to leave
+        // When tc > $F0: bne is taken → exits (ExitBoth)
+        // When tc == $F0: bne falls through → InitChangeSize (size change happens!)
+        if (tc != 0xF0) return
+        initChangeSize()
         return
     }
     //> cmp #$c8               ;check again for another specific point

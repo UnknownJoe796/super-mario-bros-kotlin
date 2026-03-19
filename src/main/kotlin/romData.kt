@@ -75,6 +75,29 @@ object RomData {
         E_UndergroundArea2, E_UndergroundArea3, E_WaterArea1, E_WaterArea2, E_WaterArea3,
     )
 
+    // Contiguous ROM image for enemy data region, so overflow reads (e.g. when
+    // EnemyDataOffset exceeds a single area's length, as in W8-4 castle loops)
+    // correctly read the following ROM bytes instead of returning $FF.
+    private val enemyDataRomBase = enemyDataAddresses.first()
+    private val contiguousEnemyData: ByteArray = run {
+        val lastAddr = enemyDataAddresses.last()
+        val lastArray = enemyDataArrays.last()
+        val totalSize = (lastAddr + lastArray.size) - enemyDataRomBase
+        ByteArray(totalSize) { 0xFF.toByte() }.also { rom ->
+            for (i in enemyDataAddresses.indices) {
+                val offset = enemyDataAddresses[i] - enemyDataRomBase
+                enemyDataArrays[i].copyInto(rom, offset)
+            }
+        }
+    }
+
+    // Pre-built slices: each starts at the area's ROM address and extends to the end
+    // of the contiguous data. This allows NES-accurate overflow reads via normal indexing.
+    val enemyDataWithOverflow: Map<Int, ByteArray> = enemyDataAddresses.associate { addr ->
+        val offset = addr - enemyDataRomBase
+        addr to contiguousEnemyData.copyOfRange(offset, contiguousEnemyData.size)
+    }
+
     //> AreaDataAddrLow/High: ROM addresses for each area data array.
     // Used to set $E7/$E8 (the indirect pointer the assembly uses for (AreaData),y).
     // Indexed 0-33, matching areaDataArrays order.
