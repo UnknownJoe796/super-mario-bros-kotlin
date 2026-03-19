@@ -3,6 +3,12 @@
 
 package com.ivieleague.smbtranslation
 
+// NES Y register tracking for Setup_Vine: the Y register at the time Setup_Vine is called
+// determines which flat RAM address to read block coordinates from. On the normal
+// processEnemyData path, Y = enemyDataOffset + 1 (after iny). On the CheckFrenzyBuffer
+// path, Y = enemyDataOffset (no iny). This must be set before calling initEnemyObject.
+private var setupVineBlockY: Int = 0
+
 // Loop command ROM data tables
 //> LoopCmdWorldNumber:
 //>       .db $03, $03, $06, $06, $06, $06, $06, $06, $07, $07, $07
@@ -657,6 +663,8 @@ private fun System.processEnemyData() {
     //> sta Enemy_Flag,x     ;set flag for enemy in buffer
     ram.enemyFlags[x] = 1
     //> jsr InitEnemyObject
+    // NES Y register = enemyDataOffset + 1 here (after iny at line 610/asm 7974)
+    setupVineBlockY = (ram.enemyDataOffset.toInt() and 0xFF) + 1
     initEnemyObject()
     //> lda Enemy_Flag,x     ;check to see if flag is set
     //> bne Inc2B            ;if not, leave, otherwise branch
@@ -764,6 +772,8 @@ private fun System.checkFrenzyBuffer() {
         //> StrFre: sta Enemy_ID,x           ;store contents of frenzy buffer into enemy identifier value
         ram.enemyID[x] = frenzyBuffer.toByte()
         if (debugEnemyTrace) println("  [CFB] → initEnemyObject with id=${frenzyBuffer.toString(16)}")
+        // NES Y register = enemyDataOffset here (no iny on frenzy path)
+        setupVineBlockY = ram.enemyDataOffset.toInt() and 0xFF
         initEnemyObject()
         return
     }
@@ -780,6 +790,8 @@ private fun System.checkFrenzyBuffer() {
     //> StrFre: sta Enemy_ID,x
     ram.enemyID[x] = Constants.VineObject
     //> (falls through to InitEnemyObject)
+    // NES Y register = enemyDataOffset here (no iny on vine/frenzy path)
+    setupVineBlockY = ram.enemyDataOffset.toInt() and 0xFF
     initEnemyObject()
 }
 
@@ -2093,10 +2105,12 @@ private fun System.setupVine() {
     //> sta Enemy_X_Position,x
     //> lda Block_Y_Position,y
     //> sta Enemy_Y_Position,x
-    // NES Y register here = enemyDataOffset + 1 (from processEnemyData's iny).
+    // NES Y register here depends on calling path:
+    // - Normal processEnemyData: Y = enemyDataOffset + 1 (after iny)
+    // - CheckFrenzyBuffer: Y = enemyDataOffset (no iny)
     // Block_PageLoc=$76, Block_X_Position=$8F, Block_Y_Position=$D7
     // These are NES flat RAM reads that can cross SprObject array boundaries.
-    val y = (ram.enemyDataOffset.toInt() and 0xFF) + 1
+    val y = setupVineBlockY
     val pageLoc = readNesRamByte(0x76 + y)
     val xPos = readNesRamByte(0x8F + y)
     val yPos = readNesRamByte(0xD7 + y)
