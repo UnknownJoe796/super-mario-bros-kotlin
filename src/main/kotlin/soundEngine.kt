@@ -225,7 +225,9 @@ private fun System.handleDACCounter() {
     //> NoIncDAC: tya; beq StrWave
     if (y != 0) {
         //> dec DAC_Counter
-        ram.dACCounter = ((y - 1) and 0xFF).toByte()
+        // NES dec operates on the current RAM value (which may have been incremented above)
+        val current = ram.dACCounter.toInt() and 0xFF
+        ram.dACCounter = ((current - 1) and 0xFF).toByte()
     }
     //> StrWave: sty SND_DELTA_REG+1
     writeSndReg(17, y)

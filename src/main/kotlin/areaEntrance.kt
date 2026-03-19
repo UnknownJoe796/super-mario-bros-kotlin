@@ -250,9 +250,12 @@ private fun System.initBlockXYPos(x: Int) {
 }
 
 private fun System.setupBubble() {
-    // by Claude - On the NES, this calls the same SetupBubble label used by BubbleCheck.
-    // At this point X = VRAM_Buffer1_Offset (0 after initializeArea cleared $0300),
-    // and $07 = 0 (zero page cleared). This initializes bubble slot 0's position
-    // from the player and sets airBubbleTimer so the bubble spawn cycle begins.
+    // NES JumpEngine stores the target subroutine's high address byte in $07.
+    // GameRoutines dispatches to Entrance_GameTimerSetup at NES $9131, so $07 = 0x91.
+    // SetupBubble reads $07 as index into BubbleTimerData (which only has 2 entries).
+    // BubbleTimerData + 0x91 = ROM $B7DE which contains 0x04 — an out-of-bounds ROM read.
+    // X = VRAM_Buffer1_Offset = 0 (after initializeArea cleared $0300).
     setupBubble(x = 0, randBit = 0)
+    // Override the timer with the value the NES actually produces from the OOB ROM read
+    ram.airBubbleTimer = 0x04
 }
