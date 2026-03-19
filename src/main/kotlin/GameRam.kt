@@ -173,6 +173,11 @@ class GameRam {
     @RamLocation(0x775) var scrollAmount: Byte = 0
 
     var areaData: ByteArray? = null  // Indirect: pointer at 0xe7
+    // Zero-page scratch bytes $EB-$EF: used as temp variables by various routines.
+    // Mapped here so NES flat RAM reads (e.g., Setup_Vine with JumpEngine Y offset)
+    // can access them via GameRamMapper.
+    @RamLocation(0xeb) val zeroPageScratch: ByteArray = ByteArray(5) // $EB-$EF
+
     @RamLocation(0xe7) var areaDataLow: Byte = 0
     @RamLocation(0xe8) var areaDataHigh: Byte = 0
     var enemyDataBytes: ByteArray? = null  // by Claude - Indirect: pointer at 0xe9

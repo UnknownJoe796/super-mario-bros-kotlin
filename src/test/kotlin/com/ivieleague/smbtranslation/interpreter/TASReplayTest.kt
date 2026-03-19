@@ -1294,9 +1294,9 @@ class TASReplayTest {
         val frame = 7037
         val fOff = frame * 2048
 
-        // Watch addresses for enemy slot 1 (flat array index 2)
-        val watchAddrs = intArrayOf(0x6F, 0x88, 0xD0)  // pageLoc[2], xPos[2], yPos[2]
-        val watchNames = arrayOf("pageLoc[2]", "xPos[2]", "yPos[2]")
+        // Watch addresses for enemy slot 1 (flat array index 2) + vine source addresses
+        val watchAddrs = intArrayOf(0x6F, 0x88, 0xD0, 0x98)  // pageLoc[2], xPos[2], yPos[2], vine source $0098
+        val watchNames = arrayOf("pageLoc[2]", "xPos[2]", "yPos[2]", "vineSource($98)")
 
         println("=== Tracing enemy slot 1 positions during frame $frame NMI ===")
         for (i in watchAddrs.indices) {
@@ -1337,7 +1337,17 @@ class TASReplayTest {
                 else -> null
             }
         }
-        comp.interpreter.memoryWriteHook = { addr, _ ->
+        // Trace writes to $0088 (vine output) and $00EF (vine source)
+        val traceAddrs = setOf(0x0088, 0x00EF, 0x0087)
+        comp.interpreter.memoryWriteHook = { addr, value ->
+            if (addr in traceAddrs) {
+                val pc = comp.interpreter.cpu.PC.toInt()
+                val old = comp.interpreter.memory.readByte(addr).toInt() and 0xFF
+                val nv = value.toInt() and 0xFF
+                val yReg = comp.interpreter.cpu.Y.toInt() and 0xFF
+                val xReg = comp.interpreter.cpu.X.toInt() and 0xFF
+                if (old != nv) println("  [WRITE] PC=\$${pc.toString(16).padStart(4,'0')} \$${addr.toString(16)}: 0x${old.toString(16)}→0x${nv.toString(16)} X=$xReg Y=$yReg A=0x${(comp.interpreter.cpu.A.toInt() and 0xFF).toString(16)}")
+            }
             when (addr) {
                 in 0x2000..0x2007 -> true
                 0x4014 -> true

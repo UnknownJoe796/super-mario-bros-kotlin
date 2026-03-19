@@ -37,7 +37,7 @@ class System {
             addr in 0x9F..0xB4 -> ram.sprObjYSpeed[addr - 0x9F]     // 22 bytes
             addr in 0xB5..0xCD -> ram.sprObjYHighPos[addr - 0xB5]   // 25 bytes
             addr in 0xCE..0xE6 -> ram.sprObjYPos[addr - 0xCE]       // 25 bytes
-            else -> 0 // outside SprObject region
+            else -> 0 // outside SprObject region — see setupVine for special handling
         }
     }
 }

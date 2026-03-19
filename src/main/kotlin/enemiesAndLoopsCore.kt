@@ -3,10 +3,13 @@
 
 package com.ivieleague.smbtranslation
 
-// NES Y register tracking for Setup_Vine: the Y register at the time Setup_Vine is called
-// determines which flat RAM address to read block coordinates from. On the normal
-// processEnemyData path, Y = enemyDataOffset + 1 (after iny). On the CheckFrenzyBuffer
-// path, Y = enemyDataOffset (no iny). This must be set before calling initEnemyObject.
+// NES Y register tracking for Setup_Vine: on the NES, the Y register at Setup_Vine
+// comes from JumpEngine's dispatch mechanism: Y = enemyID * 2 + 2. This is because
+// checkpointEnemyID calls JumpEngine which sets Y = A*2 (ASL;TAY) then INY twice.
+// For VineObject (ID=$2F): Y = 0x2F*2 + 2 = 0x60. Setup_Vine then reads
+// Block_PageLoc,Y / Block_X_Position,Y / Block_Y_Position,Y using this Y value,
+// reading from scratch RAM addresses rather than meaningful block data.
+// This value is set by checkpointEnemyID before dispatching to setupVine.
 private var setupVineBlockY: Int = 0
 
 // Loop command ROM data tables
@@ -840,6 +843,8 @@ fun System.checkpointEnemyID() {
 
     //> InitEnemyRoutines:
     //> jsr JumpEngine
+    // JumpEngine sets Y = A*2 + 2 (ASL;TAY;INY;INY), which Setup_Vine uses to read block data
+    setupVineBlockY = enemyId * 2 + 2
     when (enemyId) {
         //> .dw InitNormalEnemy  ;for objects $00-$02
         0x00 -> initNormalEnemy()
@@ -2105,15 +2110,17 @@ private fun System.setupVine() {
     //> sta Enemy_X_Position,x
     //> lda Block_Y_Position,y
     //> sta Enemy_Y_Position,x
-    // NES Y register here depends on calling path:
-    // - Normal processEnemyData: Y = enemyDataOffset + 1 (after iny)
-    // - CheckFrenzyBuffer: Y = enemyDataOffset (no iny)
-    // Block_PageLoc=$76, Block_X_Position=$8F, Block_Y_Position=$D7
-    // These are NES flat RAM reads that can cross SprObject array boundaries.
+    // NES Y register here comes from JumpEngine dispatch: Y = enemyID*2+2 = 0x60
+    // for VineObject. Setup_Vine reads Block_PageLoc,Y / Block_X_Position,Y /
+    // Block_Y_Position,Y using this Y value. The resulting addresses ($00D6, $00EF,
+    // $0137) point to scratch RAM and stack, not meaningful block data.
+    // Use GameRamMapper for full flat RAM access including unmapped scratch bytes.
     val y = setupVineBlockY
-    val pageLoc = readNesRamByte(0x76 + y)
-    val xPos = readNesRamByte(0x8F + y)
-    val yPos = readNesRamByte(0xD7 + y)
+    val flat = GameRamMapper.toFlat(ram)
+    fun readFlat(addr: Int): Byte = flat.getOrElse(addr) { 0 }
+    val pageLoc = readFlat(0x76 + y)
+    val xPos = readFlat(0x8F + y)
+    val yPos = readFlat(0xD7 + y)
     if (debugEnemyTrace) println("[setupVine] y=$y blockIdx=${9+y} nesAddr=\$${(0x76+y).toString(16)}/\$${(0x8F+y).toString(16)}/\$${(0xD7+y).toString(16)} → page=${pageLoc.toInt() and 0xFF} x=${xPos.toInt() and 0xFF} y=${yPos.toInt() and 0xFF}")
     ram.sprObjPageLoc[1 + x] = pageLoc
     ram.sprObjXPos[1 + x] = xPos
