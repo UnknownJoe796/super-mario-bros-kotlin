@@ -47,7 +47,12 @@ class TASReplayTest {
             addAll(0x00..0x0D)                     // zero-page scratch ($00-$08 temp vars, $09 frameCounter,
                                                     // $0A-$0D joypad/button processing intermediates)
             addAll(0xE7..0xEF)                     // ROM data pointers ($E7-$EA) + scratch ($EB-$EF)
-            addAll(0xF0..0xFF)                     // sound queues + audio buffers — soundEngine stub differs
+            // $F0-$FF: sound engine uses these for music offsets, queues, buffers
+            // $F0 noteLenLookupTblOfs, $F1 square1SoundBuffer, $F2 square2SoundBuffer,
+            // $F3 noiseSoundBuffer, $F4 areaMusicBuffer, $F5-$F6 musicData pointer,
+            // $F7-$F9 music offsets, $FA pauseSoundQueue, $FB-$FF queues
+            // Queues ($FA-$FF) are cleared every frame; compare the rest
+            addAll(0xFA..0xFF)                     // sound queues — cleared every frame by both engines
             addAll(0x100..0x1FF)                   // NES stack page — Kotlin uses custom Stack object
             addAll(0x200..0x2FF)                    // OAM sprites — Kotlin uses Sprite objects, not flat bytes
             addAll(0x300..0x3AC)                    // VRAM buffer 1 — Kotlin uses MutableVBuffer (ArrayList)
@@ -73,8 +78,7 @@ class TASReplayTest {
                 0x00D9, 0x00DA,     // sprObjYPos[11,12]
             ).toList())
             addAll(0x4AC..0x4FF)                    // bounding box coords — transient collision workspace
-            // Sound engine state — stub implementation doesn't replicate NES sound engine
-            addAll(0x7B0..0x7CA)                    // sound engine counters, buffers, flags
+            // Sound engine state is now fully implemented — no longer excluded
             // Sprite shuffler internal state — draw order optimization, not game logic
             addAll(0x6E1..0x6E3)                    // sprShuffleAmt (internal shuffler workspace)
             // PPU hardware mirror — nametable select bit toggles during scroll; Kotlin
