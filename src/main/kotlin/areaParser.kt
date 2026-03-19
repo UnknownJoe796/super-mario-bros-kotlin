@@ -588,11 +588,13 @@ private fun System.processAreaData() {
             incAreaObjOffset()
         }
         //> ChkLength:  ldx ObjectOffset         ;get buffer offset
+        // NES reloads X from ObjectOffset here — decodeAreaData may have changed it
+        x = ram.objectOffset
         //> lda AreaObjectLength,x   ;check object length for anything stored here
         //> bmi ProcLoopb            ;if not, branch to handle loopback
-        if(ram.areaObjectLength[ram.objectOffset] >= 0.toByte()) {
+        if(ram.areaObjectLength[x] >= 0.toByte()) {
             //> dec AreaObjectLength,x   ;otherwise decrement length or get rid of it
-            ram.areaObjectLength[ram.objectOffset]--
+            ram.areaObjectLength[x]--
         }
         //> ProcLoopb:  dex                      ;decrement buffer offset
         x--
