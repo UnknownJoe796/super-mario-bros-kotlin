@@ -1151,30 +1151,30 @@ private fun System.handlePECollisions(x: Int, enemyId: Int) {
 private fun System.chkForPlayerInjury(x: Int) {
     //> ChkForPlayerInjury:
     //> lda Player_Y_Speed; bmi ChkInj; bne EnemyStomped
+    //> lda Player_Y_Speed; bmi ChkInj; bne EnemyStomped
     val playerYSpeed = ram.playerYSpeed
     if (playerYSpeed > 0) {
-        // Moving downward
+        // bne EnemyStomped: positive speed (moving downward) → stomp
         enemyStomped(x)
         return
     }
 
-    if (playerYSpeed < 0) {
-        // Moving upward
-        //> ChkInj: lda Enemy_ID,x; cmp #Bloober; bcc ChkETmrs
-        val enemyId = ram.enemyID[x].toInt() and 0xFF
-        if (enemyId >= Constants.Bloober.toInt() and 0xFF) {
-            //> lda Player_Y_Position; clc; adc #$0c; cmp Enemy_Y_Position,x
-            val playerY = ram.playerYPosition.toInt() and 0xFF
-            val enemyY = ram.sprObjYPos[x + 1].toInt() and 0xFF
-            //> bcc EnemyStomped
-            if ((playerY + 0x0c) and 0xFF < enemyY) {
-                enemyStomped(x)
-                return
-            }
+    // playerYSpeed <= 0: bmi branches to ChkInj if negative,
+    // bne falls through if zero (also reaches ChkInj)
+    //> ChkInj: lda Enemy_ID,x; cmp #Bloober; bcc ChkETmrs
+    val enemyId = ram.enemyID[x].toInt() and 0xFF
+    if (enemyId >= Constants.Bloober.toInt() and 0xFF) {
+        //> lda Player_Y_Position; clc; adc #$0c; cmp Enemy_Y_Position,x
+        val playerY = ram.playerYPosition.toInt() and 0xFF
+        val enemyY = ram.sprObjYPos[x + 1].toInt() and 0xFF
+        //> bcc EnemyStomped
+        if ((playerY + 0x0c) and 0xFF < enemyY) {
+            enemyStomped(x)
+            return
         }
     }
 
-    // playerYSpeed == 0 or didn't pass the bloober check
+    // Didn't pass the bloober/Y-position check
     //> ChkETmrs: lda StompTimer; bne EnemyStomped
     if (ram.stompTimer != 0.toByte()) { enemyStomped(x); return }
     //> lda InjuryTimer; bne ExInjColRoutines
