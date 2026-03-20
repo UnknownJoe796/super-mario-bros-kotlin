@@ -20,7 +20,16 @@ fun main() {
     if (java.lang.System.getProperty("smb.shadow") != "false") {
         system.shadow = com.ivieleague.smbtranslation.interpreter.ShadowValidator.create("smb.nes")
     }
-    Runtime.getRuntime().addShutdownHook(Thread { system.shadow?.close() })
+    val audioOutput = com.ivieleague.smbtranslation.nes.ApuAudioOutput()
+    if (java.lang.System.getProperty("smb.audio") != "false") {
+        try { audioOutput.start() } catch (e: Exception) {
+            java.lang.System.err.println("Audio init failed: ${e.message}")
+        }
+    }
+    Runtime.getRuntime().addShutdownHook(Thread {
+        system.shadow?.close()
+        audioOutput.stop()
+    })
     var startAction: (() -> Unit)? = { system.start() }
     val scale = 3
     val width = 256 * scale
@@ -62,6 +71,7 @@ fun main() {
                         }
                     } else {
                         system.nonMaskableInterrupt()
+                        audioOutput.outputFrame(system.apu)
                     }
 
                     if (system.ram.disableScreenFlag != lastDisableScreenFlag) {

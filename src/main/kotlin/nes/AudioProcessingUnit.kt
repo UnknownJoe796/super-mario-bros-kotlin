@@ -1,6 +1,9 @@
 package com.ivieleague.smbtranslation.nes
 
 class AudioProcessingUnit() {
+    // Raw register bytes for audio synthesis (indexed 0-19 = $4000-$4013, +$4015, +$4017)
+    val rawRegs = ByteArray(24)
+
     class Pulse {
         // $4000 / $4004 	DDLC VVVV 	Duty (D), envelope loop / length counter halt (L), constant volume (C), volume/envelope (V)
         var duty: TwoBits = 0

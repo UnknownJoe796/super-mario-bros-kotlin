@@ -16,6 +16,8 @@ import com.ivieleague.smbtranslation.Constants.VictoryMusic
 private fun System.writeSndReg(offset: Int, value: Int) {
     val v = value and 0xFF
     val vb = v.toByte()
+    // Store raw register byte for audio synthesis
+    if (offset in apu.rawRegs.indices) apu.rawRegs[offset] = vb
     when (offset) {
         //> SND_SQUARE1_REG ($4000-$4003)
         0 -> {
@@ -84,6 +86,7 @@ private fun System.writeSndReg(offset: Int, value: Int) {
 private fun System.writeSndMasterCtrl(value: Int) {
     //> SND_MASTERCTRL_REG ($4015)
     val v = value and 0xFF
+    apu.rawRegs[21] = v.toByte() // $4015 = offset 21
     apu.pulse1Enabled = v and 0x01 != 0
     apu.pulse2Enabled = v and 0x02 != 0
     apu.triangleEnabled = v and 0x04 != 0
