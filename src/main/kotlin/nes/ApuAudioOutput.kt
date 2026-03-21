@@ -68,6 +68,11 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
     private var triangleLenHalt = false
     private var noiseLenHalt = false
 
+    // Triangle linear counter (decremented at 240Hz = 4x per frame)
+    // Loaded from $4008 bits 6-0 when $400B is written. Channel silences when 0.
+    private var triLinearCounter = 0
+    private var triLinearReload = 0  // value to reload from $4008
+
     // Channel enabled via $4015
     private var pulse1Enabled = false
     private var pulse2Enabled = false
@@ -121,7 +126,12 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
         when (channel) {
             0 -> { if (pulse1Enabled) pulse1LenCtr = length; pulse1Phase = 0.0; pulse1Step = 0 }
             1 -> { if (pulse2Enabled) pulse2LenCtr = length; pulse2Phase = 0.0; pulse2Step = 0 }
-            2 -> { if (triangleEnabled) triangleLenCtr = length; trianglePhase = 0.0; triangleStep = 0 }
+            2 -> {
+                if (triangleEnabled) triangleLenCtr = length
+                // Reload the linear counter from the value stored by $4008
+                triLinearCounter = triLinearReload
+                trianglePhase = 0.0; triangleStep = 0
+            }
             3 -> { if (noiseEnabled) noiseLenCtr = length }
         }
     }
@@ -134,7 +144,10 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
         when (channel) {
             0 -> pulse1LenHalt = regValue and 0x20 != 0
             1 -> pulse2LenHalt = regValue and 0x20 != 0
-            2 -> triangleLenHalt = regValue and 0x80 != 0
+            2 -> {
+                triangleLenHalt = regValue and 0x80 != 0
+                triLinearReload = regValue and 0x7F  // bits 6-0 = linear counter reload value
+            }
             3 -> noiseLenHalt = regValue and 0x20 != 0
         }
     }
@@ -143,13 +156,18 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
         val regs = apu.rawRegs
         val result = ShortArray(numSamples)
 
-        // Clock length counters (2 half-frames per NMI frame at 60fps = 120Hz)
-        // Real NES clocks at 240Hz but we approximate with 2 decrements per frame
+        // Clock length counters at 120Hz (2 half-frames per NMI frame)
         for (hf in 0..1) {
             if (pulse1LenCtr > 0 && !pulse1LenHalt) pulse1LenCtr--
             if (pulse2LenCtr > 0 && !pulse2LenHalt) pulse2LenCtr--
             if (triangleLenCtr > 0 && !triangleLenHalt) triangleLenCtr--
             if (noiseLenCtr > 0 && !noiseLenHalt) noiseLenCtr--
+        }
+
+        // Clock triangle linear counter at 240Hz (4 quarter-frames per NMI frame)
+        // Triangle only plays when BOTH length counter AND linear counter are > 0
+        for (qf in 0..3) {
+            if (triLinearCounter > 0) triLinearCounter--
         }
 
         // Read channel parameters
@@ -164,8 +182,8 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
         val p2On = pulse2LenCtr > 0 && p2Period >= 8 && p2Vol > 0
 
         val triPeriod = (regs[10].toInt() and 0xFF) or ((regs[11].toInt() and 7) shl 8)
-        val triLinear = regs[8].toInt() and 0x7F
-        val triOn = triangleLenCtr > 0 && triPeriod >= 2 && triLinear > 0
+        // Triangle plays only when length counter > 0 AND linear counter > 0
+        val triOn = triangleLenCtr > 0 && triLinearCounter > 0 && triPeriod >= 2
 
         val noiseVol = regs[12].toInt() and 0x0F
         val noisePeriodIdx = regs[14].toInt() and 0x0F
