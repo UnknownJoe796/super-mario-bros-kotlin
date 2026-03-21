@@ -23,6 +23,39 @@ class AudioExportTest {
         exportAudio("gameplay-w1-1", frames = 1800, pressStart = 180)
     }
 
+    @Test
+    fun `trace noise channel state`() {
+        val system = System()
+        var action: (() -> Unit)? = { system.start() }
+        while (action != null) {
+            try { action(); action = null }
+            catch (d: com.ivieleague.smbtranslation.utils.FrameDelay) { action = d.nextAction }
+        }
+        val audioOutput = ApuAudioOutput(44100)
+        system.audioOutput = audioOutput
+
+        // Press start at frame 180
+        for (frame in 0 until 600) {
+            if (frame == 180) system.inputs.joypadPort1 = JoypadBits(0x10)
+            else if (frame == 181) system.inputs.joypadPort1 = JoypadBits(0x00)
+            system.nonMaskableInterrupt()
+
+            val regs = system.apu.rawRegs
+            val noiseVol = regs[12].toInt() and 0x0F
+            val noisePeriod = regs[14].toInt() and 0x0F
+            val noiseMode = regs[14].toInt() and 0x80 != 0
+            val noiseLen = regs[15].toInt() and 0xFF
+            val enabled = regs[21].toInt() and 0x08 != 0
+            val noiseBuf = system.ram.noiseSoundBuffer.toInt() and 0xFF
+            val noiseSfxLen = system.ram.noiseSfxLenCounter.toInt() and 0xFF
+            val areaMusicBuf = system.ram.areaMusicBuffer.toInt() and 0xFF
+
+            if (frame >= 330 && frame <= 400) {
+                println("F$frame: noiseVol=$noiseVol period=$noisePeriod mode=$noiseMode len=$noiseLen enabled=$enabled active=${audioOutput.noiseActiveForDebug()} noiseBuf=$noiseBuf sfxLen=$noiseSfxLen music=0x${areaMusicBuf.toString(16)}")
+            }
+        }
+    }
+
     private fun exportAudio(name: String, frames: Int, pressStart: Int = -1) {
         val system = System()
         // start() uses FrameDelay to spread initialization across frames

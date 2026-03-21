@@ -8,12 +8,11 @@ import javax.sound.sampled.SourceDataLine
 /**
  * Synthesizes NES APU audio and outputs via JVM audio.
  *
- * Key NES APU behaviors modeled:
- * - Writing 0 to a channel's enable bit in $4015 sets its length counter to 0 (silences it)
- * - Writing to $4003/$4007/$400B/$400F reloads the length counter (re-activates sound)
- * - Pulse: square wave, 4 duty cycles, freq = CPU / (16 * (period + 1))
- * - Triangle: triangle wave, freq = CPU / (32 * (period + 1))
- * - Noise: 15-bit LFSR, period from lookup table
+ * Key NES APU hardware behaviors modeled:
+ * - Hardware length counter: loaded from LENGTH_TABLE on reg 3/7/B/F write,
+ *   decremented every other frame (240Hz). Channel silences when counter hits 0.
+ * - $4015 disable: sets length counter to 0 (immediate silence)
+ * - Nonlinear mixer from nesdev wiki
  */
 class ApuAudioOutput(private val sampleRate: Int = 44100) {
 
@@ -33,8 +32,14 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
             intArrayOf(1, 1, 1, 1, 1, 1, 0, 0),
         )
 
-        // Triangle 32-step waveform (centered on 0)
+        // Triangle 32-step waveform
         private val triangleTable = IntArray(32) { if (it < 16) 15 - it else it - 16 }
+
+        // NES APU length counter lookup table (indexed by bits 7-3 of $4003/$4007/$400B/$400F)
+        private val lengthTable = intArrayOf(
+            10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
+            12,  16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30
+        )
     }
 
     private var line: SourceDataLine? = null
@@ -51,26 +56,37 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
     private var triangleStep = 0
     private var noiseLfsr = 1
 
-    // Length counter active flags:
-    // On real NES, writing 0 to a channel's $4015 bit sets length counter to 0 (silences it).
-    // Writing to the length/timer-high register ($4003/$4007/$400B/$400F) reloads it.
-    // We track this as a simple boolean: false = silenced, true = active.
-    private var pulse1Active = false
-    private var pulse2Active = false
-    private var triangleActive = false
-    private var noiseActive = false
+    // Hardware length counters (in half-frames, decremented at 240Hz = 4x per frame)
+    private var pulse1LenCtr = 0
+    private var pulse2LenCtr = 0
+    private var triangleLenCtr = 0
+    private var noiseLenCtr = 0
 
-    // Previous register state to detect changes
-    private val prevRegs = ByteArray(24)
+    // Length counter halt flags (bit 5 of $4000/$4004, bit 7 of $4008, bit 5 of $400C)
+    private var pulse1LenHalt = false
+    private var pulse2LenHalt = false
+    private var triangleLenHalt = false
+    private var noiseLenHalt = false
+
+    // Channel enabled via $4015
+    private var pulse1Enabled = false
+    private var pulse2Enabled = false
+    private var triangleEnabled = false
+    private var noiseEnabled = false
 
     // DC blocking filter state
     private var dcPrev = 0.0
     private var dcOut = 0.0
 
+    // Frame counter for length counter clocking (two half-frames per NMI frame)
+    private var halfFrameToggle = false
+
+    fun noiseActiveForDebug() = noiseLenCtr > 0
+
     fun start() {
         val format = AudioFormat(sampleRate.toFloat(), 16, 1, true, false)
         val line = AudioSystem.getSourceDataLine(format)
-        line.open(format, samplesPerFrame * 6) // ~3 frames of buffer
+        line.open(format, samplesPerFrame * 6)
         line.start()
         this.line = line
     }
@@ -82,26 +98,44 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
     }
 
     /**
-     * Notify that $4015 was written. Channels whose enable bit is 0 get silenced.
-     * Called from soundEngine's writeSndMasterCtrl.
+     * Notify that $4015 was written. Channels whose enable bit is 0 get length counter = 0.
      */
     fun onMasterCtrlWrite(value: Int) {
-        if (value and 0x01 == 0) pulse1Active = false
-        if (value and 0x02 == 0) pulse2Active = false
-        if (value and 0x04 == 0) triangleActive = false
-        if (value and 0x08 == 0) noiseActive = false
+        pulse1Enabled = value and 0x01 != 0
+        pulse2Enabled = value and 0x02 != 0
+        triangleEnabled = value and 0x04 != 0
+        noiseEnabled = value and 0x08 != 0
+        if (!pulse1Enabled) pulse1LenCtr = 0
+        if (!pulse2Enabled) pulse2LenCtr = 0
+        if (!triangleEnabled) triangleLenCtr = 0
+        if (!noiseEnabled) noiseLenCtr = 0
     }
 
     /**
      * Notify that a channel's length/timer-high register was written.
-     * This reloads the length counter, reactivating the channel.
+     * Loads the hardware length counter from the LENGTH_TABLE.
      */
-    fun onLengthLoad(channel: Int) {
+    fun onLengthLoad(channel: Int, regValue: Int) {
+        val tableIdx = (regValue shr 3) and 0x1F
+        val length = lengthTable[tableIdx]
         when (channel) {
-            0 -> { pulse1Active = true; pulse1Phase = 0.0; pulse1Step = 0 }
-            1 -> { pulse2Active = true; pulse2Phase = 0.0; pulse2Step = 0 }
-            2 -> { triangleActive = true; trianglePhase = 0.0; triangleStep = 0 }
-            3 -> { noiseActive = true }
+            0 -> { if (pulse1Enabled) pulse1LenCtr = length; pulse1Phase = 0.0; pulse1Step = 0 }
+            1 -> { if (pulse2Enabled) pulse2LenCtr = length; pulse2Phase = 0.0; pulse2Step = 0 }
+            2 -> { if (triangleEnabled) triangleLenCtr = length; trianglePhase = 0.0; triangleStep = 0 }
+            3 -> { if (noiseEnabled) noiseLenCtr = length }
+        }
+    }
+
+    /**
+     * Notify that a channel's control register ($4000/$4004/$4008/$400C) was written.
+     * Updates the length counter halt flag.
+     */
+    fun onControlWrite(channel: Int, regValue: Int) {
+        when (channel) {
+            0 -> pulse1LenHalt = regValue and 0x20 != 0
+            1 -> pulse2LenHalt = regValue and 0x20 != 0
+            2 -> triangleLenHalt = regValue and 0x80 != 0
+            3 -> noiseLenHalt = regValue and 0x20 != 0
         }
     }
 
@@ -109,33 +143,40 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
         val regs = apu.rawRegs
         val result = ShortArray(numSamples)
 
+        // Clock length counters (2 half-frames per NMI frame at 60fps = 120Hz)
+        // Real NES clocks at 240Hz but we approximate with 2 decrements per frame
+        for (hf in 0..1) {
+            if (pulse1LenCtr > 0 && !pulse1LenHalt) pulse1LenCtr--
+            if (pulse2LenCtr > 0 && !pulse2LenHalt) pulse2LenCtr--
+            if (triangleLenCtr > 0 && !triangleLenHalt) triangleLenCtr--
+            if (noiseLenCtr > 0 && !noiseLenHalt) noiseLenCtr--
+        }
+
         // Read channel parameters
         val p1Vol = regs[0].toInt() and 0x0F
         val p1Duty = (regs[0].toInt() shr 6) and 3
         val p1Period = (regs[2].toInt() and 0xFF) or ((regs[3].toInt() and 7) shl 8)
-        val p1On = pulse1Active && p1Period >= 8 && p1Vol > 0
+        val p1On = pulse1LenCtr > 0 && p1Period >= 8 && p1Vol > 0
 
         val p2Vol = regs[4].toInt() and 0x0F
         val p2Duty = (regs[4].toInt() shr 6) and 3
         val p2Period = (regs[6].toInt() and 0xFF) or ((regs[7].toInt() and 7) shl 8)
-        val p2On = pulse2Active && p2Period >= 8 && p2Vol > 0
+        val p2On = pulse2LenCtr > 0 && p2Period >= 8 && p2Vol > 0
 
         val triPeriod = (regs[10].toInt() and 0xFF) or ((regs[11].toInt() and 7) shl 8)
         val triLinear = regs[8].toInt() and 0x7F
-        val triOn = triangleActive && triPeriod >= 2 && triLinear > 0
+        val triOn = triangleLenCtr > 0 && triPeriod >= 2 && triLinear > 0
 
         val noiseVol = regs[12].toInt() and 0x0F
         val noisePeriodIdx = regs[14].toInt() and 0x0F
         val noiseMode = regs[14].toInt() and 0x80 != 0
         val noisePeriod = noisePeriodTable[noisePeriodIdx]
-        val noiseOn = noiseActive && noiseVol > 0
+        val noiseOn = noiseLenCtr > 0 && noiseVol > 0
 
         val clocksPerSample = CPU_CLOCK / sampleRate
 
         for (i in 0 until numSamples) {
-            // NES nonlinear mixer approximation
             var pulseSum = 0
-            var tndSum = 0.0
 
             if (p1On) {
                 pulse1Phase += clocksPerSample
@@ -174,22 +215,21 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
                 if (noiseLfsr and 1 == 0) noiseOut = noiseVol
             }
 
-            // NES mixer formulas (from nesdev wiki)
+            // NES nonlinear mixer (nesdev wiki)
             val pulseOut = if (pulseSum > 0) 95.88 / (8128.0 / pulseSum + 100.0) else 0.0
-            tndSum = if (triOut > 0 || noiseOut > 0) {
-                159.79 / (1.0 / (triOut / 8227.0 + noiseOut / 12241.0 + 0.0) + 100.0)
+            val tndOut = if (triOut > 0 || noiseOut > 0) {
+                159.79 / (1.0 / (triOut / 8227.0 + noiseOut / 12241.0) + 100.0)
             } else 0.0
 
-            val mixed = pulseOut + tndSum
+            val mixed = pulseOut + tndOut
 
-            // Simple DC blocking filter
+            // DC blocking filter
             dcOut = mixed - dcPrev + 0.995 * dcOut
             dcPrev = mixed
 
             result[i] = (dcOut * 32000).toInt().coerceIn(-32768, 32767).toShort()
         }
 
-        System.arraycopy(regs, 0, prevRegs, 0, regs.size.coerceAtMost(prevRegs.size))
         return result
     }
 
