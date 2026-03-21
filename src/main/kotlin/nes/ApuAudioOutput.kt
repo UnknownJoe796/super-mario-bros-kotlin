@@ -69,9 +69,25 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
     private var noiseLenHalt = false
 
     // Triangle linear counter (decremented at 240Hz = 4x per frame)
-    // Loaded from $4008 bits 6-0 when $400B is written. Channel silences when 0.
     private var triLinearCounter = 0
-    private var triLinearReload = 0  // value to reload from $4008
+    private var triLinearReload = 0
+
+    // Pulse sweep units: automatically adjust timer period for pitch slides
+    // The NES sweep unit shifts the timer period every (period+1) half-frames.
+    // If negate: subtracts shifted amount (pitch rises). Else: adds (pitch drops).
+    private var pulse1SweepEnabled = false
+    private var pulse1SweepPeriod = 0     // divider period (0-7)
+    private var pulse1SweepNegate = false
+    private var pulse1SweepShift = 0      // shift amount (0-7)
+    private var pulse1SweepDivider = 0    // current divider counter
+    private var pulse1TimerPeriod = 0     // current 11-bit timer period (modified by sweep)
+
+    private var pulse2SweepEnabled = false
+    private var pulse2SweepPeriod = 0
+    private var pulse2SweepNegate = false
+    private var pulse2SweepShift = 0
+    private var pulse2SweepDivider = 0
+    private var pulse2TimerPeriod = 0
 
     // Channel enabled via $4015
     private var pulse1Enabled = false
@@ -137,18 +153,55 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
     }
 
     /**
-     * Notify that a channel's control register ($4000/$4004/$4008/$400C) was written.
-     * Updates the length counter halt flag.
+     * Unified register write handler. Tracks all hardware state needed for synthesis.
      */
-    fun onControlWrite(channel: Int, regValue: Int) {
-        when (channel) {
-            0 -> pulse1LenHalt = regValue and 0x20 != 0
-            1 -> pulse2LenHalt = regValue and 0x20 != 0
-            2 -> {
-                triangleLenHalt = regValue and 0x80 != 0
-                triLinearReload = regValue and 0x7F  // bits 6-0 = linear counter reload value
+    fun onRegWrite(offset: Int, value: Int) {
+        when (offset) {
+            // Pulse 1 control ($4000)
+            0 -> pulse1LenHalt = value and 0x20 != 0
+            // Pulse 1 sweep ($4001)
+            1 -> {
+                pulse1SweepEnabled = value and 0x80 != 0
+                pulse1SweepPeriod = (value shr 4) and 7
+                pulse1SweepNegate = value and 0x08 != 0
+                pulse1SweepShift = value and 7
+                pulse1SweepDivider = pulse1SweepPeriod // reload divider
             }
-            3 -> noiseLenHalt = regValue and 0x20 != 0
+            // Pulse 1 timer low ($4002)
+            2 -> pulse1TimerPeriod = (pulse1TimerPeriod and 0x700) or (value and 0xFF)
+            // Pulse 1 timer high + length ($4003)
+            3 -> {
+                pulse1TimerPeriod = (pulse1TimerPeriod and 0x0FF) or ((value and 7) shl 8)
+                onLengthLoad(0, value)
+            }
+            // Pulse 2 control ($4004)
+            4 -> pulse2LenHalt = value and 0x20 != 0
+            // Pulse 2 sweep ($4005)
+            5 -> {
+                pulse2SweepEnabled = value and 0x80 != 0
+                pulse2SweepPeriod = (value shr 4) and 7
+                pulse2SweepNegate = value and 0x08 != 0
+                pulse2SweepShift = value and 7
+                pulse2SweepDivider = pulse2SweepPeriod
+            }
+            // Pulse 2 timer low ($4006)
+            6 -> pulse2TimerPeriod = (pulse2TimerPeriod and 0x700) or (value and 0xFF)
+            // Pulse 2 timer high + length ($4007)
+            7 -> {
+                pulse2TimerPeriod = (pulse2TimerPeriod and 0x0FF) or ((value and 7) shl 8)
+                onLengthLoad(1, value)
+            }
+            // Triangle control ($4008)
+            8 -> {
+                triangleLenHalt = value and 0x80 != 0
+                triLinearReload = value and 0x7F
+            }
+            // Triangle timer high + length ($400B)
+            11 -> onLengthLoad(2, value)
+            // Noise control ($400C)
+            12 -> noiseLenHalt = value and 0x20 != 0
+            // Noise length ($400F)
+            15 -> onLengthLoad(3, value)
         }
     }
 
@@ -165,21 +218,52 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
         }
 
         // Clock triangle linear counter at 240Hz (4 quarter-frames per NMI frame)
-        // Triangle only plays when BOTH length counter AND linear counter are > 0
         for (qf in 0..3) {
             if (triLinearCounter > 0) triLinearCounter--
         }
 
-        // Read channel parameters
+        // Clock sweep units at 120Hz (2 half-frames per NMI frame)
+        for (hf in 0..1) {
+            // Pulse 1 sweep
+            if (pulse1SweepEnabled && pulse1SweepShift > 0) {
+                if (pulse1SweepDivider == 0) {
+                    pulse1SweepDivider = pulse1SweepPeriod
+                    val shift = pulse1TimerPeriod shr pulse1SweepShift
+                    if (pulse1SweepNegate) {
+                        pulse1TimerPeriod = (pulse1TimerPeriod - shift - 1).coerceAtLeast(0) // pulse 1 uses ones' complement
+                    } else {
+                        pulse1TimerPeriod = (pulse1TimerPeriod + shift).coerceAtMost(0x7FF)
+                    }
+                } else {
+                    pulse1SweepDivider--
+                }
+            }
+            // Pulse 2 sweep
+            if (pulse2SweepEnabled && pulse2SweepShift > 0) {
+                if (pulse2SweepDivider == 0) {
+                    pulse2SweepDivider = pulse2SweepPeriod
+                    val shift = pulse2TimerPeriod shr pulse2SweepShift
+                    if (pulse2SweepNegate) {
+                        pulse2TimerPeriod = (pulse2TimerPeriod - shift).coerceAtLeast(0) // pulse 2 uses two's complement
+                    } else {
+                        pulse2TimerPeriod = (pulse2TimerPeriod + shift).coerceAtMost(0x7FF)
+                    }
+                } else {
+                    pulse2SweepDivider--
+                }
+            }
+        }
+
+        // Read channel parameters — use swept timer periods for pulses
         val p1Vol = regs[0].toInt() and 0x0F
         val p1Duty = (regs[0].toInt() shr 6) and 3
-        val p1Period = (regs[2].toInt() and 0xFF) or ((regs[3].toInt() and 7) shl 8)
-        val p1On = pulse1LenCtr > 0 && p1Period >= 8 && p1Vol > 0
+        val p1Period = pulse1TimerPeriod  // swept period, not raw register
+        val p1On = pulse1LenCtr > 0 && p1Period in 8..0x7FF && p1Vol > 0
 
         val p2Vol = regs[4].toInt() and 0x0F
         val p2Duty = (regs[4].toInt() shr 6) and 3
-        val p2Period = (regs[6].toInt() and 0xFF) or ((regs[7].toInt() and 7) shl 8)
-        val p2On = pulse2LenCtr > 0 && p2Period >= 8 && p2Vol > 0
+        val p2Period = pulse2TimerPeriod  // swept period, not raw register
+        val p2On = pulse2LenCtr > 0 && p2Period in 8..0x7FF && p2Vol > 0
 
         val triPeriod = (regs[10].toInt() and 0xFF) or ((regs[11].toInt() and 7) shl 8)
         // Triangle plays only when length counter > 0 AND linear counter > 0

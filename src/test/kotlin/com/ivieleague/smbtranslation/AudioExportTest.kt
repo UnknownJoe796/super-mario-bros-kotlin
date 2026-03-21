@@ -24,6 +24,41 @@ class AudioExportTest {
     }
 
     @Test
+    fun `trace all channel volumes and frequencies`() {
+        val system = System()
+        var action: (() -> Unit)? = { system.start() }
+        while (action != null) {
+            try { action(); action = null }
+            catch (d: com.ivieleague.smbtranslation.utils.FrameDelay) { action = d.nextAction }
+        }
+        val audioOutput = ApuAudioOutput(44100)
+        system.audioOutput = audioOutput
+
+        for (frame in 0 until 500) {
+            if (frame == 180) system.inputs.joypadPort1 = JoypadBits(0x10)
+            else if (frame == 181) system.inputs.joypadPort1 = JoypadBits(0x00)
+            system.nonMaskableInterrupt()
+
+            val r = system.apu.rawRegs
+            // Pulse 1: vol from reg0 bits 3-0, period from reg2+reg3
+            val p1v = r[0].toInt() and 0x0F
+            val p1cv = r[0].toInt() and 0x10 != 0  // constant volume flag
+            val p1p = (r[2].toInt() and 0xFF) or ((r[3].toInt() and 7) shl 8)
+            // Pulse 2
+            val p2v = r[4].toInt() and 0x0F
+            val p2cv = r[4].toInt() and 0x10 != 0
+            val p2p = (r[6].toInt() and 0xFF) or ((r[7].toInt() and 7) shl 8)
+            // Triangle
+            val triLin = r[8].toInt() and 0x7F
+            val triP = (r[10].toInt() and 0xFF) or ((r[11].toInt() and 7) shl 8)
+
+            if (frame in 340..380) {
+                println("F$frame: p1v=$p1v(cv=$p1cv,per=$p1p) p2v=$p2v(cv=$p2cv,per=$p2p) tri(lin=$triLin,per=$triP)")
+            }
+        }
+    }
+
+    @Test
     fun `trace noise channel state`() {
         val system = System()
         var action: (() -> Unit)? = { system.start() }

@@ -19,16 +19,7 @@ private fun System.writeSndReg(offset: Int, value: Int) {
     // Store raw register byte for audio synthesis
     if (offset in apu.rawRegs.indices) apu.rawRegs[offset] = vb
     // Notify audio output of register writes for hardware emulation
-    when (offset) {
-        0 -> audioOutput?.onControlWrite(0, v)   // pulse 1 control (length halt flag)
-        3 -> audioOutput?.onLengthLoad(0, v)     // pulse 1 length counter load
-        4 -> audioOutput?.onControlWrite(1, v)   // pulse 2 control
-        7 -> audioOutput?.onLengthLoad(1, v)     // pulse 2 length counter load
-        8 -> audioOutput?.onControlWrite(2, v)   // triangle control
-        11 -> audioOutput?.onLengthLoad(2, v)    // triangle length counter load
-        12 -> audioOutput?.onControlWrite(3, v)  // noise control
-        15 -> audioOutput?.onLengthLoad(3, v)    // noise length counter load
-    }
+    audioOutput?.onRegWrite(offset, v)
     when (offset) {
         //> SND_SQUARE1_REG ($4000-$4003)
         0 -> {
