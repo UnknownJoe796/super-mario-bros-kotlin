@@ -812,7 +812,8 @@ private fun System.continueBowserFlame() {
     //> lda Noise_SfxLenCounter; lsr; tay
     val y = len shr 1
     //> ldx #$0f; lda BowserFlameEnvData-1,y
-    val envData = SoundData.bowserFlameEnvData[y - 1]
+    val envIdx = y - 1
+    val envData = if (envIdx >= 0) SoundData.bowserFlameEnvData[envIdx] else 0
     //> bne PlayNoiseSfx (unconditional)
     writeSndReg(12, envData)
     writeSndReg(14, 0x0F)
