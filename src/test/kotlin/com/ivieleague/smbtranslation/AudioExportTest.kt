@@ -24,6 +24,45 @@ class AudioExportTest {
     }
 
     @Test
+    fun `export isolated jump SFX`() {
+        val system = System()
+        var action: (() -> Unit)? = { system.start() }
+        while (action != null) {
+            try { action(); action = null }
+            catch (d: com.ivieleague.smbtranslation.utils.FrameDelay) { action = d.nextAction }
+        }
+        val sampleRate = 22050  // match reference audio rate
+        val audioOutput = ApuAudioOutput(sampleRate)
+        system.audioOutput = audioOutput
+
+        // Run until game starts (press Start at frame 180)
+        for (frame in 0 until 200) {
+            if (frame == 180) system.inputs.joypadPort1 = JoypadBits(0x10)
+            else if (frame == 181) system.inputs.joypadPort1 = JoypadBits(0x00)
+            system.nonMaskableInterrupt()
+        }
+
+        // Now trigger a small jump by queuing the SFX directly
+        system.ram.square1SoundQueue = 0x80.toByte()  // bit 7 = small jump
+        val spf = sampleRate / 60
+        val frames = 45
+        val allSamples = ShortArray(spf * frames)
+        for (frame in 0 until frames) {
+            system.nonMaskableInterrupt()
+            val samples = audioOutput.generateSamples(system.apu, spf)
+            samples.copyInto(allSamples, frame * spf)
+            // Clear jump queue after first frame
+            if (frame == 0) system.ram.square1SoundQueue = 0
+        }
+
+        val outDir = java.io.File("build/audio")
+        outDir.mkdirs()
+        val wavFile = java.io.File(outDir, "our-jump-small.wav")
+        writeWav(wavFile, allSamples, sampleRate)
+        println("Wrote ${wavFile.absolutePath}")
+    }
+
+    @Test
     fun `trace all channel volumes and frequencies`() {
         val system = System()
         var action: (() -> Unit)? = { system.start() }

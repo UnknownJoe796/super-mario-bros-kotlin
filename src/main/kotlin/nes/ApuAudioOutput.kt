@@ -89,6 +89,35 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
     private var pulse2SweepDivider = 0
     private var pulse2TimerPeriod = 0
 
+    // Hardware envelope generators (pulse 1, pulse 2, noise)
+    // When constant volume flag is 0, the envelope decays volume from 15→0
+    // at a rate controlled by the volume/period field, clocked at 240Hz
+    private var pulse1EnvCounter = 0
+    private var pulse1EnvDecay = 15
+    private var pulse1EnvStart = false
+    private var pulse1ConstVol = true
+    private var pulse1VolPeriod = 0
+
+    private var pulse2EnvCounter = 0
+    private var pulse2EnvDecay = 15
+    private var pulse2EnvStart = false
+    private var pulse2ConstVol = true
+    private var pulse2VolPeriod = 0
+
+    private var noiseEnvCounter = 0
+    private var noiseEnvDecay = 15
+    private var noiseEnvStart = false
+    private var noiseConstVol = true
+    private var noiseVolPeriod = 0
+
+    // Sweep reload flags (set on $4001/$4005 write, cleared after reload)
+    private var pulse1SweepReload = false
+    private var pulse2SweepReload = false
+
+    // Sweep mute flags (set when target period > $7FF or current period < 8)
+    private var pulse1SweepMute = false
+    private var pulse2SweepMute = false
+
     // Channel enabled via $4015
     private var pulse1Enabled = false
     private var pulse2Enabled = false
@@ -103,6 +132,88 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
     private var halfFrameToggle = false
 
     fun noiseActiveForDebug() = noiseLenCtr > 0
+
+    /** Clock one envelope generator (called at quarter-frame rate, 240Hz). */
+    private fun clockEnvelope(channel: Int) {
+        val start = when (channel) { 0 -> pulse1EnvStart; 1 -> pulse2EnvStart; else -> noiseEnvStart }
+        val loop = when (channel) { 0 -> pulse1LenHalt; 1 -> pulse2LenHalt; else -> noiseLenHalt }
+        val period = when (channel) { 0 -> pulse1VolPeriod; 1 -> pulse2VolPeriod; else -> noiseVolPeriod }
+
+        if (start) {
+            when (channel) { 0 -> pulse1EnvStart = false; 1 -> pulse2EnvStart = false; else -> noiseEnvStart = false }
+            when (channel) { 0 -> pulse1EnvDecay = 15; 1 -> pulse2EnvDecay = 15; else -> noiseEnvDecay = 15 }
+            when (channel) { 0 -> pulse1EnvCounter = period; 1 -> pulse2EnvCounter = period; else -> noiseEnvCounter = period }
+        } else {
+            var counter = when (channel) { 0 -> pulse1EnvCounter; 1 -> pulse2EnvCounter; else -> noiseEnvCounter }
+            if (counter == 0) {
+                counter = period
+                var decay = when (channel) { 0 -> pulse1EnvDecay; 1 -> pulse2EnvDecay; else -> noiseEnvDecay }
+                if (decay > 0) {
+                    decay--
+                } else if (loop) {
+                    decay = 15
+                }
+                when (channel) { 0 -> pulse1EnvDecay = decay; 1 -> pulse2EnvDecay = decay; else -> noiseEnvDecay = decay }
+            } else {
+                counter--
+            }
+            when (channel) { 0 -> pulse1EnvCounter = counter; 1 -> pulse2EnvCounter = counter; else -> noiseEnvCounter = counter }
+        }
+    }
+
+    /** Get effective volume for a channel (constant volume or envelope decay). */
+    private fun getVolume(channel: Int): Int {
+        return when (channel) {
+            0 -> if (pulse1ConstVol) pulse1VolPeriod else pulse1EnvDecay
+            1 -> if (pulse2ConstVol) pulse2VolPeriod else pulse2EnvDecay
+            else -> if (noiseConstVol) noiseVolPeriod else noiseEnvDecay
+        }
+    }
+
+    /**
+     * Clock one pulse channel's sweep unit (called at half-frame rate).
+     * Matches NES hardware behavior per nesdev wiki.
+     */
+    private fun clockSweep(isPulse1: Boolean) {
+        val period = if (isPulse1) pulse1TimerPeriod else pulse2TimerPeriod
+        val shift = if (isPulse1) pulse1SweepShift else pulse2SweepShift
+        val negate = if (isPulse1) pulse1SweepNegate else pulse2SweepNegate
+        val enabled = if (isPulse1) pulse1SweepEnabled else pulse2SweepEnabled
+        val dividerPeriod = if (isPulse1) pulse1SweepPeriod else pulse2SweepPeriod
+        val divider = if (isPulse1) pulse1SweepDivider else pulse2SweepDivider
+        val reload = if (isPulse1) pulse1SweepReload else pulse2SweepReload
+
+        // Compute target period (always computed for mute check)
+        val changeAmount = period shr shift
+        val targetPeriod = if (negate) {
+            if (isPulse1) period - changeAmount - 1 else period - changeAmount  // pulse 1 = ones' complement
+        } else {
+            period + changeAmount
+        }
+
+        // Mute if current period < 8 or target > $7FF
+        val muted = period < 8 || targetPeriod > 0x7FF
+        if (isPulse1) pulse1SweepMute = muted else pulse2SweepMute = muted
+
+        // Clock the divider
+        if (divider == 0 || reload) {
+            // Reload divider
+            if (isPulse1) {
+                pulse1SweepDivider = dividerPeriod
+                pulse1SweepReload = false
+            } else {
+                pulse2SweepDivider = dividerPeriod
+                pulse2SweepReload = false
+            }
+            // If divider was 0 (not just reload): adjust period
+            if (divider == 0 && enabled && shift > 0 && !muted) {
+                val newPeriod = targetPeriod.coerceIn(0, 0x7FF)
+                if (isPulse1) pulse1TimerPeriod = newPeriod else pulse2TimerPeriod = newPeriod
+            }
+        } else {
+            if (isPulse1) pulse1SweepDivider-- else pulse2SweepDivider--
+        }
+    }
 
     fun start() {
         val format = AudioFormat(sampleRate.toFloat(), 16, 1, true, false)
@@ -158,37 +269,47 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
     fun onRegWrite(offset: Int, value: Int) {
         when (offset) {
             // Pulse 1 control ($4000)
-            0 -> pulse1LenHalt = value and 0x20 != 0
+            0 -> {
+                pulse1LenHalt = value and 0x20 != 0
+                pulse1ConstVol = value and 0x10 != 0
+                pulse1VolPeriod = value and 0x0F
+            }
             // Pulse 1 sweep ($4001)
             1 -> {
                 pulse1SweepEnabled = value and 0x80 != 0
                 pulse1SweepPeriod = (value shr 4) and 7
                 pulse1SweepNegate = value and 0x08 != 0
                 pulse1SweepShift = value and 7
-                pulse1SweepDivider = pulse1SweepPeriod // reload divider
+                pulse1SweepReload = true
             }
             // Pulse 1 timer low ($4002)
             2 -> pulse1TimerPeriod = (pulse1TimerPeriod and 0x700) or (value and 0xFF)
             // Pulse 1 timer high + length ($4003)
             3 -> {
                 pulse1TimerPeriod = (pulse1TimerPeriod and 0x0FF) or ((value and 7) shl 8)
+                pulse1EnvStart = true  // restart envelope
                 onLengthLoad(0, value)
             }
             // Pulse 2 control ($4004)
-            4 -> pulse2LenHalt = value and 0x20 != 0
+            4 -> {
+                pulse2LenHalt = value and 0x20 != 0
+                pulse2ConstVol = value and 0x10 != 0
+                pulse2VolPeriod = value and 0x0F
+            }
             // Pulse 2 sweep ($4005)
             5 -> {
                 pulse2SweepEnabled = value and 0x80 != 0
                 pulse2SweepPeriod = (value shr 4) and 7
                 pulse2SweepNegate = value and 0x08 != 0
                 pulse2SweepShift = value and 7
-                pulse2SweepDivider = pulse2SweepPeriod
+                pulse2SweepReload = true
             }
             // Pulse 2 timer low ($4006)
             6 -> pulse2TimerPeriod = (pulse2TimerPeriod and 0x700) or (value and 0xFF)
             // Pulse 2 timer high + length ($4007)
             7 -> {
                 pulse2TimerPeriod = (pulse2TimerPeriod and 0x0FF) or ((value and 7) shl 8)
+                pulse2EnvStart = true
                 onLengthLoad(1, value)
             }
             // Triangle control ($4008)
@@ -199,9 +320,16 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
             // Triangle timer high + length ($400B)
             11 -> onLengthLoad(2, value)
             // Noise control ($400C)
-            12 -> noiseLenHalt = value and 0x20 != 0
+            12 -> {
+                noiseLenHalt = value and 0x20 != 0
+                noiseConstVol = value and 0x10 != 0
+                noiseVolPeriod = value and 0x0F
+            }
             // Noise length ($400F)
-            15 -> onLengthLoad(3, value)
+            15 -> {
+                noiseEnvStart = true
+                onLengthLoad(3, value)
+            }
         }
     }
 
@@ -217,59 +345,43 @@ class ApuAudioOutput(private val sampleRate: Int = 44100) {
             if (noiseLenCtr > 0 && !noiseLenHalt) noiseLenCtr--
         }
 
-        // Clock triangle linear counter at 240Hz (4 quarter-frames per NMI frame)
+        // Clock triangle linear counter and envelopes at 240Hz (4 quarter-frames per NMI frame)
         for (qf in 0..3) {
             if (triLinearCounter > 0) triLinearCounter--
+            // Envelope generators
+            clockEnvelope(0)
+            clockEnvelope(1)
+            clockEnvelope(2) // noise
         }
 
         // Clock sweep units at 120Hz (2 half-frames per NMI frame)
+        // NES sweep behavior per nesdev wiki:
+        // 1. Compute target period = current + (current >> shift) or current - ...
+        // 2. If target > $7FF, mute (regardless of enabled/shift)
+        // 3. If divider == 0 AND enabled AND shift > 0: update timer period
+        // 4. If divider == 0 OR reload flag: reload divider, clear reload flag
+        // 5. Otherwise decrement divider
         for (hf in 0..1) {
-            // Pulse 1 sweep
-            if (pulse1SweepEnabled && pulse1SweepShift > 0) {
-                if (pulse1SweepDivider == 0) {
-                    pulse1SweepDivider = pulse1SweepPeriod
-                    val shift = pulse1TimerPeriod shr pulse1SweepShift
-                    if (pulse1SweepNegate) {
-                        pulse1TimerPeriod = (pulse1TimerPeriod - shift - 1).coerceAtLeast(0) // pulse 1 uses ones' complement
-                    } else {
-                        pulse1TimerPeriod = (pulse1TimerPeriod + shift).coerceAtMost(0x7FF)
-                    }
-                } else {
-                    pulse1SweepDivider--
-                }
-            }
-            // Pulse 2 sweep
-            if (pulse2SweepEnabled && pulse2SweepShift > 0) {
-                if (pulse2SweepDivider == 0) {
-                    pulse2SweepDivider = pulse2SweepPeriod
-                    val shift = pulse2TimerPeriod shr pulse2SweepShift
-                    if (pulse2SweepNegate) {
-                        pulse2TimerPeriod = (pulse2TimerPeriod - shift).coerceAtLeast(0) // pulse 2 uses two's complement
-                    } else {
-                        pulse2TimerPeriod = (pulse2TimerPeriod + shift).coerceAtMost(0x7FF)
-                    }
-                } else {
-                    pulse2SweepDivider--
-                }
-            }
+            clockSweep(true)   // pulse 1
+            clockSweep(false)  // pulse 2
         }
 
-        // Read channel parameters — use swept timer periods for pulses
-        val p1Vol = regs[0].toInt() and 0x0F
+        // Read channel parameters — use hardware envelope and swept timer periods
+        val p1Vol = getVolume(0)  // hardware envelope or constant volume
         val p1Duty = (regs[0].toInt() shr 6) and 3
-        val p1Period = pulse1TimerPeriod  // swept period, not raw register
-        val p1On = pulse1LenCtr > 0 && p1Period in 8..0x7FF && p1Vol > 0
+        val p1Period = pulse1TimerPeriod  // swept period
+        val p1On = pulse1LenCtr > 0 && p1Period in 8..0x7FF && p1Vol > 0 && !pulse1SweepMute
 
-        val p2Vol = regs[4].toInt() and 0x0F
+        val p2Vol = getVolume(1)
         val p2Duty = (regs[4].toInt() shr 6) and 3
         val p2Period = pulse2TimerPeriod  // swept period, not raw register
-        val p2On = pulse2LenCtr > 0 && p2Period in 8..0x7FF && p2Vol > 0
+        val p2On = pulse2LenCtr > 0 && p2Period in 8..0x7FF && p2Vol > 0 && !pulse2SweepMute
 
         val triPeriod = (regs[10].toInt() and 0xFF) or ((regs[11].toInt() and 7) shl 8)
         // Triangle plays only when length counter > 0 AND linear counter > 0
         val triOn = triangleLenCtr > 0 && triLinearCounter > 0 && triPeriod >= 2
 
-        val noiseVol = regs[12].toInt() and 0x0F
+        val noiseVol = getVolume(2)  // noise envelope
         val noisePeriodIdx = regs[14].toInt() and 0x0F
         val noiseMode = regs[14].toInt() and 0x80 != 0
         val noisePeriod = noisePeriodTable[noisePeriodIdx]
