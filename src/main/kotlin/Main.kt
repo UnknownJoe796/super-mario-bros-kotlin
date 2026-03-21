@@ -21,6 +21,7 @@ fun main() {
         system.shadow = com.ivieleague.smbtranslation.interpreter.ShadowValidator.create("smb.nes")
     }
     val audioOutput = com.ivieleague.smbtranslation.nes.ApuAudioOutput()
+    system.audioOutput = audioOutput
     if (java.lang.System.getProperty("smb.audio") != "false") {
         try { audioOutput.start() } catch (e: Exception) {
             java.lang.System.err.println("Audio init failed: ${e.message}")

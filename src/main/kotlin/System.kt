@@ -12,6 +12,8 @@ class System {
     val apu = AudioProcessingUnit()
     val inputs = Inputs()
     var shadow: ShadowValidator? = null
+    /** Optional audio output for live synthesis — receives APU register write notifications */
+    var audioOutput: com.ivieleague.smbtranslation.nes.ApuAudioOutput? = null
     /** Temporary debug flag for tracing enemy processing flow */
     var debugEnemyTrace: Boolean = false
 

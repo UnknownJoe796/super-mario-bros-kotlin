@@ -39,6 +39,7 @@ class AudioExportTest {
         var sampleOffset = 0
 
         val audioOutput = ApuAudioOutput(sampleRate)
+        system.audioOutput = audioOutput
 
         for (frame in 0 until frames) {
             if (frame == pressStart) {

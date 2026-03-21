@@ -18,6 +18,13 @@ private fun System.writeSndReg(offset: Int, value: Int) {
     val vb = v.toByte()
     // Store raw register byte for audio synthesis
     if (offset in apu.rawRegs.indices) apu.rawRegs[offset] = vb
+    // Notify audio output of length counter loads (reactivates silenced channels)
+    when (offset) {
+        3 -> audioOutput?.onLengthLoad(0)   // pulse 1 length load
+        7 -> audioOutput?.onLengthLoad(1)   // pulse 2 length load
+        11 -> audioOutput?.onLengthLoad(2)  // triangle length load
+        15 -> audioOutput?.onLengthLoad(3)  // noise length load
+    }
     when (offset) {
         //> SND_SQUARE1_REG ($4000-$4003)
         0 -> {
@@ -87,6 +94,8 @@ private fun System.writeSndMasterCtrl(value: Int) {
     //> SND_MASTERCTRL_REG ($4015)
     val v = value and 0xFF
     apu.rawRegs[21] = v.toByte() // $4015 = offset 21
+    // Notify audio output — disabling a channel silences it (length counter → 0)
+    audioOutput?.onMasterCtrlWrite(v)
     apu.pulse1Enabled = v and 0x01 != 0
     apu.pulse2Enabled = v and 0x02 != 0
     apu.triangleEnabled = v and 0x04 != 0
