@@ -93,9 +93,9 @@ class GameRam {
     @RamLocation(0xe, size = 0) var gameEngineSubroutine: GameEngineRoutine = GameEngineRoutine.EntranceGameTimerSetup
     @RamLocation(0x778) var mirrorPPUCTRLREG1: PpuControl = PpuControl(0)
     @RamLocation(0x779) var mirrorPPUCTRLREG2: PpuMask = PpuMask(0)
-    @RamLocation(0x770) var operMode: OperMode = OperMode.TitleScreen
+    @RamLocation(0x770, size = 0) var operMode: OperMode = OperMode.TitleScreen
     @RamLocation(0x772) var operModeTask: Byte = 0
-    @RamLocation(0x73c) var screenRoutineTask: ScreenRoutineTask = ScreenRoutineTask.InitScreen
+    @RamLocation(0x73c, size = 0) var screenRoutineTask: ScreenRoutineTask = ScreenRoutineTask.InitScreen
     // Bitfield: bit 0 = paused, bit 7 = debounce timer active (prevents re-toggle)
     @RamLocation(0x776) var gamePauseStatus: Byte = 0
     val isPaused: Boolean get() = (gamePauseStatus.toInt() and 0x01) != 0
@@ -255,7 +255,7 @@ class GameRam {
     @RamLocation(0x742) var backgroundScenery: Byte = 0
     @RamLocation(0x743) var cloudTypeOverride: Boolean = false
     @RamLocation(0x744) var backgroundColorCtrl: Byte = 0
-    @RamLocation(0x74e) var areaType: AreaType = AreaType.Water
+    @RamLocation(0x74e, size = 0) var areaType: AreaType = AreaType.Water
     @RamLocation(0x74f) var areaAddrsLOffset: Byte = 0
     @RamLocation(0x750) var areaPointer: Byte = 0
     @RamLocation(0x710) var playerEntranceCtrl: Byte = 0
