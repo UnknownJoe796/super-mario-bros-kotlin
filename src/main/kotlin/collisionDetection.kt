@@ -660,6 +660,10 @@ fun System.enemyTurnAround(x: Int) {
     //> sta Enemy_MovingDir,x
     val dir = ram.enemyMovingDirs[x].toInt() and 0xFF
     ram.enemyMovingDirs[x] = (dir xor 0x03).toByte()
+    if (debugEnemyTrace) {
+        println("[EnemyTurnAround-RXSpd] slot=$x speed=${speed.toInt() and 0xFF}->${ram.sprObjXSpeed[x+1].toInt() and 0xFF} dir=$dir->${dir xor 0x03}")
+        Thread.currentThread().stackTrace.take(8).drop(1).forEach { println("  at $it") }
+    }
 }
 
 // =====================================================================
@@ -909,6 +913,12 @@ private fun System.hurtBowser(bowserIdx: Int, enemyIdx: Int) {
  */
 fun System.shellOrBlockDefeat(x: Int) {
     //> ShellOrBlockDefeat:
+    // On the NES, X register holds the enemy index here. Subroutines like
+    // ChkToStunEnemies → PlayerEnemyDiff read Enemy_X_Position,x using X.
+    // In Kotlin, playerEnemyDiff() reads ram.objectOffset. Ensure it matches.
+    val savedOfs = ram.objectOffset
+    ram.objectOffset = x.toByte()
+
     val enemyId = ram.enemyID[x].toInt() and 0xFF
     //> cmp #PiranhaPlant; bne StnE
     if (enemyId == EnemyId.PiranhaPlant.id) {
@@ -936,8 +946,6 @@ fun System.shellOrBlockDefeat(x: Int) {
     }
 
     //> EnemySmackScore:
-    val savedOfs = ram.objectOffset
-    ram.objectOffset = x.toByte()
     setupFloateyNumber(points)
     ram.objectOffset = savedOfs
     //> lda #Sfx_EnemySmack; sta Square1SoundQueue
