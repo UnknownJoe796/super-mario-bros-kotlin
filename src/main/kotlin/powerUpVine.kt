@@ -922,13 +922,13 @@ fun System.setupPowerUp(blockSlot: Int) {
     val puType = ram.powerUpType.toInt() and 0xFF
     if (puType < 0x02) {
         //> lda PlayerStatus          ;otherwise check player's current status
-        val playerStatus = ram.playerStatus.toInt() and 0xFF
+        val playerStatusOrd = ram.playerStatus.ordinal
         //> cmp #$02; bcc StrType     ;if player not fiery, use status as power-up type
-        val newType = if (playerStatus >= 0x02) {
+        val newType = if (playerStatusOrd >= 0x02) {
             //> lsr                       ;otherwise shift right to force fire flower type
-            playerStatus ushr 1
+            playerStatusOrd ushr 1
         } else {
-            playerStatus
+            playerStatusOrd
         }
         //> StrType: sta PowerUpType   ;store type here
         ram.powerUpType = newType.toByte()

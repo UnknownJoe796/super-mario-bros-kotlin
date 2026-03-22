@@ -2065,14 +2065,14 @@ private fun System.pwrUpJmp() {
     val powerUpType = ram.powerUpType.toInt() and 0xFF
     if (powerUpType < 0x02) {
         //> lda PlayerStatus          ;otherwise check player's current status
-        val playerStatusVal = ram.playerStatus.toInt() and 0xFF
+        val playerStatusOrd = ram.playerStatus.ordinal
         //> cmp #$02
         //> bcc StrType               ;if player not fiery, use status as power-up type
-        val newType = if (playerStatusVal < 0x02) {
-            playerStatusVal
+        val newType = if (playerStatusOrd < 0x02) {
+            playerStatusOrd
         } else {
             //> lsr                       ;otherwise shift right to force fire flower type
-            playerStatusVal ushr 1
+            playerStatusOrd ushr 1
         }
         //> StrType: sta PowerUpType
         ram.powerUpType = newType.toByte()

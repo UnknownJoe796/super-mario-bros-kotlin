@@ -173,7 +173,7 @@ fun System.playerCtrlRoutine() {
     //> beq ChkMoveDir              ;if not, branch ahead
     //> ldy #$02                    ;if big and crouching, load y with 2
     //> ChkMoveDir: sty Player_BoundBoxCtrl     ;set contents of Y as player's bounding box size control
-    val boundBoxY: Byte = if (ram.playerSize != 0x00.toByte()) {
+    val boundBoxY: Byte = if (ram.playerSize == PlayerSize.Small) {
         0x01 // small
     } else {
         if (ram.crouchingFlag != 0x00.toByte()) 0x02 else 0x00 // big crouching or big standing
@@ -319,7 +319,7 @@ private fun System.playerMovementSubs() {
     //> ldy PlayerSize            ;is player small?
     //> bne SetCrouch             ;if so, branch
     var crouchVal: Byte = 0x00
-    if (ram.playerSize == 0x00.toByte()) {
+    if (ram.playerSize == PlayerSize.Big) {
         //> lda Player_State          ;check state of player
         //> bne ProcMove              ;if not on the ground, branch
         if (ram.playerState == PlayerState.OnGround) {
@@ -755,7 +755,7 @@ private fun System.checkForJumping() {
     //> beq SJumpSnd
     //> lda #Sfx_SmallJump         ;if not, load small mario's jump sound
     //> SJumpSnd: sta Square1SoundQueue      ;store appropriate jump sound in square 1 sfx queue
-    ram.square1SoundQueue = if (ram.playerSize == 0x00.toByte()) {
+    ram.square1SoundQueue = if (ram.playerSize == PlayerSize.Big) {
         Constants.Sfx_BigJump
     } else {
         Constants.Sfx_SmallJump

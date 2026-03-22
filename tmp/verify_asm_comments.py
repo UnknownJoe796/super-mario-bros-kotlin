@@ -2,6 +2,12 @@
 """
 Verify that all original disassembly code from smbdism.asm is present
 as //> comments in the Kotlin translation files.
+
+Approach:
+1. Extract all assembly labels from the code section of smbdism.asm
+2. Extract all //> comment lines from Kotlin files
+3. Match labels and instruction lines
+4. Report coverage and gaps
 """
 
 import os
@@ -13,80 +19,58 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASM_FILE = os.path.join(PROJECT_ROOT, "smbdism.asm")
 KOTLIN_DIR = os.path.join(PROJECT_ROOT, "src", "main", "kotlin")
 
+# The code section starts after the last data area (L_WaterArea3) and the
+# "unused space" marker. GameMode: is the first real routine label.
+CODE_SECTION_START_LABEL = "GameMode"
+
 # ─── Parse ASM file ───────────────────────────────────────────────────────────
 
 def parse_asm_file(path):
-    """Parse smbdism.asm and return structured data about all labels and lines."""
+    """Parse smbdism.asm and return structured data."""
     with open(path, 'r') as f:
         lines = f.readlines()
 
-    # Track all labels and their line numbers
     all_labels = {}  # label_name -> line_number
-    # Track all meaningful assembly lines (instructions, data, labels)
-    all_lines = []  # (line_number, raw_line, normalized_line, section)
-
-    current_section = "defines"  # switches to "code" after defines end
     code_start_line = None
 
     for i, raw_line in enumerate(lines, 1):
         line = raw_line.rstrip('\n')
-        stripped = line.strip()
-
-        # Skip empty lines
-        if not stripped:
-            continue
-
-        # Detect transition from defines to code section
-        # The defines section has lines like "LABEL = $XXXX"
-        # Code section starts with actual labels and instructions
-        if current_section == "defines":
-            # Look for the first routine label (code section start)
-            # The code starts around "GameMode:" after the data tables
-            if re.match(r'^[A-Za-z_][A-Za-z0-9_]*:', stripped) and i > 5000:
-                current_section = "code"
-                code_start_line = i
-
-        # Extract labels (identifiers followed by colon at start of line)
+        # Extract labels
         label_match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*):', line)
         if label_match:
             label_name = label_match.group(1)
             all_labels[label_name] = i
+            if label_name == CODE_SECTION_START_LABEL and code_start_line is None:
+                code_start_line = i
 
-        # Also match labels that are on the same line as instructions
-        # e.g., "ProcELoop:    stx ObjectOffset"
-        inline_label_match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*):\s+\w', line)
-        if inline_label_match:
-            label_name = inline_label_match.group(1)
-            all_labels[label_name] = i
-
-        all_lines.append((i, line, stripped, current_section))
-
-    return all_labels, all_lines, code_start_line
+    return lines, all_labels, code_start_line
 
 
 def categorize_asm_line(stripped):
     """Categorize an assembly line."""
     if not stripped:
         return "empty"
+    if stripped.startswith(';---'):
+        return "separator"
     if stripped.startswith(';'):
         return "comment"
-    if re.match(r'^[A-Za-z_][A-Za-z0-9_]*\s*=\s*\$', stripped):
+    if re.match(r'^[A-Za-z_][A-Za-z0-9_]*\s*=\s*', stripped):
         return "define"
     if re.match(r'^[A-Za-z_][A-Za-z0-9_]*:', stripped):
         return "label"
-    if stripped.startswith('.'):
-        return "directive"  # .db, .dw, .org, etc.
-    if re.match(r'^\s*(lda|ldx|ldy|sta|stx|sty|adc|sbc|and|ora|eor|cmp|cpx|cpy|'
+    if re.match(r'^\s*\.(db|dw|org|ds)\b', stripped, re.IGNORECASE):
+        return "directive"
+    instr_re = (r'^\s*(?:[A-Za-z_]\w*:\s+)?'
+                r'(lda|ldx|ldy|sta|stx|sty|adc|sbc|and|ora|eor|cmp|cpx|cpy|'
                 r'inc|inx|iny|dec|dex|dey|asl|lsr|rol|ror|'
                 r'jmp|jsr|rts|rti|'
                 r'beq|bne|bcc|bcs|bpl|bmi|bvc|bvs|'
                 r'clc|sec|cli|sei|cld|sed|clv|'
                 r'pha|pla|php|plp|'
                 r'tax|tay|txa|tya|tsx|txs|'
-                r'nop|brk|bit)\b', stripped, re.IGNORECASE):
+                r'nop|brk|bit)\b')
+    if re.match(instr_re, stripped, re.IGNORECASE):
         return "instruction"
-    if re.match(r'^[A-Za-z_][A-Za-z0-9_]*:', stripped):
-        return "label"
     return "other"
 
 
@@ -94,9 +78,9 @@ def categorize_asm_line(stripped):
 
 def parse_kotlin_files(kotlin_dir):
     """Extract all //> comments from Kotlin files."""
-    asm_comments = []  # (file_path, line_number, raw_comment, normalized)
-    asm_comment_set = set()  # normalized comments for fast lookup
-    asm_labels_found = set()  # labels found in //> comments
+    asm_comments = []      # (file_path, line_number, comment_text)
+    all_kotlin_text = []   # all //> comment texts, normalized
+    asm_labels_found = set()
 
     for root, dirs, files in os.walk(kotlin_dir):
         for fname in sorted(files):
@@ -106,312 +90,295 @@ def parse_kotlin_files(kotlin_dir):
             rel_path = os.path.relpath(fpath, kotlin_dir)
             with open(fpath, 'r') as f:
                 for line_num, line in enumerate(f, 1):
-                    # Match //> comments (possibly indented)
                     match = re.search(r'//>\s?(.*)', line)
                     if match:
-                        comment = match.group(1).strip()
-                        asm_comments.append((rel_path, line_num, comment, comment))
-                        # Normalize for matching: lowercase, collapse whitespace
-                        normalized = re.sub(r'\s+', ' ', comment.lower()).strip()
-                        asm_comment_set.add(normalized)
+                        comment = match.group(1).rstrip()
+                        asm_comments.append((rel_path, line_num, comment))
+                        all_kotlin_text.append(comment)
 
-                        # Extract label if this is a label line
+                        # Extract labels
                         label_match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*):', comment)
                         if label_match:
                             asm_labels_found.add(label_match.group(1))
+                        # Also inline labels: "LabelName:  instruction"
+                        inline_match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*):\s+\w', comment)
+                        if inline_match:
+                            asm_labels_found.add(inline_match.group(1))
 
-    return asm_comments, asm_comment_set, asm_labels_found
+    # Build normalized set for fast lookup
+    normalized_set = set()
+    for c in all_kotlin_text:
+        normalized_set.add(normalize(c))
+
+    return asm_comments, all_kotlin_text, normalized_set, asm_labels_found
 
 
-def normalize_asm_for_matching(line):
-    """Normalize an assembly line for fuzzy matching against Kotlin //> comments."""
-    # Remove leading whitespace
-    stripped = line.strip()
-    # Collapse multiple spaces
-    normalized = re.sub(r'\s+', ' ', stripped).lower()
-    return normalized
+def normalize(text):
+    """Normalize for matching: lowercase, collapse whitespace, strip comments."""
+    s = text.strip()
+    s = re.sub(r'\s+', ' ', s)
+    return s.lower()
 
 
-# ─── Main verification ───────────────────────────────────────────────────────
+def normalize_no_comment(text):
+    """Normalize and strip trailing asm comments."""
+    s = re.sub(r'\s*;.*$', '', text).strip()
+    return normalize(s)
+
+
+# ─── Matching logic ──────────────────────────────────────────────────────────
+
+def is_line_found(stripped, category, norm_set, kotlin_labels, kotlin_texts_lower):
+    """Check if an assembly line appears in Kotlin //> comments."""
+    norm = normalize(stripped)
+
+    # Direct match
+    if norm in norm_set:
+        return True
+
+    # Match without trailing comment
+    norm_nc = normalize_no_comment(stripped)
+    if norm_nc and norm_nc in norm_set:
+        return True
+
+    # For labels: check if the label name exists
+    if category == "label":
+        m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*):', stripped)
+        if m and m.group(1) in kotlin_labels:
+            return True
+
+    # For instructions: check if the instruction (without comment) is a substring
+    # of any Kotlin //> comment (handles cases where formatting differs slightly)
+    if category == "instruction" and norm_nc:
+        # Also handle inline label:instruction format
+        # e.g., "ProcELoop:    stx ObjectOffset" -> check "stx objectoffset"
+        instr_only = re.sub(r'^[A-Za-z_]\w*:\s+', '', stripped).strip()
+        instr_norm = normalize_no_comment(instr_only)
+        if instr_norm in norm_set:
+            return True
+        # Substring check (expensive but catches reformatted lines)
+        for kt in kotlin_texts_lower:
+            if instr_norm and instr_norm in kt:
+                return True
+
+    # For directives (.db): check if data values match (ignoring formatting)
+    if category == "directive":
+        # Extract hex values
+        hex_vals = re.findall(r'\$[0-9a-fA-F]+', stripped)
+        if hex_vals and len(hex_vals) >= 2:
+            hex_pattern = '.*'.join(re.escape(h.lower()) for h in hex_vals[:4])
+            for kt in kotlin_texts_lower:
+                if re.search(hex_pattern, kt):
+                    return True
+
+    # For comments: check if the comment text appears as substring
+    if category == "comment":
+        comment_text = stripped.lstrip(';').strip().lower()
+        if len(comment_text) > 8:
+            for kt in kotlin_texts_lower:
+                if comment_text in kt:
+                    return True
+
+    return False
+
+
+# ─── Main ────────────────────────────────────────────────────────────────────
 
 def main():
+    lines_raw, all_labels, code_start = parse_asm_file(ASM_FILE)
+    asm_comments, kotlin_texts, norm_set, kotlin_labels = parse_kotlin_files(KOTLIN_DIR)
+
+    # Pre-compute lowercase kotlin texts for substring matching
+    kotlin_texts_lower = [normalize(t) for t in kotlin_texts]
+
     print("=" * 80)
     print("ASM COMMENT VERIFICATION REPORT")
     print("=" * 80)
     print()
-
-    # Parse both sources
-    all_labels, all_lines, code_start = parse_asm_file(ASM_FILE)
-    asm_comments, asm_comment_set, kotlin_labels = parse_kotlin_files(KOTLIN_DIR)
-
-    print(f"ASM file: {len(all_lines)} non-empty lines, {len(all_labels)} labels")
-    print(f"Kotlin files: {len(asm_comments)} //> comment lines, {len(kotlin_labels)} labels")
-    print(f"Code section starts at line {code_start}")
+    print(f"ASM file: {len(lines_raw)} lines, {len(all_labels)} labels")
+    print(f"Kotlin //> comments: {len(asm_comments)} lines, {len(kotlin_labels)} distinct labels")
+    print(f"Code section starts at line {code_start} ({CODE_SECTION_START_LABEL}:)")
     print()
 
-    # ─── 1. Label Verification ──────────────────────────────────────────────
-
-    print("=" * 80)
-    print("SECTION 1: LABEL VERIFICATION")
-    print("=" * 80)
-    print()
-
-    # Separate labels into defines (before code) and code (after)
-    define_labels = {}
-    code_labels = {}
-    # Also separate data labels (L_* area data, enemy data) from code routine labels
-    data_labels = {}
-    routine_labels = {}
-
-    for label, line_num in all_labels.items():
-        if code_start and line_num >= code_start:
-            code_labels[label] = line_num
-            routine_labels[label] = line_num
-        else:
-            define_labels[label] = line_num
-            if label.startswith('L_') or label.startswith('E_'):
-                data_labels[label] = line_num
-
-    # Check which code labels appear in Kotlin //> comments
-    missing_code_labels = []
-    found_code_labels = []
-    for label in sorted(code_labels.keys()):
-        if label in kotlin_labels:
-            found_code_labels.append(label)
-        else:
-            # Also check if the label appears anywhere in //> comments (not just as a label definition)
-            label_lower = label.lower()
-            found_in_comment = False
-            for _, _, comment, _ in asm_comments:
-                if label in comment or label_lower in comment.lower():
-                    found_in_comment = True
-                    break
-            if found_in_comment:
-                found_code_labels.append(label)
-            else:
-                missing_code_labels.append((label, code_labels[label]))
-
-    print(f"Code section labels: {len(code_labels)} total")
-    print(f"  Found in Kotlin: {len(found_code_labels)}")
-    print(f"  Missing from Kotlin: {len(missing_code_labels)}")
-    print()
-
-    if missing_code_labels:
-        print("MISSING CODE LABELS:")
-        # Group by approximate location in asm file
-        for label, line_num in sorted(missing_code_labels, key=lambda x: x[1]):
-            # Show context: what's around this label in the asm
-            print(f"  Line {line_num:5d}: {label}")
-        print()
-
-    # ─── 2. Line-by-line coverage ────────────────────────────────────────────
-
-    print("=" * 80)
-    print("SECTION 2: LINE-BY-LINE COVERAGE (Code Section)")
-    print("=" * 80)
-    print()
-
-    # Extract code section lines
-    code_section_lines = [(ln, raw, stripped, sec) for ln, raw, stripped, sec in all_lines
-                          if sec == "code"]
-
-    # Categorize and check each line
-    stats = defaultdict(lambda: {"total": 0, "found": 0, "missing": []})
-    total_meaningful = 0
-    total_found = 0
-
-    for line_num, raw_line, stripped, section in code_section_lines:
-        category = categorize_asm_line(stripped)
-
-        # Skip pure comments and empty lines for matching purposes
-        # (though we DO want to check that comment-as-section-headers are present)
-        if category in ("empty",):
+    # Process code section only
+    code_lines = []  # (line_num, stripped, category)
+    for i in range(code_start - 1, len(lines_raw)):
+        raw = lines_raw[i].rstrip('\n')
+        stripped = raw.strip()
+        if not stripped:
             continue
-
-        # Skip separator lines
-        if stripped.startswith(';---'):
+        cat = categorize_asm_line(stripped)
+        if cat in ("empty", "separator", "define"):
             continue
+        code_lines.append((i + 1, stripped, cat))
 
-        stats[category]["total"] += 1
+    # Check each line
+    found_lines = []
+    missing_lines = []
+    stats = defaultdict(lambda: {"total": 0, "found": 0})
 
-        # Normalize for matching
-        normalized = normalize_asm_for_matching(stripped)
-
-        # Check if this line appears in Kotlin //> comments
-        found = normalized in asm_comment_set
-
-        # If not found by exact match, try partial matching
-        if not found:
-            # For labels, check if the label name appears
-            if category == "label":
-                label_match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*):', stripped)
-                if label_match and label_match.group(1) in kotlin_labels:
-                    found = True
-
-            # For instructions, try matching just the instruction + operand (without comment)
-            if not found and category == "instruction":
-                # Strip trailing comment
-                no_comment = re.sub(r'\s*;.*$', '', stripped).strip()
-                norm_no_comment = normalize_asm_for_matching(no_comment)
-                if norm_no_comment in asm_comment_set:
-                    found = True
-                # Also try with the comment
-                if not found:
-                    for _, _, comment, _ in asm_comments:
-                        norm_comment = normalize_asm_for_matching(comment)
-                        if norm_no_comment in norm_comment or normalized in norm_comment:
-                            found = True
-                            break
-
-            # For directives (.db, .dw), try matching the data content
-            if not found and category == "directive":
-                no_comment = re.sub(r'\s*;.*$', '', stripped).strip()
-                norm_no_comment = normalize_asm_for_matching(no_comment)
-                for _, _, comment, _ in asm_comments:
-                    norm_comment = normalize_asm_for_matching(comment)
-                    if norm_no_comment in norm_comment or norm_comment in norm_no_comment:
-                        found = True
-                        break
-
-            # For comments, try substring matching
-            if not found and category == "comment":
-                comment_text = stripped.lstrip(';').strip().lower()
-                if len(comment_text) > 5:  # skip very short comments
-                    for _, _, kt_comment, _ in asm_comments:
-                        if comment_text in kt_comment.lower():
-                            found = True
-                            break
-
-        if found:
-            stats[category]["found"] += 1
-            total_found += 1
+    for line_num, stripped, cat in code_lines:
+        stats[cat]["total"] += 1
+        if is_line_found(stripped, cat, norm_set, kotlin_labels, kotlin_texts_lower):
+            stats[cat]["found"] += 1
+            found_lines.append((line_num, stripped, cat))
         else:
-            stats[category]["missing"].append((line_num, stripped))
+            missing_lines.append((line_num, stripped, cat))
 
-        total_meaningful += 1
+    total = len(code_lines)
+    total_found = len(found_lines)
+    total_missing = len(missing_lines)
 
-    print(f"Total meaningful code lines: {total_meaningful}")
-    print(f"Found in Kotlin //> comments: {total_found}")
-    print(f"Missing: {total_meaningful - total_found}")
-    print(f"Coverage: {total_found/total_meaningful*100:.1f}%")
+    # ─── Label report ────────────────────────────────────────────────────────
+
+    print("=" * 80)
+    print("LABEL COVERAGE")
+    print("=" * 80)
     print()
 
-    for category in sorted(stats.keys()):
-        s = stats[category]
+    code_label_names = {name for name, ln in all_labels.items() if ln >= code_start}
+    missing_label_names = code_label_names - kotlin_labels
+    # Also check by searching all kotlin text
+    still_missing = set()
+    for label in missing_label_names:
+        found_any = False
+        for kt in kotlin_texts:
+            if label in kt:
+                found_any = True
+                break
+        if not found_any:
+            still_missing.add(label)
+
+    found_label_count = len(code_label_names) - len(still_missing)
+    print(f"Code labels: {found_label_count}/{len(code_label_names)} "
+          f"({found_label_count/len(code_label_names)*100:.1f}%)")
+    if still_missing:
+        print(f"\nMissing labels ({len(still_missing)}):")
+        for label in sorted(still_missing, key=lambda l: all_labels.get(l, 0)):
+            ln = all_labels[label]
+            # Show a few lines of context
+            ctx = lines_raw[ln-1].rstrip('\n')[:90]
+            print(f"  {ln:5d}: {ctx}")
+
+    # ─── Line coverage ───────────────────────────────────────────────────────
+
+    print()
+    print("=" * 80)
+    print("LINE-BY-LINE COVERAGE")
+    print("=" * 80)
+    print()
+    print(f"Total code lines: {total}")
+    print(f"Found:   {total_found} ({total_found/total*100:.1f}%)")
+    print(f"Missing: {total_missing} ({total_missing/total*100:.1f}%)")
+    print()
+    for cat in sorted(stats.keys()):
+        s = stats[cat]
         pct = s["found"]/s["total"]*100 if s["total"] else 0
-        print(f"  {category:12s}: {s['found']:4d}/{s['total']:4d} ({pct:.1f}%)")
+        missing_n = s["total"] - s["found"]
+        print(f"  {cat:12s}: {s['found']:4d}/{s['total']:4d} ({pct:5.1f}%) - {missing_n} missing")
+
+    # ─── Gap analysis ────────────────────────────────────────────────────────
+
     print()
-
-    # ─── 3. Detailed missing lines ──────────────────────────────────────────
-
     print("=" * 80)
-    print("SECTION 3: MISSING LINES DETAIL")
-    print("=" * 80)
-    print()
-
-    for category in ["label", "instruction", "directive", "comment", "other"]:
-        if category not in stats or not stats[category]["missing"]:
-            continue
-        missing = stats[category]["missing"]
-        print(f"\n--- Missing {category}s ({len(missing)}) ---")
-        # Group by contiguous ranges
-        current_range_start = None
-        current_range = []
-        ranges = []
-        for line_num, text in missing:
-            if current_range and line_num - current_range[-1][0] > 5:
-                ranges.append(current_range[:])
-                current_range = []
-            current_range.append((line_num, text))
-        if current_range:
-            ranges.append(current_range)
-
-        for range_group in ranges:
-            first_line = range_group[0][0]
-            last_line = range_group[-1][0]
-            if len(range_group) <= 3:
-                for ln, txt in range_group:
-                    print(f"  Line {ln:5d}: {txt[:100]}")
-            else:
-                print(f"  Lines {first_line}-{last_line} ({len(range_group)} lines):")
-                for ln, txt in range_group[:3]:
-                    print(f"    {ln:5d}: {txt[:100]}")
-                print(f"    ... ({len(range_group)-3} more)")
-        print()
-
-    # ─── 4. Contiguous gap analysis ─────────────────────────────────────────
-
-    print("=" * 80)
-    print("SECTION 4: CONTIGUOUS GAPS (runs of >5 consecutive missing lines)")
+    print("CONTIGUOUS GAPS (>10 consecutive missing lines)")
     print("=" * 80)
     print()
 
-    # Build set of all missing line numbers
-    all_missing_lines = set()
-    for category in stats:
-        for line_num, _ in stats[category]["missing"]:
-            all_missing_lines.add(line_num)
-
-    # Find contiguous gaps
-    if all_missing_lines:
-        sorted_missing = sorted(all_missing_lines)
+    missing_set = {ln for ln, _, _ in missing_lines}
+    if missing_lines:
+        sorted_missing = sorted(missing_set)
         gaps = []
         current_gap = [sorted_missing[0]]
         for ln in sorted_missing[1:]:
-            if ln - current_gap[-1] <= 2:  # allow 1-line gaps (empty lines)
+            if ln - current_gap[-1] <= 3:  # allow small gaps (empty/separator lines)
                 current_gap.append(ln)
             else:
-                if len(current_gap) > 5:
+                if len(current_gap) > 10:
                     gaps.append(current_gap[:])
                 current_gap = [ln]
-        if len(current_gap) > 5:
+        if len(current_gap) > 10:
             gaps.append(current_gap)
 
         if gaps:
-            print(f"Found {len(gaps)} significant gaps:")
             for gap in gaps:
-                first = gap[0]
-                last = gap[-1]
-                print(f"\n  ASM lines {first}-{last} ({len(gap)} missing lines):")
-                # Show what's at the start and end of the gap from the asm file
-                with open(ASM_FILE, 'r') as f:
-                    asm_lines = f.readlines()
-                # Find the nearest label before this gap
-                nearest_label = None
-                for label, label_line in sorted(all_labels.items(), key=lambda x: x[1]):
-                    if label_line <= first:
-                        nearest_label = (label, label_line)
+                first, last = gap[0], gap[-1]
+                # Find nearest label
+                nearest = None
+                for name, ln in sorted(all_labels.items(), key=lambda x: x[1]):
+                    if ln <= first:
+                        nearest = (name, ln)
                     else:
                         break
-                if nearest_label:
-                    print(f"    Near label: {nearest_label[0]} (line {nearest_label[1]})")
-                # Show first few lines
-                for ln in gap[:5]:
-                    if ln <= len(asm_lines):
-                        print(f"    {ln:5d}: {asm_lines[ln-1].rstrip()[:100]}")
-                if len(gap) > 5:
-                    print(f"    ... ({len(gap)-5} more lines)")
+                label_info = f" (near {nearest[0]})" if nearest else ""
+                print(f"Lines {first}-{last} ({len(gap)} lines){label_info}:")
+                for ln in gap[:8]:
+                    print(f"  {ln:5d}: {lines_raw[ln-1].rstrip()[:100]}")
+                if len(gap) > 8:
+                    print(f"  ... ({len(gap)-8} more)")
+                print()
         else:
-            print("No significant gaps found.")
-    else:
-        print("No missing lines at all!")
+            print("No large contiguous gaps found.")
+
+    # ─── All missing lines (grouped by nearest label) ────────────────────────
+
+    print()
+    print("=" * 80)
+    print("ALL MISSING LINES (grouped by nearest routine)")
+    print("=" * 80)
+    print()
+
+    # Build label-to-line-range map
+    sorted_labels = sorted(all_labels.items(), key=lambda x: x[1])
+    label_ranges = []
+    for idx, (name, start_ln) in enumerate(sorted_labels):
+        if start_ln < code_start:
+            continue
+        end_ln = sorted_labels[idx+1][1] if idx+1 < len(sorted_labels) else len(lines_raw)
+        label_ranges.append((name, start_ln, end_ln))
+
+    # Group missing lines by their containing routine
+    routine_missing = defaultdict(list)
+    for ln, text, cat in missing_lines:
+        # Find containing routine
+        routine_name = "unknown"
+        for name, start, end in label_ranges:
+            if start <= ln < end:
+                routine_name = name
+                break
+        routine_missing[routine_name].append((ln, text, cat))
+
+    # Sort routines by line number
+    routine_order = {name: start for name, start, end in label_ranges}
+    for routine_name in sorted(routine_missing.keys(),
+                                key=lambda r: routine_order.get(r, 0)):
+        items = routine_missing[routine_name]
+        print(f"\n{routine_name} ({len(items)} missing):")
+        for ln, text, cat in items[:10]:
+            print(f"  {ln:5d} [{cat:11s}]: {text[:90]}")
+        if len(items) > 10:
+            print(f"  ... ({len(items)-10} more)")
+
+    # ─── Summary ─────────────────────────────────────────────────────────────
 
     print()
     print("=" * 80)
     print("SUMMARY")
     print("=" * 80)
     print()
-    print(f"Code labels: {len(found_code_labels)}/{len(code_labels)} "
-          f"({len(found_code_labels)/len(code_labels)*100:.1f}%)")
-    print(f"Code lines:  {total_found}/{total_meaningful} "
-          f"({total_found/total_meaningful*100:.1f}%)")
-    if missing_code_labels:
-        print(f"\n⚠️  {len(missing_code_labels)} labels missing from Kotlin files")
-    if total_meaningful - total_found > 0:
-        print(f"⚠️  {total_meaningful - total_found} assembly lines missing from Kotlin //> comments")
+    print(f"Labels:  {found_label_count}/{len(code_label_names)} "
+          f"({found_label_count/len(code_label_names)*100:.1f}%)")
+    print(f"Lines:   {total_found}/{total} ({total_found/total*100:.1f}%)")
+    print()
 
-    # Return exit code
-    return 0 if not missing_code_labels and total_found == total_meaningful else 1
+    if total_missing > 0:
+        # Categorize what's missing
+        missing_cats = defaultdict(int)
+        for _, _, cat in missing_lines:
+            missing_cats[cat] += 1
+        print(f"Missing breakdown: {dict(missing_cats)}")
+
+    return 0 if total_missing == 0 else 1
 
 
 if __name__ == "__main__":

@@ -1367,15 +1367,15 @@ private fun System.handlePowerUpCollision(x: Int) {
     }
 
     //> Shroom_Flower_PUp:
-    val playerStatus = ram.playerStatus.toInt() and 0xFF
-    if (playerStatus == 0) {
+    val playerStatus = ram.playerStatus
+    if (playerStatus == PlayerStatus.Small) {
         //> UpToSuper: lda #$01; sta PlayerStatus
-        ram.playerStatus = 1
+        ram.playerStatus = PlayerStatus.Big
         //> lda #$09 (subroutine value for super)
         setPRout(0x09, PlayerState.OnGround)
-    } else if (playerStatus == 0x01) {
+    } else if (playerStatus == PlayerStatus.Big) {
         //> lda #$02; sta PlayerStatus
-        ram.playerStatus = 2
+        ram.playerStatus = PlayerStatus.Fiery
         //> jsr GetPlayerColors
         getPlayerColors()
         //> lda #$0c (subroutine value for fiery)
@@ -1446,7 +1446,7 @@ fun System.playerBGCollision() {
     var adderIdx = 2
     if (ram.crouchingFlag == 0.toByte()) {
         //> lda PlayerSize; bne GBBAdr
-        if (ram.playerSize == 0.toByte()) {
+        if (ram.playerSize == PlayerSize.Big) {
             //> dey  ;big player not crouching
             adderIdx = 1
             //> lda SwimmingFlag; bne GBBAdr
@@ -1462,7 +1462,7 @@ fun System.playerBGCollision() {
     var adderY = bbAdderBase
 
     //> ldx PlayerSize; lda CrouchingFlag; beq HeadChk; inx
-    var sizeOfs = ram.playerSize.toInt() and 0xFF
+    var sizeOfs = ram.playerSize.ordinal
     if (ram.crouchingFlag != 0.toByte()) sizeOfs++
 
     //> HeadChk: lda Player_Y_Position; cmp PlayerBGUpperExtent,x; bcc DoFootCheck

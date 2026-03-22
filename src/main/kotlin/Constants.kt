@@ -132,3 +132,17 @@ enum class PlayerState(val byte: Byte) {
         fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { OnGround }
     }
 }
+
+enum class PlayerSize(val byte: Byte) {
+    Big(0), Small(1);
+    companion object {
+        fun fromByte(b: Byte) = if (b.toInt() and 0xFF == 0) Big else Small
+    }
+}
+
+enum class PlayerStatus(val byte: Byte) {
+    Small(0), Big(1), Fiery(2);
+    companion object {
+        fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { Small }
+    }
+}

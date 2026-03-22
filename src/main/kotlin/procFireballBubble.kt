@@ -24,7 +24,7 @@ fun System.procFireballBubble() {
     //> lda PlayerStatus           ;check player's status
     //> cmp #$02
     //> bcc ProcAirBubbles         ;if not fiery, branch
-    if ((ram.playerStatus.toInt() and 0xFF) >= 2) {
+    if (ram.playerStatus == PlayerStatus.Fiery) {
         //> lda A_B_Buttons
         //> and #B_Button              ;check for b button pressed
         //> beq ProcFireballs          ;branch if not pressed

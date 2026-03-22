@@ -102,14 +102,14 @@ fun System.continueGame() {
     loadAreaPointer()
     //> lda #$01                  ;actual world and area numbers, then
     //> sta PlayerSize            ;reset player's size, status, and
-    ram.playerSize = 0x01.toByte()
+    ram.playerSize = PlayerSize.Small
     //> inc FetchNewGameTimerFlag ;set game timer flag to reload
     ram.fetchNewGameTimerFlag = true
     //> lda #$00                  ;game timer from header
     //> sta TimerControl          ;also set flag for timers to count again
     ram.timerControl = 0x00.toByte()
     //> sta PlayerStatus
-    ram.playerStatus = 0x00.toByte()
+    ram.playerStatus = PlayerStatus.Small
     //> sta GameEngineSubroutine  ;reset task for game core
     ram.gameEngineSubroutine = 0x00.toByte()
     //> sta OperMode_Task         ;set modes and leave
