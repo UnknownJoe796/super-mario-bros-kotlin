@@ -172,7 +172,7 @@ fun System.writeBlockMetatile(metatileId: Int, bbLow: Int, vertOfs: Int) {
         //> beq UseBOffset          ;use offset if metatile is brick with coins (w/ line)
         //> cmp #$51
         //> beq UseBOffset          ;use offset if metatile is breakable brick w/ line
-        if (metatileId == 0x58 || metatileId == 0x51) {
+        if (metatileId == MetatileId.BRICK_WITH_COINS_WITH_LINE || metatileId == MetatileId.BREAKABLE_BRICK_WITH_LINE) {
             // keep index = 0
         } else {
             //> iny                     ;increment offset for brick metatile w/o line
@@ -181,7 +181,7 @@ fun System.writeBlockMetatile(metatileId: Int, bbLow: Int, vertOfs: Int) {
             //> beq UseBOffset          ;use offset if metatile is brick with coins (w/o line)
             //> cmp #$52
             //> beq UseBOffset          ;use offset if metatile is breakable brick w/o line
-            if (metatileId == 0x5d || metatileId == 0x52) {
+            if (metatileId == MetatileId.BRICK_WITH_COINS_WITHOUT_LINE || metatileId == MetatileId.BREAKABLE_BRICK_WITHOUT_LINE) {
                 // keep index = 0x01
             } else {
                 //> iny                     ;if any other metatile, increment offset for empty block

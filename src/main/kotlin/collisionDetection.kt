@@ -507,7 +507,7 @@ private fun System.checkForCoinMTiles(metatile: Int): Boolean {
     //> clc; rts
     //> CoinSd: lda #Sfx_CoinGrab; sta Square2SoundQueue
     val mt = metatile and 0xFF
-    if (mt == 0xc2 || mt == 0xc3) {
+    if (mt == MetatileId.COIN || mt == MetatileId.UNDERWATER_COIN) {
         ram.square2SoundQueue = Constants.Sfx_CoinGrab
         return true
     }
@@ -527,7 +527,7 @@ private fun chkInvisibleMTiles(metatile: Int): Boolean {
     //> ;$00 - used as flag by ImpedePlayerMove to restrict specific movement
     //> ;$00-$01 - used to hold bottom right and bottom left metatiles (in that order)
     val mt = metatile and 0xFF
-    return mt == 0x5f || mt == 0x60
+    return mt == MetatileId.HIDDEN_COIN_BLOCK || mt == MetatileId.HIDDEN_1UP_BLOCK
 }
 
 /**
@@ -542,7 +542,7 @@ private fun chkForNonSolids(metatile: Int): Boolean {
     //> beq NSFnd
     //> beq NSFnd
     //> NSFnd: rts
-    return mt == 0x26 || mt == 0xc2 || mt == 0xc3 || mt == 0x5f || mt == 0x60
+    return mt == MetatileId.VINE_METATILE || mt == MetatileId.COIN || mt == MetatileId.UNDERWATER_COIN || mt == MetatileId.HIDDEN_COIN_BLOCK || mt == MetatileId.HIDDEN_1UP_BLOCK
 }
 
 /**
@@ -558,7 +558,7 @@ private fun chkJumpspringMetatiles(metatile: Int): Boolean {
     //> JSFnd:   sec           ;set carry if found
     //> NoJSFnd: rts           ;leave
     val mt = metatile and 0xFF
-    return mt == 0x67 || mt == 0x68
+    return mt == MetatileId.JUMPSPRING_TOP || mt == MetatileId.JUMPSPRING_BOTTOM
 }
 
 // =====================================================================
@@ -1533,7 +1533,7 @@ fun System.playerBGCollision() {
                     if (checkForSolidMTiles(headMT)) {
                         //> SolidOrClimb:
                         //> cmp #$26; beq NYSpd  ;climbing metatile, no sound
-                        if (headMT != 0x26) {
+                        if (headMT != MetatileId.VINE_METATILE) {
                             //> lda #Sfx_Bump; sta Square1SoundQueue
                             ram.square1SoundQueue = Constants.Sfx_Bump
                         }
@@ -1614,7 +1614,7 @@ private fun System.processFootMetatile(metatile: Int, result: BlockBufferResult,
     if (ram.playerYSpeed < 0) return false
 
     //> cmp #$c5; bne ContChk
-    if (metatile == 0xc5) {
+    if (metatile == MetatileId.AXE) {
         //> jmp HandleAxeMetatile  — exits PlayerBGCollision entirely
         handleAxeMetatile(result)
         return true
@@ -1679,7 +1679,7 @@ private fun System.doPlayerSideCheck(bbAdderBase: Int) {
             if (sideMT != 0) {
                 //> cmp #$1c; beq BHalf  ;sideways pipe top
                 //> cmp #$6b; beq BHalf  ;water pipe top
-                if (sideMT != 0x1c && sideMT != 0x6b) {
+                if (sideMT != MetatileId.SIDE_PIPE_JOINT_TOP && sideMT != MetatileId.WATER_PIPE_TOP) {
                     //> jsr CheckForClimbMTiles; bcc CheckSideMTiles
                     if (checkForClimbMTiles(sideMT)) {
                         // climbable: skip to BHalf
@@ -1755,7 +1755,7 @@ private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult, sid
 
     //> cmp #$6c; beq PipeDwnS
     //> cmp #$1f; bne StopPlayerMove
-    if (metatile != 0x6c && metatile != 0x1f) {
+    if (metatile != MetatileId.WATER_PIPE_BOTTOM && metatile != MetatileId.SIDE_PIPE_JOINT_BOTTOM) {
         stopPlayerMove(sideCounter)
         return
     }
@@ -1913,13 +1913,13 @@ private fun System.handleClimbing(metatile: Int, result: BlockBufferResult) {
     //> ChkForFlagpole:
     //> bne VineCollision      ;branch to alternate code if flagpole shaft not found
     //> beq FlagpoleCollision  ;branch if flagpole ball found
-    if (metatile == 0x24 || metatile == 0x25) {
+    if (metatile == MetatileId.FLAGPOLE_BALL || metatile == MetatileId.FLAGPOLE_SHAFT) {
         //> FlagpoleCollision:
         flagpoleCollision(metatile)
         //> jmp PutPlayerOnVine  ;all FlagpoleCollision paths fall through to PutPlayerOnVine
         putPlayerOnVine(result)
         return
-    } else if (metatile == 0x26) {
+    } else if (metatile == MetatileId.VINE_METATILE) {
         //> VineCollision:
         //> bcs PutPlayerOnVine       ;branch if not that far up
         //> bne PutPlayerOnVine
@@ -2042,9 +2042,9 @@ private fun System.handlePipeEntry(rightFootMT: Int, leftFootMT: Int) {
     if ((ram.upDownButtons.toInt() and 0x04) == 0) return
 
     //> lda $00; cmp #$11; bne ExPipeE  ;check right foot for warp pipe right
-    if ((rightFootMT and 0xFF) != 0x11) return
+    if ((rightFootMT and 0xFF) != MetatileId.WARP_PIPE_TOP_RIGHT) return
     //> lda $01; cmp #$10; bne ExPipeE  ;check left foot for warp pipe left
-    if ((leftFootMT and 0xFF) != 0x10) return
+    if ((leftFootMT and 0xFF) != MetatileId.WARP_PIPE_TOP_LEFT) return
 
     //> lda #$30; sta ChangeAreaTimer
     ram.changeAreaTimer = 0x30
