@@ -69,17 +69,16 @@ fun System.procHammerBro() {
     //> ProcHammerBro:
     //> lda Enemy_State,x    ;check enemy state for d5 set
     //> and #%00100000
-    //> beq ChkHBTime        ;if not set, branch to jump/throw code
+    //> beq ChkJH                  ;if not set, go ahead with code
     if ((state and 0x20) != 0) {
-        //> jsr MoveDefeatedEnemy
+        //> jmp MoveDefeatedEnemy      ;otherwise jump to something else
         moveD_EnemyVertically()
         moveEnemyHorizontally()
         return
     }
 
-    //> ChkHBTime:
-    //> lda HammerBroJumpTimer  ;check jump timer
-    //> beq HammerBroJumpCode   ;if expired, branch to jump code
+    //> ChkJH: lda HammerBroJumpTimer,x   ;check jump timer
+    //> beq HammerBroJumpCode      ;if expired, branch to jump
     val jumpTimer = ram.hammerBroJumpTimers[x].toInt() and 0xFF // by Claude - indexed with x
     if (jumpTimer != 0) {
         //> dec HammerBroJumpTimer,x  ;decrement jump timer
@@ -94,8 +93,8 @@ fun System.procHammerBro() {
             return
         }
 
-        //> lda HammerThrowingTimer ;check throw timer
-        //> bne DecHammerTimer      ;if not expired, decrement
+        //> lda HammerThrowingTimer,x  ;check hammer throwing timer
+        //> bne DecHT                  ;if not expired, skip ahead, do not throw hammer
         val throwTimer = ram.hammerThrowingTimers[x].toInt() and 0xFF // by Claude - indexed with x
         if (throwTimer == 0) {
             //> ldy SecondaryHardMode
@@ -115,8 +114,9 @@ fun System.procHammerBro() {
             return
         }
 
-        //> DecHammerTimer: dec HammerThrowingTimer,x
+        //> DecHT: dec HammerThrowingTimer,x  ;decrement timer
         ram.hammerThrowingTimers[x] = (throwTimer - 1).toByte() // by Claude - indexed with x
+        //> jmp MoveHammerBroXDir      ;jump to move hammer bro
         moveHammerBroXDir(x)
         return
     }
@@ -129,17 +129,22 @@ fun System.procHammerBro() {
         return
     }
 
-    //> Calculate jump speed and preset value based on Y position
+    //> HammerBroJumpCode: calculate jump speed and preset value based on Y position
+    //> ldy #$fa                    ;set default vertical speed
     var preset = 0
     var jumpSpd = 0xFA  // strong upward
     val yPos = ram.sprObjYPos[1 + x].toInt().toByte().toInt()  // signed
+    //> bmi SetHJ                   ;if on the bottom half of the screen, use current speed
     if (yPos >= 0) {
+        //> ldy #$fd                    ;otherwise set alternate vertical speed
         jumpSpd = 0xFD  // weak upward
         preset = 1
+        //> bcc SetHJ                   ;if above the middle of the screen, use current speed and $01
         if (yPos >= 0x70) {
             // below threshold - random choice
             preset = 0
             val lsfr = ram.pseudoRandomBitReg[(1 + x).coerceIn(0, ram.pseudoRandomBitReg.size - 1)].toInt() and 0x01
+            //> bne SetHJ                   ;if d0 of LSFR set, branch and use current speed and $00
             if (lsfr == 0) {
                 jumpSpd = 0xFA  // strong upward
             }
@@ -592,15 +597,19 @@ fun System.procMoveRedPTroopa() {
         //> sta Enemy_YMF_Dummy,x
         ram.sprObjYMFDummy[1 + x] = 0
 
-        //> lda Enemy_Y_Position,x; cmp RedPTroopa_OrigXPos
+        //> lda Enemy_Y_Position,x
         val curY = ram.sprObjYPos[1 + x].toInt() and 0xFF
         // by Claude - indexed by objectOffset (aliases Enemy_X_MoveForce,x at $0401+x)
         val origY = ram.sprObjXMoveForce[1 + x].toInt() and 0xFF
+        //> cmp RedPTroopaOrigXPos,x
+        //> bcs MoveRedPTUpOrDown       ;if current => original, skip ahead to more code
         if (curY < origY) {
             //> Slowly drift down to original position
+            //> bne NoIncPT                 ;if any bits set, branch to leave
             if ((ram.frameCounter.toInt() and 0x07) == 0) {
                 ram.sprObjYPos[1 + x] = (curY + 1).toByte()
             }
+            //> NoIncPT:  rts                         ;leave
             return
         }
     }
@@ -609,11 +618,13 @@ fun System.procMoveRedPTroopa() {
     val curY = ram.sprObjYPos[1 + x].toInt() and 0xFF
     // by Claude - indexed by objectOffset (aliases Enemy_X_Speed,x at $58+x)
     val centerY = ram.sprObjXSpeed[1 + x].toInt() and 0xFF
+    //> cmp RedPTroopaCenterYPos,x
+    //> bcc MovPTDwn                ;if current < central, jump to move downwards
     if (curY < centerY) {
-        //> MoveRedPTroopaDown: ldy #$00
+        //> MovPTDwn: jmp MoveRedPTroopaDown      ;move downwards
         moveRedPTroopa(x, 0)
     } else {
-        //> MoveRedPTroopaUp: ldy #$01
+        //> jmp MoveRedPTroopaUp        ;otherwise jump to move upwards
         moveRedPTroopa(x, 1)
     }
 }
@@ -623,8 +634,13 @@ fun System.procMoveRedPTroopa() {
  * @param direction 0=down, 1=up (bidirectional flag for ImposeGravity)
  */
 private fun System.moveRedPTroopa(x: Int, direction: Int) {
+    //> jmp MoveRedPTroopa  ;skip to movement routine
     //> MoveRedPTroopa: inx
     val sprOfs = x + 1
+    //> RedPTroopaGrav:
+    //> ;$00 - used for downward force
+    //> ;$01 - used for upward force
+    //> ;$07 - used as adder for vertical position
     //> lda #$03; sta $00 (downForce)
     //> lda #$06; sta $01 (upForce)
     //> lda #$02; sta $02 (maxSpeed)
@@ -639,19 +655,26 @@ private fun System.moveRedPTroopa(x: Int, direction: Int) {
 fun System.moveFlyGreenPTroopa() {
     val x = ram.objectOffset.toInt()
 
+    //> ;$00 - used to store adder for movement, also used as adder for platform
+    //> ;$01 - used to store maximum value for secondary counter
     //> MoveFlyGreenPTroopa:
+    //> XMoveCntr_GreenPTroopa:
+    //> lda #$13                    ;load preset maximum value for secondary counter
     //> jsr XMoveCntr_GreenPTroopa
     xMoveCntr_Platform(x, 0x13)
     //> jsr MoveWithXMCntrs
     moveWithXMCntrs(x)
 
     //> Vertical bob: every 4th frame, move up or down based on frame counter bit 6
-    //> lda FrameCounter; and #%00000011; bne NoMoveGPT
-    if ((ram.frameCounter.toInt() and 0x03) != 0) return
+    //> lda FrameCounter; and #%00000011
+    //> bne NoMGPT                 ;branch to leave if set to move up/down every fourth frame
+    if ((ram.frameCounter.toInt() and 0x03) != 0) return  //> NoMGPT: rts                        ;leave!
 
     //> lda #$ff (move up by default)
-    //> lda FrameCounter; and #%01000000; beq MoveGPTDn
+    //> lda FrameCounter; and #%01000000
+    //> bne YSway                  ;branch to move green paratroopa down if set
     var adder = 0xFF  // move up
+    //> YSway:  sty $00                    ;store adder here
     if ((ram.frameCounter.toInt() and 0x40) != 0) adder = 0x01  // move down
 
     //> MoveGPTDn: adc Enemy_Y_Position,x; sta Enemy_Y_Position,x

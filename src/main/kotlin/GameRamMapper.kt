@@ -290,6 +290,11 @@ object GameRamMapper {
             { r -> r.playerMovingDir.byte },
             { r, b -> r.playerMovingDir = Direction.fromByte(b) }))
 
+        // GameEngineRoutine enum
+        all.add(ValueByteField(0xe,
+            { r -> r.gameEngineSubroutine.ordinal.toByte() },
+            { r, b -> r.gameEngineSubroutine = GameEngineRoutine.fromByte(b) }))
+
         // Deduplicate: scalar aliases that delegate to arrays share the same start address.
         // Group by start address and keep the largest descriptor.
         val byStartAddress = mutableMapOf<Int, FieldDescriptor>()

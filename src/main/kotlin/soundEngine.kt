@@ -530,6 +530,13 @@ private fun System.square2SfxHandler() {
         ram.square2SoundBuffer = queue.toByte()
         //> bmi PlayBowserFall
         if (queue and 0x80 != 0) { playBowserFall(); return }
+        //> lsr Square2SoundQueue
+        //> lsr Square2SoundQueue
+        //> lsr Square2SoundQueue
+        //> lsr Square2SoundQueue
+        //> lsr Square2SoundQueue
+        //> lsr Square2SoundQueue
+        //> lsr Square2SoundQueue
         if (queue and 0x01 != 0) { playCoinGrab(); return }       //> lsr; bcs PlayCoinGrab (bit 0)
         if (queue and 0x02 != 0) { playGrowPowerUp(); return }    //> lsr; bcs PlayGrowPowerUp (bit 1)
         if (queue and 0x04 != 0) { playGrowVine(); return }       //> lsr; bcs PlayGrowVine (bit 2)
@@ -542,12 +549,17 @@ private fun System.square2SfxHandler() {
 
     //> CheckSfx2Buffer:
     val buf = ram.square2SoundBuffer.toInt() and 0xFF
+    //> ExS2H:  rts
     if (buf == 0) return  //> beq ExS2H
     //> bmi ContinueBowserFall
     if (buf and 0x80 != 0) { continueBowserFall(); return }
+    //> Cont_CGrab_TTick:
+    //> jmp ContinueCGrabTTick
     if (buf and 0x01 != 0) { continueCGrabTTick(); return }    //> bcs Cont_CGrab_TTick (bit 0)
     if (buf and 0x02 != 0) { continueGrowItems(); return }     //> bcs ContinueGrowItems (bit 1)
     if (buf and 0x04 != 0) { continueGrowItems(); return }     //> bcs ContinueGrowItems (vine, bit 2)
+    //> JumpToDecLength2:
+    //> jmp DecrementSfx2Length
     if (buf and 0x08 != 0) { continueBlast(); return }          //> bcs ContinueBlast (bit 3)
     if (buf and 0x10 != 0) { continueCGrabTTick(); return }    //> bcs Cont_CGrab_TTick (bit 4)
     if (buf and 0x20 != 0) { continuePowerUpGrab(); return }   //> bcs ContinuePowerUpGrab (bit 5)
@@ -695,6 +707,7 @@ private fun System.continueExtraLife() {
     val y = origLen shr 3
     //> lda ExtraLifeFreqData-1,y
     val freqIdx = SoundData.extraLifeFreqData[y - 1]
+    //> EL_LRegs: bne LoadSqu2Regs         ;this is an unconditional branch outta here
     //> ldx #$82; ldy #$7f; bne EL_LRegs -> LoadSqu2Regs -> PlaySqu2Sfx
     playSqu2Sfx(freqIdx, 0x82, 0x7F)
     decrementSfx2Length()
@@ -713,6 +726,7 @@ private fun System.playGrowPowerUp() {
 
 //> PlayGrowVine:
 private fun System.playGrowVine() {
+    //> GrowItemRegs:
     //> lda #$20; GrowItemRegs:
     ram.squ2SfxLenCounter = 0x20
     writeSndReg(5, 0x7F)
@@ -729,6 +743,7 @@ private fun System.continueGrowItems() {
     val y = secCounter shr 1
     val targetLen = ram.squ2SfxLenCounter.toInt() and 0xFF
     //> cpy Squ2_SfxLenCounter; beq StopGrowItems
+    //> StopGrowItems:
     if (y == targetLen) {
         //> jmp EmptySfx2Buffer
         emptySfx2Buffer()
@@ -760,7 +775,9 @@ private fun System.noiseSfxHandler() {
     }
 
     //> CheckNoiseBuffer:
+    //> lda NoiseSoundBuffer      ;check for sfx in buffer
     val buf = ram.noiseSoundBuffer.toInt() and 0xFF
+    //> ExNH:   rts
     if (buf == 0) return  //> beq ExNH
     //> lsr; bcs ContinueBrickShatter
     if (buf and 0x01 != 0) { continueBrickShatter(); return }
@@ -798,6 +815,7 @@ private fun System.decrementSfx3Length() {
     val newLen = (len - 1) and 0xFF
     ram.noiseSfxLenCounter = newLen.toByte()
     //> dec Noise_SfxLenCounter; bne ExSfx3
+    //> ExSfx3: rts
     if (newLen == 0) {
         //> lda #$f0; sta SND_NOISE_REG; lda #$00; sta NoiseSoundBuffer
         writeSndReg(12, 0xF0)
@@ -848,6 +866,8 @@ private fun System.musicHandler() {
     }
     //> lda EventMusicBuffer; ora AreaMusicBuffer; bne ContinueMusic
     val combined = (ram.eventMusicBuffer.toInt() and 0xFF) or (ram.areaMusicBuffer.toInt() and 0xFF)
+    //> ContinueMusic:
+    //> jmp HandleSquare2Music  ;if we have music, start with square 2 channel
     if (combined != 0) {
         handleSquare2Music()
         return
@@ -887,6 +907,7 @@ private fun System.loadAreaMusic(areaQueue: Int) {
         stopSquare1Sfx()
     }
     //> NoStop1: ldy #$10; GMLoopB: sty GroundMusicHeaderOfs
+    //> GMLoopB: sty GroundMusicHeaderOfs
     ram.groundMusicHeaderOfs = 0x10
     handleAreaMusicLoopB(areaQueue)
 }
@@ -956,6 +977,7 @@ private fun System.loadHeader(y: Int) {
     //> lda #$01
     ram.squ2NoteLenCounter = 1
     ram.squ1NoteLenCounter = 1
+    //> sta Tri_NoteLenCounter
     ram.triNoteLenCounter = 1
     ram.noiseBeatLenCounter = 1
     //> lda #$00; sta MusicOffset_Square2; sta AltRegContentFlag

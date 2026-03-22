@@ -581,7 +581,7 @@ fun System.drawBrickChunks() {
     //> ldy GameEngineSubroutine
     //> cpy #$05                   ;if end-of-level routine running,
     //> beq DChunks                ;use palette and tile number assigned
-    if (ram.gameEngineSubroutine != 0x05.toByte()) {
+    if (ram.gameEngineSubroutine != GameEngineRoutine.PlayerEndLevel) {
         //> lda #$03                   ;otherwise set different palette bits
         paletteBits = 0x03
         //> lda #$84                   ;and set tile number for brick chunks

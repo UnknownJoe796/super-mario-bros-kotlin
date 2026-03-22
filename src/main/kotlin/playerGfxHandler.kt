@@ -122,7 +122,7 @@ fun System.playerGfxHandler() {
     //> CntPl:  lda GameEngineSubroutine    ;if executing specific game engine routine,
     //> cmp #$0b                    ;branch ahead to some other part
     //> beq PlayerKilled
-    if (ram.gameEngineSubroutine == 0x0b.toByte()) {
+    if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerDeath) {
         playerKilled()
         return
     }
@@ -632,7 +632,7 @@ private fun System.chkForPlayerAttrib() {
     //> lda GameEngineSubroutine
     //> cmp #$0b                    ;if executing specific game engine routine,
     //> beq KilledAtt               ;branch to change third and fourth row OAM attributes
-    val isKilled = (ram.gameEngineSubroutine == 0x0b.toByte())
+    val isKilled = (ram.gameEngineSubroutine == GameEngineRoutine.PlayerDeath)
     val gfxOfs = ram.playerGfxOffset.toInt() and 0xFF
 
     // NES flow: killed and gfxOfs==0xC8 (big standing) both fall through to KilledAtt,

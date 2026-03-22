@@ -88,7 +88,6 @@ enum class OperMode {
     TitleScreen, Game, Victory, GameOver
 }
 
-<<<<<<< HEAD
 enum class AreaType(val byte: Byte) {
     Water(0), Ground(1), Underground(2), Castle(3);
     companion object {
@@ -159,5 +158,29 @@ enum class EnemyId(val byte: Byte) {
     companion object {
         /** Alias: FlyCheepCheepFrenzy and FlyingCheepCheep share the same byte value */
         val FlyCheepCheepFrenzy = FlyingCheepCheep
+    }
+}
+
+/** Dispatch index into the GameRoutines jump table (RAM $0e). */
+enum class GameEngineRoutine {
+    EntranceGameTimerSetup,
+    VineAutoClimb,
+    SideExitPipeEntry,
+    VerticalPipeEntry,
+    FlagpoleSlide,
+    PlayerEndLevel,
+    PlayerLoseLife,
+    PlayerEntrance,
+    PlayerCtrlRoutine,
+    PlayerChangeSize,
+    PlayerInjuryBlink,
+    PlayerDeath,
+    PlayerFireFlower;
+
+    fun next(): GameEngineRoutine = entries[ordinal + 1]
+
+    companion object {
+        fun fromByte(b: Byte): GameEngineRoutine =
+            entries.getOrElse(b.toInt() and 0xFF) { entries.first() }
     }
 }

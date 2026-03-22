@@ -228,7 +228,7 @@ fun System.entranceGameTimerSetup() {
 
     //> SetPESub: lda #$07                    ;set to run player entrance subroutine
     //> sta GameEngineSubroutine    ;on the next frame of game engine
-    ram.gameEngineSubroutine = 0x07
+    ram.gameEngineSubroutine = GameEngineRoutine.PlayerEntrance
     //> rts
 }
 

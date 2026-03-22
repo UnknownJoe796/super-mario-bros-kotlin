@@ -487,7 +487,7 @@ fun System.positionPlayerOnVPlat(enemyOfs: Int = ram.objectOffset.toInt() and 0x
     //> ldy GameEngineSubroutine
     //> cpy #$0b                  ;if certain routine being executed on this frame,
     //> beq ExPlPos               ;skip all of this
-    if ((ram.gameEngineSubroutine.toInt() and 0xFF) == 0x0b) return
+    if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerDeath) return
     //> ldy Enemy_Y_HighPos,x
     //> cpy #$01                  ;if vertical high byte offscreen, skip this
     //> bne ExPlPos
@@ -578,6 +578,7 @@ private fun System.positionPlayerOnHPlat(hDisplacement: Byte) {
         // sbc #$00 with carry from the adc
         ram.playerPageLoc = ((ram.playerPageLoc.toInt() and 0xFF) - (1 - carry)).toByte()
     } else {
+        //> jmp SetPVar               ;jump to skip subtraction
         //> adc #$00                  ;otherwise add carry to page location
         val carry = if (newPosX > 0xFF) 1 else 0
         ram.playerPageLoc = ((ram.playerPageLoc.toInt() and 0xFF) + carry).toByte()
@@ -772,12 +773,47 @@ private fun System.drawEraseRope(x: Int, otherPlatOfs: Int) {
     val force = ram.sprObjYMoveForce[x + 1]
     if (speed == 0.toByte() && force == 0.toByte()) return
 
+    //> bcs ExitRp                  ;and skip this, branch to leave
+    //> jsr SetupPlatformRope       ;do a sub to figure out where to put new bg tiles
+    //> bmi EraseR1                 ;to do something else
+    //> lda #$a2
+    //> lda #$a3                    ;and right sides of rope in vram buffer
+    //> jmp OtherRope               ;jump to skip this part
+    //> EraseR1: lda #$24                    ;put blank tiles in vram buffer
+    //> OtherRope:
+    //> jsr SetupPlatformRope       ;do sub again to figure out where to put bg tiles
+    //> sta VRAM_Buffer1+7,x        ;set length again for 2 bytes
+    //> bpl EraseR2                 ;if moving upwards (note inversion earlier), skip this
+    //> lda #$a2
+    //> sta VRAM_Buffer1+8,x        ;otherwise put tile numbers for left
+    //> lda #$a3                    ;and right sides of rope in vram
+    //> sta VRAM_Buffer1+9,x        ;transfer buffer
+    //> jmp EndRp                   ;jump to skip this part
+    //> EraseR2: lda #$24                    ;put blank tiles in vram buffer
+    //> sta VRAM_Buffer1+8,x        ;to erase rope
+    //> sta VRAM_Buffer1+9,x
+    //> EndRp:   lda #$00                    ;put null terminator at the end
+    //> sta VRAM_Buffer1+10,x
+    //> ExitRp:  ldx ObjectOffset            ;get enemy object buffer offset and leave
+
     // TODO: Implement VRAM buffer rope drawing.
     // The assembly writes rope tile data ($a2, $a3) or blank tiles ($24) into VRAM_Buffer1
     // based on platform movement direction to visually connect the two balance platforms.
     // This requires SetupPlatformRope which calculates name table addresses from
     // platform positions. Skipped for now as it's purely cosmetic and depends on
     // the VRAM buffer system.
+
+    //> SetupPlatformRope:
+    //> ldx SecondaryHardMode   ;if secondary hard mode flag set,
+    //> bne GetLRp              ;use coordinate as-is
+    //> GetLRp: pha                     ;save modified horizontal coordinate to stack
+    //> ldx Enemy_Y_Position,y  ;get vertical coordinate
+    //> bpl GetHRp              ;skip this part if moving downwards or not at all
+    //> GetHRp: txa                     ;move vertical coordinate to A
+    //> and #%11100000          ;mask out low nybble and LSB of high nybble
+    //> cmp #$e8                ;if vertical position not below the
+    //> bcc ExPRp               ;bottom of the screen, we're done, branch to leave
+    //> ExPRp:  rts                     ;leave!
 }
 
 // =====================================================================
@@ -876,6 +912,7 @@ fun System.yMovingPlatform() {
     //> YMovingPlatform:
     //> lda Enemy_Y_Speed,x          ;if platform moving up or down, skip ahead to
     //> ora Enemy_Y_MoveForce,x      ;check on other position
+    //> bne ChkYCenterPos
     val speed = ram.sprObjYSpeed[x + 1]
     val force = ram.sprObjYMoveForce[x + 1]
     if (speed == 0.toByte() && force == 0.toByte()) {
@@ -933,6 +970,8 @@ private fun System.chkYPCollision(x: Int) {
     positionPlayerOnVPlat(x)
     //> ExYPl: rts
 }
+
+//> ;$00 - used as adder to position player hotizontally
 
 // =====================================================================
 // XMovingPlatform
@@ -1052,6 +1091,8 @@ private fun System.moveWithXMCntrs(x: Int): Byte {
     ram.sprObjXSpeed[x + 1] = savedSecondary
     return hDisplacement
 }
+
+//> ;$00 - residual value from sub
 
 // =====================================================================
 // DropPlatform
@@ -1173,7 +1214,13 @@ private fun System.moveLiftPlatforms() {
     val posResult = (ram.sprObjYPos[x + 1].toInt() and 0xFF) +
             (ram.sprObjYSpeed[x + 1].toInt() and 0xFF) + carry
     ram.sprObjYPos[x + 1] = posResult.toByte()
+    //> ExLiftP: rts                         ;then leave
 }
+
+//> ;$00 - page location of extended left boundary
+//> ;$01 - extended left boundary position
+//> ;$02 - page location of extended right boundary
+//> ;$03 - extended right boundary position
 
 /**
  * Checks collision for small platform after movement.

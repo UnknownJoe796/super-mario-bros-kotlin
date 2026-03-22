@@ -151,7 +151,7 @@ private fun System.runDemo() {
     //> lda GameEngineSubroutine    ;check to see if we're running lose life routine
     //> cmp #$06
     //> bne ExitMenu                ;if not, do not do all the resetting below
-    if (ram.gameEngineSubroutine != 0x06.toByte()) return
+    if (ram.gameEngineSubroutine != GameEngineRoutine.PlayerLoseLife) return
     return resetTitle()
 }
 private fun System.resetTitle() {

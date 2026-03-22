@@ -90,7 +90,7 @@ class GameRam {
     @RamLocation(0xd) var previousABButtons: Byte = 0
     @RamLocation(0xb) var upDownButtons: Byte = 0
     @RamLocation(0xc) var leftRightButtons: Byte = 0
-    @RamLocation(0xe) var gameEngineSubroutine: Byte = 0  // TODO: This should be an enum, I think
+    @RamLocation(0xe, size = 0) var gameEngineSubroutine: GameEngineRoutine = GameEngineRoutine.EntranceGameTimerSetup
     @RamLocation(0x778) var mirrorPPUCTRLREG1: PpuControl = PpuControl(0)
     @RamLocation(0x779) var mirrorPPUCTRLREG2: PpuMask = PpuMask(0)
     @RamLocation(0x770) var operMode: OperMode = OperMode.TitleScreen
