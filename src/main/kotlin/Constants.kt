@@ -118,3 +118,10 @@ object Constants {
 enum class OperMode {
     TitleScreen, Game, Victory, GameOver
 }
+
+enum class Direction(val byte: Byte) {
+    None(0), Left(1), Right(2);
+    companion object {
+        fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { None }
+    }
+}

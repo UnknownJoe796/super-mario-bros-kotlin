@@ -187,7 +187,7 @@ fun System.playerCtrlRoutine() {
     //> asl                         ;otherwise change to move to the left
     //> SetMoveDir: sta Player_MovingDir        ;set moving direction
     if (ram.playerXSpeed != 0x00.toByte()) {
-        ram.playerMovingDir = if (ram.playerXSpeed < 0) 0x02 else 0x01
+        ram.playerMovingDir = if (ram.playerXSpeed < 0) Direction.Right else Direction.Left
     }
 
     //> PlayerSubs: jsr ScrollHandler           ;move the screen if necessary
@@ -371,7 +371,7 @@ private fun System.onGroundStateSub() {
     //> beq GndMove                ;if left/right controller bits not set, skip instruction
     if (ram.leftRightButtons != 0x00.toByte()) {
         //> sta PlayerFacingDir        ;otherwise set new facing direction
-        ram.playerFacingDir = ram.leftRightButtons
+        ram.playerFacingDir = Direction.fromByte(ram.leftRightButtons)
     }
     //> GndMove: jsr ImposeFriction         ;do a sub to impose friction on player's walk/run
     imposeFriction()
@@ -441,7 +441,7 @@ private fun System.jumpSwimSub() {
         //> beq LRAir                  ;if not pressing any, skip
         if (ram.leftRightButtons != 0x00.toByte()) {
             //> sta PlayerFacingDir        ;otherwise set facing direction accordingly
-            ram.playerFacingDir = ram.leftRightButtons
+            ram.playerFacingDir = Direction.fromByte(ram.leftRightButtons)
         }
     }
 
@@ -539,7 +539,7 @@ private fun System.climbingSub() {
     if (!rightPressed) {
         climbX += 2
     }
-    if ((ram.playerFacingDir - 1).toByte() != 0x00.toByte()) {
+    if (ram.playerFacingDir != Direction.Left) {
         climbX += 1
     }
 
@@ -559,7 +559,7 @@ private fun System.climbingSub() {
     //> lda Left_Right_Buttons   ;get left/right controller bits again
     //> eor #%00000011           ;invert them and store them while player
     //> sta PlayerFacingDir      ;is on vine to face player in opposite direction
-    ram.playerFacingDir = ram.leftRightButtons xor 0b00000011
+    ram.playerFacingDir = Direction.fromByte((ram.leftRightButtons xor 0b00000011))
     //> ExitCSub: rts
 }
 
@@ -833,7 +833,7 @@ private fun System.xPhysics() {
             //> lda Left_Right_Buttons     ;get left/right controller bits
             //> cmp Player_MovingDir       ;check against moving direction
             //> bne ChkRFast               ;if controller bits <> moving direction, skip this part
-            if (ram.leftRightButtons == ram.playerMovingDir) {
+            if (ram.leftRightButtons == ram.playerMovingDir.byte) {
                 //> lda A_B_Buttons            ;check for b button pressed
                 //> and #B_Button
                 //> bne SetRTmr                ;if pressed, skip ahead to set timer
@@ -941,7 +941,7 @@ private fun System.getPlayerAnimSpeed() {
             //> and #$03                   ;mask out all others except left and right
             //> cmp Player_MovingDir       ;check against moving direction
             //> bne ProcSkid               ;if left/right controller bits <> moving direction, branch
-            if ((masked and 0x03).toByte() != ram.playerMovingDir) {
+            if ((masked and 0x03).toByte() != ram.playerMovingDir.byte) {
                 //> ProcSkid: lda Player_XSpeedAbsolute  ;check player's walking/running speed
                 //> cmp #$0b                   ;against one last amount
                 //> bcs SetAnimSpd             ;if greater than this amount, branch
