@@ -75,13 +75,18 @@ fun System.renderUnderPart(metatile: UByte, startX: Int, lengthY: Int) {
     ram.areaObjectHeight = lengthY.toByte()
     var x = startX
     var y = lengthY
+    // NES overflow: MetatileBuffer index 13 maps to $06AE (hammerEnemyOffsets[0])
+    fun readMT(idx: Int): UByte = if (idx < ram.metatileBuffer.size) ram.metatileBuffer[idx]
+        else if (idx == 0x0d) ram.hammerEnemyOffsets[0].toUByte() else 0.toUByte()
+    fun writeMT(idx: Int, v: UByte) { if (idx < ram.metatileBuffer.size) ram.metatileBuffer[idx] = v
+        else if (idx == 0x0d) ram.hammerEnemyOffsets[0] = v.toByte() }
     while (true) {
         //> ldy MetatileBuffer,x  ;check current spot to see if there's something
-        val current = ram.metatileBuffer[x]
+        val current = readMT(x)
         //> beq DrawThisRow       ;we need to keep, if nothing, go ahead
         if (current == 0.toUByte()) {
             //> DrawThisRow: sta MetatileBuffer,x
-            ram.metatileBuffer[x] = metatile
+            writeMT(x, metatile)
         } else {
             //> cpy #$17; beq WaitOneRow  ;if middle part (tree ledge), wait until next row
             //> cpy #$1a; beq WaitOneRow  ;if middle part (mushroom ledge), wait until next row
@@ -93,12 +98,12 @@ fun System.renderUnderPart(metatile: UByte, startX: Int, lengthY: Int) {
             when {
                 cv == 0x17 -> { /* WaitOneRow - tree ledge middle */ }
                 cv == 0x1a -> { /* WaitOneRow - mushroom ledge middle */ }
-                cv == 0xc0 -> ram.metatileBuffer[x] = metatile // DrawThisRow - question block w/ coin
+                cv == 0xc0 -> writeMT(x, metatile)
                 cv > 0xc0 -> { /* WaitOneRow - palette 3 metatile */ }
-                cv != 0x54 -> ram.metatileBuffer[x] = metatile // DrawThisRow - not cracked rock
+                cv != 0x54 -> writeMT(x, metatile)
                 // cv == 0x54 (cracked rock terrain):
                 metatile.toInt() and 0xFF == 0x50 -> { /* WaitOneRow - stem top of mushroom */ }
-                else -> ram.metatileBuffer[x] = metatile // DrawThisRow
+                else -> writeMT(x, metatile)
             }
         }
         //> WaitOneRow: inx

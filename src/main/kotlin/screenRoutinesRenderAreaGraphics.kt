@@ -57,7 +57,10 @@ fun System.renderAreaGraphics() {
         //> DrawMTLoop: stx $01                      ;store init value of 0 or incremented offset for buffer
         val currentRowOffset = metatileBufOffset // $01
         //> lda MetatileBuffer,x         ;get first metatile number, and mask out all but 2 MSB
-        val metatileVal = ram.metatileBuffer.getOrNull(metatileBufOffset)?.and(0xFFu) ?: 0u
+        // NES overflow: index 13 reads from $06AE (hammerEnemyOffsets[0])
+        val metatileVal = (if (metatileBufOffset < ram.metatileBuffer.size) ram.metatileBuffer[metatileBufOffset]
+            else if (metatileBufOffset == 0x0d) ram.hammerEnemyOffsets[0].toUByte()
+            else 0u.toUByte()).and(0xFFu)
         //> and #%11000000
         var attribBits = (metatileVal and 0xC0u) // $03 stores raw bits before rotation
         //> sta $03                      ;store attribute table bits here
