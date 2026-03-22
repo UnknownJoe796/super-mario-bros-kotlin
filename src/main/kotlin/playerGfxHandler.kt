@@ -167,7 +167,7 @@ fun System.playerGfxHandler() {
     }
     //> SwimKT: lda PlayerSize              ;check player's size
     //> beq BigKTS                  ;if big, use first tile
-    if (ram.playerSize != 0.toByte()) {
+    if (ram.playerSize == PlayerSize.Small) {
         //> lda Sprite_Tilenumber+24,y  ;check tile number of seventh/eighth sprite
         //> cmp SwimTileRepOffset       ;against tile number in player graphics table
         //> beq ExPGH                   ;if spr7/spr8 tile number = value, branch to leave
@@ -543,7 +543,7 @@ private fun System.getGfxOffsetAdder(y: Int): Int {
     //> GetGfxOffsetAdder:
     //> lda PlayerSize  ;get player's size
     //> beq SzOfs       ;if player big, use current offset as-is
-    if (ram.playerSize == 0.toByte()) return y
+    if (ram.playerSize == PlayerSize.Big) return y
     //> tya             ;for big player
     //> clc             ;otherwise add eight bytes to offset
     //> adc #$08        ;for small player
@@ -591,7 +591,7 @@ private fun System.handleChangeSize(): Int {
     }
     //> GorSLog: lda PlayerSize               ;get player's size
     //> bne ShrinkPlayer             ;if player small, skip ahead to next part
-    if (ram.playerSize != 0.toByte()) {
+    if (ram.playerSize == PlayerSize.Small) {
         return shrinkPlayer(animCtrl)
     }
     //> lda ChangeSizeOffsetAdder,y  ;get offset adder based on frame control as offset

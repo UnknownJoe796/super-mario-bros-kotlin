@@ -1257,7 +1257,7 @@ private fun System.firebarCollision(sprOfs: Int, oamOfs: Int, screenY: Int): Int
     var playerY = ram.playerYPosition.toInt() and 0xFF
     //> lda PlayerSize           ;get player's size
     //> bne AdjSm                ;if player small, branch
-    if (ram.playerSize != 0.toByte()) {
+    if (ram.playerSize == PlayerSize.Small) {
         //> AdjSm: inc $05; inc $05  ;set counter to 2 (small/crouching flag)
         collisionPhase = 2
         //> tya; clc; adc #$18; tay  ;add 24 pixels to player's vertical coordinate

@@ -134,7 +134,7 @@ private fun System.initChangeSize() {
     //> lda PlayerSize
     //> eor #$01                  ;invert player's size
     //> sta PlayerSize
-    ram.playerSize = ram.playerSize xor 0x01
+    ram.playerSize = if (ram.playerSize == PlayerSize.Big) PlayerSize.Small else PlayerSize.Big
     //> ExitBoth: rts                       ;leave
 }
 

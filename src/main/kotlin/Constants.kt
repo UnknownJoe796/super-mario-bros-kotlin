@@ -118,3 +118,19 @@ object Constants {
 enum class OperMode {
     TitleScreen, Game, Victory, GameOver
 }
+
+/** Player physical size: 0=Big (tall), 1=Small (short). */
+enum class PlayerSize(val byte: Byte) {
+    Big(0), Small(1);
+    companion object {
+        fun fromByte(b: Byte) = if (b.toInt() and 0xFF == 0) Big else Small
+    }
+}
+
+/** Player power-up status: 0=Small (none), 1=Big (mushroom), 2=Fiery (fire flower). */
+enum class PlayerStatus(val byte: Byte) {
+    Small(0), Big(1), Fiery(2);
+    companion object {
+        fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { Small }
+    }
+}

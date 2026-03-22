@@ -336,7 +336,7 @@ fun System.forceInjury() {
     //> ForceInjury:
     //> ldx PlayerStatus          ;check player's status
     //> beq KillPlayer            ;branch if small
-    if (ram.playerStatus == 0.toByte()) {
+    if (ram.playerStatus == PlayerStatus.Small) {
         //> KillPlayer:
         //> stx Player_X_Speed   ;halt player's horizontal movement by initializing speed
         ram.playerXSpeed = 0
@@ -356,7 +356,7 @@ fun System.forceInjury() {
     }
 
     //> sta PlayerStatus          ;otherwise set player's status to small (A=0 from caller or implicit)
-    ram.playerStatus = 0
+    ram.playerStatus = PlayerStatus.Small
     //> lda #$08
     //> sta InjuryTimer           ;set injured invincibility timer
     ram.injuryTimer = 0x08
@@ -419,7 +419,7 @@ fun System.runGameTimer() {
     if (timerZero) {
         //> TimeUpOn:
         //> sta PlayerStatus          ;init player status (note A will always be zero here)
-        ram.playerStatus = 0
+        ram.playerStatus = PlayerStatus.Small
         //> jsr ForceInjury            ;do sub to kill the player (note player is small here)
         forceInjury()
         //> inc GameTimerExpiredFlag   ;set game timer expiration flag

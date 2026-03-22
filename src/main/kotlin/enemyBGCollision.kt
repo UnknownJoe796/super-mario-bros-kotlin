@@ -901,7 +901,7 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
 
     //> ldy PlayerSize; bne DBlockSte
     //> lda #$12                 ;otherwise load breakable block object state
-    val blockState = if (ram.playerSize == 0.toByte()) 0x12 else 0x11
+    val blockState = if (ram.playerSize == PlayerSize.Big) 0x12 else 0x11
     //> DBlockSte: sta Block_State,x
     ram.blockStates[x] = blockState.toByte()
 
@@ -933,7 +933,7 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
     val storedMetatile = blockBufferContents
 
     //> ldy PlayerSize; bne ChkBrick; tya
-    var metatileForBlock: Int = if (ram.playerSize == 0.toByte()) 0 else blockBufferContents
+    var metatileForBlock: Int = if (ram.playerSize == PlayerSize.Big) 0 else blockBufferContents
 
     //> ChkBrick: bcc PutMTileB
     if (bumpMatch) {
@@ -980,7 +980,7 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
 
     //> ldy #$00; lda CrouchingFlag; bne SmallBP
     //> lda PlayerSize; beq BigBP; SmallBP: iny
-    val sizeOffset = if (ram.crouchingFlag != 0.toByte() || ram.playerSize != 0.toByte()) 1 else 0
+    val sizeOffset = if (ram.crouchingFlag != 0.toByte() || ram.playerSize == PlayerSize.Small) 1 else 0
 
     //> BigBP: lda Player_Y_Position; clc; adc BlockYPosAdderData,y
     //> and #$f0; sta Block_Y_Position,x

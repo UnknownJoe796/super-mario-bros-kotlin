@@ -273,8 +273,8 @@ class GameRam {
     @RamLocation(0x7fc) var worldSelectEnableFlag: Boolean = false
     @RamLocation(0x7fd) var continueWorld: Byte = 0
     @RamLocation(0x753) var currentPlayer: Byte = 0
-    @RamLocation(0x754) var playerSize: Byte = 0
-    @RamLocation(0x756) var playerStatus: Byte = 0
+    @RamLocation(0x754, size = 0) var playerSize: PlayerSize = PlayerSize.Big
+    @RamLocation(0x756, size = 0) var playerStatus: PlayerStatus = PlayerStatus.Small
     @RamLocation(0x75a) var onscreenPlayerInfo: Byte = 0
     var numberofLives: Byte // alias for onscreenPlayerInfo (same NES address $75A)
         get() = onscreenPlayerInfo

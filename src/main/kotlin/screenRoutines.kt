@@ -84,7 +84,7 @@ private fun System.setupIntermediate() {
     val savedPlayerStatus = ram.playerStatus
     //> lda #$00                 ;set background color to black
     //> sta PlayerStatus         ;and player status to not fiery
-    ram.playerStatus = 0x00.toByte()
+    ram.playerStatus = PlayerStatus.Small
     //> lda #$02                 ;this is the ONLY time background color control
     //> sta BackgroundColorCtrl  ;is set to less than 4
     ram.backgroundColorCtrl = 0x02.toByte()
@@ -396,7 +396,7 @@ fun System.getPlayerColors() {
     //> ChkFiery:      lda PlayerStatus         ;check player status
     //> cmp #$02
     //> bne StartClrGet          ;if fiery, load alternate offset for fiery player
-    if ((ram.playerStatus) == 0x02.toByte()) {
+    if (ram.playerStatus == PlayerStatus.Fiery) {
         //> ldy #$08
         palette = PlayerPalettes.fiery
     }
