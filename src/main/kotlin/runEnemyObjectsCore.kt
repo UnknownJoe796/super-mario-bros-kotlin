@@ -182,22 +182,24 @@ private fun System.moveHammerBroXDir(x: Int) {
     // by Claude - fixed inverted condition: bne branches OVER the ldy #$04 when bit 6 is set
     var shimmy = 0xFC
     if ((ram.frameCounter.toInt() and 0x40) == 0) shimmy = 0x04
-    //> HBWalk: sty Enemy_X_Speed,x
+    //> Shimmy:  sty Enemy_X_Speed,x       ;store horizontal speed
     ram.sprObjXSpeed[1 + x] = shimmy.toByte()
 
-    //> ldy #$01; jsr PlayerEnemyDiff; bmi SetHBDir
+    //> ldy #$01; jsr PlayerEnemyDiff
     var dir = 1
     val (_, highDiff) = playerEnemyDiff()
+    //> bmi SetShim               ;if enemy to the left of player, skip this part
     if ((highDiff and 0x80) == 0) {
         dir = 2
-        //> lda EnemyIntervalTimer,x; beq HBSetSpd
+        //> lda EnemyIntervalTimer,x  ;check walking timer
+        //> bne SetShim               ;if not yet expired, skip to set moving direction
         val intTimer = ram.timers[0x16 + x].toInt() and 0xFF
         if (intTimer == 0) {
             //> lda #$f8; sta Enemy_X_Speed,x
             ram.sprObjXSpeed[1 + x] = 0xf8.toByte()
         }
     }
-    //> SetHBDir: sty Enemy_MovingDir,x
+    //> SetShim: sty Enemy_MovingDir,x     ;set moving direction
     ram.enemyMovingDirs[x] = dir.toByte()
     //> jmp MoveNormalEnemy
     moveNormalEnemy()
@@ -283,15 +285,20 @@ fun System.moveBloober() {
     //> bne BlooberSwim
     val hardIdx = if (ram.secondaryHardMode != 0.toByte()) 1 else 0
     val lsfr = ram.pseudoRandomBitReg[(1 + x).coerceIn(0, ram.pseudoRandomBitReg.size - 1)].toInt() and 0xFF
+    //> bcc FBLeft                 ;if not, branch to figure out moving direction
     if ((lsfr and blooberBitmasks[hardIdx]) == 0) {
         //> Set moving direction toward player
+        //> ldy Player_MovingDir       ;otherwise, load player's moving direction and
+        //> bcs SBMDir                 ;do an unconditional branch to set
         //> txa; lsr; bcs ChkRev (odd slot uses player dir)
         if ((x and 1) != 0) {
             ram.enemyMovingDirs[x] = ram.playerMovingDir.byte
         } else {
-            //> ChkRev: jsr PlayerEnemyDiff; bpl LMovBloworker
+            //> FBLeft: ldy #$02                   ;set left moving direction by default
+            //> ChkRev: jsr PlayerEnemyDiff
             var dir = 2
             val (_, highDiff) = playerEnemyDiff()
+            //> bpl SBMDir                 ;if enemy to the right of player, keep left
             if ((highDiff and 0x80) != 0) dir = 1
             ram.enemyMovingDirs[x] = dir.toByte()
         }

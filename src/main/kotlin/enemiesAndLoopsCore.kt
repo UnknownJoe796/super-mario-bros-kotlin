@@ -3,6 +3,8 @@
 
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.areaparser.EnemyObjByte1
+
 // NES Y register tracking for Setup_Vine: on the NES, the Y register at Setup_Vine
 // comes from JumpEngine's dispatch mechanism: Y = enemyID * 2 + 2. This is because
 // checkpointEnemyID calls JumpEngine which sets Y = A*2 (ASL;TAY) then INY twice.
@@ -454,11 +456,11 @@ private fun System.processEnemyData() {
     //> ldy EnemyDataOffset      ;get offset of enemy object data
     var y = ram.enemyDataOffset.toInt() and 0xFF
     //> lda (EnemyData),y        ;load first byte
-    val firstByte = enemyDataBytes.getOrElse(y) { 0xFF.toByte() }.toInt() and 0xFF
-    if (debugEnemyTrace) println("  [PED] slot=$x offset=$y firstByte=${firstByte.toString(16)} pageSel=${ram.enemyObjectPageSel} pageLoc=${ram.enemyObjectPageLoc}")
+    val enemyByte1 = EnemyObjByte1(enemyDataBytes.getOrElse(y) { 0xFF.toByte() })
+    if (debugEnemyTrace) println("  [PED] slot=$x offset=$y firstByte=${enemyByte1.rawInt.toString(16)} pageSel=${ram.enemyObjectPageSel} pageLoc=${ram.enemyObjectPageLoc}")
     //> cmp #$ff                 ;check for EOD terminator
     //> bne CheckEndofBuffer
-    if (firstByte == 0xFF) {
+    if (enemyByte1.isEndOfData) {
         //> jmp CheckFrenzyBuffer    ;if found, jump to check frenzy buffer
         checkFrenzyBuffer()
         return
@@ -468,8 +470,7 @@ private fun System.processEnemyData() {
     //> and #%00001111           ;check for special row $0e
     //> cmp #$0e
     //> beq CheckRightBounds     ;if found, branch
-    val row = firstByte and 0x0F
-    if (row != 0x0E) {
+    if (!enemyByte1.isAreaPointerChange) {
         //> cpx #$05                 ;check for end of buffer
         //> bcc CheckRightBounds     ;if not at end of buffer, branch
         if (x >= 0x05) {
@@ -517,11 +518,11 @@ private fun System.processEnemyData() {
     //> dey
     y--
     //> lda (EnemyData),y        ;reread first byte
-    val rereadFirst = enemyDataBytes.getOrElse(y) { 0.toByte() }.toInt() and 0xFF
+    val rereadByte1 = EnemyObjByte1(enemyDataBytes.getOrElse(y) { 0.toByte() })
     //> and #$0f
     //> cmp #$0f                 ;check for special row $0f
     //> bne PositionEnemyObj     ;if not found, branch to position enemy object
-    if ((rereadFirst and 0x0F) == 0x0F) {
+    if (rereadByte1.isPageControl) {
         //> lda EnemyObjectPageSel   ;if page select set,
         //> bne PositionEnemyObj     ;branch without reading second byte
         if (ram.enemyObjectPageSel == 0.toByte()) {
@@ -549,9 +550,9 @@ private fun System.processEnemyData() {
     ram.sprObjPageLoc[1 + x] = ram.enemyObjectPageLoc
 
     //> lda (EnemyData),y        ;get first byte of enemy object
-    val dataFirstByte = enemyDataBytes.getOrElse(y) { 0.toByte() }.toInt() and 0xFF
+    val positionByte1 = EnemyObjByte1(enemyDataBytes.getOrElse(y) { 0.toByte() })
     //> and #%11110000
-    val columnPos = dataFirstByte and 0xF0
+    val columnPos = positionByte1.columnBits
     //> sta Enemy_X_Position,x   ;store column position
     ram.sprObjXPos[1 + x] = columnPos.toByte()
 
@@ -570,7 +571,7 @@ private fun System.processEnemyData() {
         //> and #%00001111           ;check for special row $0e
         //> cmp #$0e                 ;if found, jump elsewhere
         //> beq ParseRow0e
-        if ((dataFirstByte and 0x0F) == 0x0E) {
+        if (positionByte1.isAreaPointerChange) {
             parseRow0e(y)
         } else {
             //> jmp CheckThreeBytes      ;if not found, unconditional jump
@@ -605,7 +606,7 @@ private fun System.processEnemyData() {
     //> asl                      ;coordinate
     //> asl
     //> asl
-    val verticalCoord = (dataFirstByte shl 4) and 0xFF
+    val verticalCoord = (positionByte1.row shl 4) and 0xFF
     //> sta Enemy_Y_Position,x
     ram.sprObjYPos[1 + x] = verticalCoord.toByte()
 
@@ -625,7 +626,7 @@ private fun System.processEnemyData() {
         //> lda SecondaryHardMode    ;if set, check to see if secondary hard mode flag
         //> beq Inc2B                ;is on, and if not, branch to skip this object completely
         if (ram.secondaryHardMode == 0.toByte()) {
-            advanceEnemyDataOffset(dataFirstByte)
+            advanceEnemyDataOffset(positionByte1)
             return
         }
     }
@@ -643,7 +644,7 @@ private fun System.processEnemyData() {
         //> DoGroup: jmp HandleGroupEnemies   ;handle enemy group objects
         // HandleGroupEnemies ends with jmp Inc2B → jmp ProcLoopCommand
         handleGroupEnemies(enemyType)
-        advanceEnemyDataOffset(dataFirstByte)
+        advanceEnemyDataOffset(positionByte1)
         return
     }
 
@@ -672,7 +673,7 @@ private fun System.processEnemyData() {
     //> lda Enemy_Flag,x     ;check to see if flag is set
     //> bne Inc2B            ;if not, leave, otherwise branch
     if (ram.enemyFlags[x].toInt() != 0) {
-        advanceEnemyDataOffset(dataFirstByte)
+        advanceEnemyDataOffset(positionByte1)
     }
     //> rts
 }
@@ -750,9 +751,9 @@ private fun System.checkThreeBytes() {
  * Advances the enemy data offset by 2 or 3 bytes depending on whether
  * the first byte has special row $0e, and resets page select.
  */
-private fun System.advanceEnemyDataOffset(firstByte: Int) {
+private fun System.advanceEnemyDataOffset(byte1: EnemyObjByte1) {
     //> CheckThreeBytes / Inc2B / Inc3B combined
-    if ((firstByte and 0x0F) == 0x0E) {
+    if (byte1.isAreaPointerChange) {
         ram.enemyDataOffset++
     }
     ram.enemyDataOffset = (ram.enemyDataOffset + 2).toByte()

@@ -1273,6 +1273,7 @@ private fun System.enemyStomped(x: Int) {
     }
 
     //> EnemyStompedPts:
+    //> lda StompedEnemyPtsData,y  ;load points data using offset in Y
     val points = stompedEnemyPtsData[pointsOfs].toInt() and 0xFF
     val savedOfs = ram.objectOffset
     ram.objectOffset = x.toByte()
@@ -1301,6 +1302,7 @@ private fun System.chkForDemoteKoopa(x: Int, enemyId: Int) {
     //> ChkForDemoteKoopa:
     //> cmp #$09; bcc HandleStompedShellE
     if (enemyId < 0x09) {
+        //> jmp SBnce                  ;then move onto something else
         handleStompedShellE(x)
         return
     }
@@ -1428,6 +1430,7 @@ private fun System.setPRout(engineSubroutine: GameEngineRoutine, playerState: Pl
  */
 fun System.playerBGCollision() {
     //> PlayerBGCollision:
+    //> ExPBGCol: rts                       ;otherwise leave
     //> lda DisableCollisionDet; bne ExPBGCol
     if (ram.disableCollisionDet != 0.toByte()) return
     //> lda GameEngineSubroutine; cmp #$0b; beq ExPBGCol
@@ -1437,6 +1440,7 @@ fun System.playerBGCollision() {
 
     //> lda #$01; ldy SwimmingFlag; bne SetPSte
     if (ram.swimmingFlag) {
+        //> SetPSte:  sta Player_State          ;set whatever player state is appropriate
         ram.playerState = PlayerState.Falling
     } else {
         //> lda Player_State; beq SetFallS; cmp #$03; bne ChkOnScr

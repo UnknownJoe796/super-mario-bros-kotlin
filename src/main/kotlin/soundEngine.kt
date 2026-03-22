@@ -1323,6 +1323,7 @@ private fun System.handleTriCtrl(triLen: Int, eventBuf: Int) {
 private fun System.handleNoiseMusic() {
     val areaBuf = ram.areaMusicBuffer.toInt() and 0xFF
     //> lda AreaMusicBuffer; and #%11110011; beq ExitMusicHandler
+    //> ExitMusicHandler:
     if (areaBuf and 0xF3 == 0) return  // underground or castle only -> skip noise
     //> dec Noise_BeatLenCounter; bne ExitMusicHandler
     val noiseLen = ((ram.noiseBeatLenCounter.toInt() and 0xFF) - 1) and 0xFF
@@ -1365,20 +1366,25 @@ private fun System.noiseBeatHandler(data: Int) {
     //> cmp #$30; beq LongBeat
     if (beatData == 0x30) {
         //> LongBeat: lda #$1c; ldx #$03; ldy #$58
+        //> bne PlayBeat
         writeSndReg(12, 0x1C)
         writeSndReg(14, 0x03)
+        //> sty SND_NOISE_REG+3
         writeSndReg(15, 0x58)
         return
     }
     //> cmp #$20; beq StrongBeat
     if (beatData == 0x20) {
         //> StrongBeat: lda #$1c; ldx #$0c; ldy #$18
+        //> bne PlayBeat
+        //> PlayBeat:
         writeSndReg(12, 0x1C)
         writeSndReg(14, 0x0C)
         writeSndReg(15, 0x18)
         return
     }
     //> and #%00010000; beq SilentBeat
+    //> bne PlayBeat
     if (beatData and 0x10 == 0) {
         writeSndReg(12, 0x10)
         return
@@ -1400,6 +1406,7 @@ private fun System.readMusicDataByte(y: Int): Int {
     return SoundData.readMusicData(addrLow, addrHigh, y)
 }
 
+//> AlternateLengthHandler:
 /// AlternateLengthHandler: extracts length and note data from a packed byte.
 /// Square 1 music and noise data format: d7-d6,d0 = length bits, d5-d1 = note/beat data.
 /// The bit rotation converts xx00000x into 00000xxx.

@@ -511,12 +511,13 @@ private fun System.processAreaData() {
         //> ldy AreaDataOffset       ;get offset of area data pointer
         var y = ram.areaDataOffset.toInt() and 0xFF
         //> lda (AreaData),y         ;get first byte of area object
+        val firstObjByte = AreaObjByte1(ram.areaData!![y])
         //> cmp #$fd                 ;if end-of-area, skip all this crap
         //> beq RdyDecode
         //> lda AreaObjectLength,x   ;check area object buffer flag
         //> bpl RdyDecode            ;if buffer not negative, branch, otherwise
         var behind: Boolean? = false
-        if (ram.areaData!![y] != 0xFD.toByte() && ram.areaObjectLength[x] < 0.toByte()) {
+        if (!firstObjByte.isEndOfData && ram.areaObjectLength[x] < 0.toByte()) {
             //> iny
             y++
             //> lda (AreaData),y         ;get second byte of area object
@@ -533,11 +534,10 @@ private fun System.processAreaData() {
             //> Chk1Row13:  dey
             y--
             //> lda (AreaData),y         ;reread first byte of level object
-            //> and #$0f                 ;mask out high nybble
-            val tmp = ram.areaData!![y] and 0xf
+            val rereadByte1 = AreaObjByte1(ram.areaData!![y])
             //> cmp #$0d                 ;row 13?
             //> bne Chk1Row14
-            if(tmp == 0xd.toByte()) {
+            if(rereadByte1.isSpecialRow13) {
                 //> iny                      ;if so, reread second byte of level object
                 //> lda (AreaData),y
                 //> dey                      ;decrement to get ready to read first byte
@@ -567,7 +567,7 @@ private fun System.processAreaData() {
                 //> bne CheckRear
                 //> lda BackloadingFlag      ;check flag for saved page number and branch if set
                 //> bne RdyDecode            ;to render the object (otherwise bg might not look right)
-                if(tmp != 0xe.toByte() || !ram.backloadingFlag) {
+                if(!rereadByte1.isAlterAttributes || !ram.backloadingFlag) {
                     //> CheckRear:  lda AreaObjectPageLoc    ;check to see if current page of level object is
                     //> cmp CurrentPageLoc       ;behind current page of renderer
                     //> bcc SetBehind            ;if so branch
@@ -620,33 +620,22 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
         //> ldy AreaObjOffsetBuffer,x  ;if not, get offset from buffer
         y = ram.areaObjOffsetBuffer[x]
     }
-    //> Chk1stB:  ldx #$10                   ;load offset of 16 for special row 15
-    var add: Byte = 0x10
     //> lda (AreaData),y           ;get first byte of level object again
     var a: Byte = ram.areaData!![y]
+    val objByte1 = AreaObjByte1(a)
     //> cmp #$fd
     //> beq EndAParse              ;if end of level, leave this routine
-    if (a == 0xFD.toByte()) return
-    //> and #$0f                   ;otherwise, mask out low nybble
-    val row: Byte = a and 0x0F
-    //> cmp #$0f                   ;row 15?
-    //> beq ChkRow14               ;if so, keep the offset of 16
-    if (row != 0x0F.toByte()) {
-        //> ldx #$08                   ;otherwise load offset of 8 for special row 12
-        add = 0x08
-        //> cmp #$0c                   ;row 12?
-        //> beq ChkRow14               ;if so, keep the offset value of 8
-        if (row != 0x0C.toByte()) {
-            //> ldx #$00                   ;otherwise nullify value by default
-            add = 0x00
-        }
+    if (objByte1.isEndOfData) return
+    //> Determine jump table offset based on row:
+    //> row 15 → offset 0x10, row 12 → offset 0x08, rows 0-11/13/14 → offset 0x00
+    var temp07: Byte = when {
+        objByte1.isSpecialRow15 -> 0x10
+        objByte1.isSpecialRow12 -> 0x08
+        else -> 0x00
     }
-    //> ChkRow14: stx $07                    ;store whatever value we just loaded here
-    var temp07: Byte = add
-    //> ldx ObjectOffset           ;get object offset again
     //> cmp #$0e                   ;row 14?
     //> bne ChkRow13
-    if (row == 0x0E.toByte()) {
+    if (objByte1.isAlterAttributes) {
         //> lda #$00                   ;if so, load offset with $00
         //> sta $07
         temp07 = 0x00
@@ -654,7 +643,7 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
         a = 0x2E.toByte()
         //> bne NormObj                ;unconditional branch
         // jump to NormObj
-    } else if (row == 0x0D.toByte()) {
+    } else if (objByte1.isSpecialRow13) {
         //> ChkRow13: cmp #$0d                   ;row 13?
         //> bne ChkSRows
         //> lda #$22                   ;if so, load offset with 34
@@ -683,7 +672,7 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
     } else {
         //> ChkSRows: cmp #$0c                   ;row 12-15?
         //> bcs SpecObj
-        if (row < 0x0C.toByte()) {
+        if (objByte1.isNormalRow) {
             //> iny                        ;if not, get second byte of level object
             y++
             //> lda (AreaData),y
@@ -746,12 +735,10 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
             //> ldy AreaDataOffset         ;if not, get old offset of level pointer
             y = ram.areaDataOffset
             //> lda (AreaData),y           ;and reload first byte
-            a = ram.areaData!![y]
-            //> and #%00001111
-            val lowN: Byte = a and 0x0F.toByte()
-            //> cmp #$0e                   ;row 14?
+            val reloadByte1 = AreaObjByte1(ram.areaData!![y])
+            //> and #%00001111 / cmp #$0e  ;row 14?
             //> bne LeavePar
-            if (lowN != 0x0E.toByte()) return
+            if (!reloadByte1.isAlterAttributes) return
             //> lda BackloadingFlag        ;if so, check backloading flag
             //> bne StrAObj                ;if set, branch to render object, else leave
             if (!ram.backloadingFlag) return
@@ -773,17 +760,11 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
             }
             //> BackColC: ldy AreaDataOffset         ;get first byte again
             y = ram.areaDataOffset
-            //> lda (AreaData),y
-            a = ram.areaData!![y]
-            //> and #%11110000             ;mask out low nybble and move high to low
-            //> lsr
-            //> lsr
-            //> lsr
-            //> lsr
-            val col: Byte = a and 0xF0.toByte() ushr 4
+            val backColByte1 = AreaObjByte1(ram.areaData!![y])
+            //> and #%11110000 / lsr*4     ;get column position
             //> cmp CurrentColumnPos       ;is this where we're at?
             //> bne LeavePar               ;if not, branch to leave
-            if (col != ram.currentColumnPos.toByte()) return
+            if (backColByte1.column.toByte() != ram.currentColumnPos.toByte()) return
             // else fall through to StrAObj
         }
         //> StrAObj:  lda AreaDataOffset         ;if so, load area obj offset and store in buffer

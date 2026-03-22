@@ -134,7 +134,10 @@ fun System.largePlatformCollision() {
     }
     //> ChkForPlayerC_LargeP:
     chkForPlayerC_LargeP(x)
+    //> ExLPC: ldx ObjectOffset             ;get enemy object buffer offset and leave
 }
+
+//> ;$00 - counter for bounding boxes
 
 /**
  * Checks if the player collides with a large platform at the given enemy offset.
@@ -198,6 +201,7 @@ fun System.smallPlatformCollision() {
 
         //> lda BoundingBox_UL_YPos,y  ;check top of platform's bounding box for being
         //> cmp #$20                   ;above a specific point
+        //> bcc MoveBoundBox           ;if so, branch, don't do collision detection
         val bbUlY = ram.boundBoxCoords[bbOffset + 1].toInt() and 0xFF
         if (bbUlY >= 0x20) {
             //> jsr PlayerCollisionCore    ;otherwise, perform player-to-platform collision detection
@@ -225,6 +229,7 @@ fun System.smallPlatformCollision() {
         //> bne ChkSmallPlatLoop       ;loop back until both bounding boxes are checked
         counter--
     }
+    //> ExSPC: ldx ObjectOffset           ;get enemy object buffer offset, then leave
 }
 
 // =====================================================================
@@ -345,6 +350,7 @@ private fun System.platformSideCollisions(bbOffset: Int) {
     val platUlX = ram.boundBoxCoords[bbOffset + 0].toInt() and 0xFF
     val leftDiff = (playerDrX - platUlX) and 0xFF
     //> cmp #$08                   ;if difference close enough, skip all of this
+    //> bcc SideC
     if (leftDiff < 0x08) {
         impedePlayerMove(side)
         return
