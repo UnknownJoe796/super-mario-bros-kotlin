@@ -37,7 +37,7 @@ fun System.flagpoleRoutine() {
     //> lda Player_State
     //> cmp #$03                  ;if player state not climbing,
     //> bne SkipScore             ;branch to near the end of code
-    if (ram.playerState != 3.toByte()) {
+    if (ram.playerState != PlayerState.Climbing) {
         flagpoleGfx(x)
         return
     }

@@ -320,7 +320,7 @@ private fun System.procLPlatCollisions(
     ram.platformCollisionFlags[x] = collisionValue.toByte()
     //> lda #$00
     //> sta Player_State             ;set player state to normal then leave
-    ram.playerState = 0
+    ram.playerState = PlayerState.OnGround
 }
 
 // =====================================================================

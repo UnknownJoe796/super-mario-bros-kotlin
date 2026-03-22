@@ -322,7 +322,7 @@ class GameRam {
     @RamLocation(0x6f3) val miscSprDataOffsets = ByteArray(9)
 
     @RamLocation(0x3ee) var sprDataOffsetCtrl: Byte = 0
-    @RamLocation(0x1d) var playerState: Byte = 0
+    var playerState: PlayerState = PlayerState.OnGround
     @RamLocation(0x1e, size = 6) val enemyState = ByteArray(999)
     var fireballState: Byte
         get() = fireballStates[0]

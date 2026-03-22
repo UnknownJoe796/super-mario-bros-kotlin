@@ -1372,24 +1372,24 @@ private fun System.handlePowerUpCollision(x: Int) {
         //> UpToSuper: lda #$01; sta PlayerStatus
         ram.playerStatus = 1
         //> lda #$09 (subroutine value for super)
-        setPRout(0x09, 0x00)
+        setPRout(0x09, PlayerState.OnGround)
     } else if (playerStatus == 0x01) {
         //> lda #$02; sta PlayerStatus
         ram.playerStatus = 2
         //> jsr GetPlayerColors
         getPlayerColors()
         //> lda #$0c (subroutine value for fiery)
-        setPRout(0x0c, 0x00)
+        setPRout(0x0c, PlayerState.OnGround)
     }
     // NoPUp: if playerStatus > 1, do nothing
 }
 
-private fun System.setPRout(engineSubroutine: Int, playerState: Int) {
+private fun System.setPRout(engineSubroutine: Int, playerState: PlayerState) {
     //> SetPRout:
     //> sta GameEngineSubroutine
     ram.gameEngineSubroutine = engineSubroutine.toByte()
     //> sty Player_State
-    ram.playerState = playerState.toByte()
+    ram.playerState = playerState
     //> ldy #$ff; sty TimerControl
     ram.timerControl = 0xff.toByte()
     //> iny; sty ScrollAmount
@@ -1419,16 +1419,15 @@ fun System.playerBGCollision() {
 
     //> lda #$01; ldy SwimmingFlag; bne SetPSte
     if (ram.swimmingFlag) {
-        ram.playerState = 1
+        ram.playerState = PlayerState.Falling
     } else {
         //> lda Player_State; beq SetFallS; cmp #$03; bne ChkOnScr
         // State 0: beq branches to SetFallS → state = 2
         // State 3: cmp #$03 sets Z flag, bne does NOT branch → falls through to SetFallS → state = 2
         // States 1,2: bne branches to ChkOnScr → no change
-        val pState = ram.playerState.toInt() and 0xFF
-        if (pState == 0 || pState == 3) {
+        if (ram.playerState == PlayerState.OnGround || ram.playerState == PlayerState.Climbing) {
             //> SetFallS: lda #$02; SetPSte: sta Player_State
-            ram.playerState = 2
+            ram.playerState = PlayerState.FallingAlt
         }
     }
 
@@ -1578,7 +1577,7 @@ private fun System.processFootMetatile(metatile: Int, result: BlockBufferResult,
     //> ldy JumpspringAnimCtrl; bne InitSteP
     if (ram.jumpspringAnimCtrl != 0.toByte()) {
         //> InitSteP: lda #$00; sta Player_State
-        ram.playerState = 0
+        ram.playerState = PlayerState.OnGround
         return false  // falls through to DoPlayerSideCheck
     }
 
@@ -1597,7 +1596,7 @@ private fun System.processFootMetatile(metatile: Int, result: BlockBufferResult,
         ram.playerYMoveForce = 0
         ram.stompChainCounter = 0
         //> InitSteP: lda #$00; sta Player_State
-        ram.playerState = 0
+        ram.playerState = PlayerState.OnGround
         return false  // falls through to DoPlayerSideCheck
     } else {
         //> lda Player_MovingDir; sta $00; jmp ImpedePlayerMove  — exits entirely
@@ -1694,7 +1693,7 @@ private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult, sid
     }
 
     //> ChkPBtm: ldy Player_State; cpy #$00; bne StopPlayerMove
-    if (ram.playerState != 0.toByte()) {
+    if (ram.playerState != PlayerState.OnGround) {
         stopPlayerMove(sideCounter)
         return
     }
@@ -1918,7 +1917,7 @@ private fun System.flagpoleCollision(metatile: Int) {
 private fun System.putPlayerOnVine(result: BlockBufferResult) {
     //> PutPlayerOnVine:
     //> lda #$03; sta Player_State
-    ram.playerState = 3
+    ram.playerState = PlayerState.Climbing
     //> lda #$00; sta Player_X_Speed; sta Player_X_MoveForce
     ram.playerXSpeed = 0
     ram.playerXMoveForce = 0
