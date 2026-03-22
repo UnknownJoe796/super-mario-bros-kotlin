@@ -917,14 +917,20 @@ fun System.shellOrBlockDefeat(x: Int) {
 
     val enemyId = ram.enemyID[x].toInt() and 0xFF
     //> cmp #PiranhaPlant; bne StnE
+    // NES A register: after cmp, A still = enemy ID. But for PiranhaPlant path,
+    // A gets overwritten with (modified Y position). ChkToStunEnemies uses A for
+    // its comparisons, not enemy ID directly.
+    var aRegister = enemyId  // A = enemy ID from lda Enemy_ID,x
     if (enemyId == EnemyId.PiranhaPlant.id) {
         //> lda Enemy_Y_Position,x; adc #$18; sta Enemy_Y_Position,x
         // carry=1 from cmp #PiranhaPlant (equal), so adc adds $18 + 1 = $19
         val yPos = ram.sprObjYPos[x + 1].toInt() and 0xFF
-        ram.sprObjYPos[x + 1] = (yPos + 0x19).toByte()
+        val newY = (yPos + 0x19) and 0xFF
+        ram.sprObjYPos[x + 1] = newY.toByte()
+        aRegister = newY  // A now holds modified Y position, not enemy ID
     }
     //> StnE: jsr ChkToStunEnemies
-    chkToStunEnemies(x)
+    chkToStunEnemies(x, aRegister)
     //> lda Enemy_State,x; and #%00011111; ora #%00100000; sta Enemy_State,x
     ram.enemyState[x] = (ram.enemyState.getEnemyState(x) and 0x1F or 0x20).byte
 
@@ -950,22 +956,26 @@ fun System.shellOrBlockDefeat(x: Int) {
 
 /**
  * Stun enemies: demote koopa variants, set stunned state, apply knockback.
+ * @param aValue NES A register value — normally the enemy ID, but for PiranhaPlant
+ *              it holds the modified Y position from shellOrBlockDefeat.
  */
-private fun System.chkToStunEnemies(x: Int) {
+private fun System.chkToStunEnemies(x: Int, aValue: Int = ram.enemyID[x].toInt() and 0xFF) {
     //> ChkToStunEnemies:
-    val enemyId = ram.enemyID[x].toInt() and 0xFF
+    // NES uses A register for comparisons. A may differ from actual enemy ID
+    // when called from shellOrBlockDefeat for PiranhaPlant (A = Y position).
+    val a = aValue and 0xFF
 
     //> cmp #$09; bcc SetStun
     //> cmp #$11; bcs SetStun
     //> cmp #$0a; bcc Demote
     //> cmp #PiranhaPlant; bcc SetStun
-    if (enemyId >= EnemyId.TallEnemy.id && enemyId < EnemyId.Lakitu.id) {
-        if (enemyId < EnemyId.GreyCheepCheep.id || enemyId >= EnemyId.PiranhaPlant.id) {
-            // SetStun path
-        } else {
+    if (a >= EnemyId.TallEnemy.id && a < EnemyId.Lakitu.id) {
+        if (a < EnemyId.GreyCheepCheep.id || a >= EnemyId.PiranhaPlant.id) {
+            // fall through to Demote
             //> Demote: and #%00000001; sta Enemy_ID,x
-            ram.enemyID[x] = (enemyId and 0x01).toByte()
+            ram.enemyID[x] = (a and 0x01).toByte()
         }
+        // else: SetStun path (GreyCheepCheep..Podoboo — no demote)
     }
 
     //> SetStun: lda Enemy_State,x; and #%11110000; ora #%00000010; sta Enemy_State,x
