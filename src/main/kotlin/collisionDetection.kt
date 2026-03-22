@@ -2016,7 +2016,8 @@ private fun System.putPlayerOnVine(result: BlockBufferResult) {
     // The assembly multiplies it by 16 and adds an adder based on facing direction.
     // This positions the player horizontally on the vine/flagpole.
     val shiftedBBLow = (bbLow shl 4) and 0xFF
-    val xPosAdder = climbXPosAdder[facingDir - 1].toInt()
+    // NES: ClimbXPosAdder-1,y — when Y=0, reads ROM $DE24=$8A (byte before table)
+    val xPosAdder = climbXPosAdder.getOrElse(facingDir - 1) { 0x8A.toByte() }.toInt()
     //> clc; adc ClimbXPosAdder-1,y; sta Player_X_Position
     // by Claude - use named scalar, not flat array (coherence fix)
     ram.playerXPosition = ((shiftedBBLow + xPosAdder) and 0xFF).toUByte()
@@ -2027,7 +2028,8 @@ private fun System.putPlayerOnVine(result: BlockBufferResult) {
 
     //> lda ScreenRight_PageLoc; clc; adc ClimbPLocAdder-1,y; sta Player_PageLoc
     val pageLoc = ram.screenRightPageLoc.toInt() and 0xFF
-    val pageAdder = climbPLocAdder[facingDir - 1].toInt()
+    // NES: ClimbPLocAdder-1,y — when Y=0 (facingDir=None), reads byte before table = $07 (last of ClimbXPosAdder)
+    val pageAdder = climbPLocAdder.getOrElse(facingDir - 1) { 0x07.toByte() }.toInt()
     ram.playerPageLoc = ((pageLoc + pageAdder) and 0xFF).toByte()
 }
 
