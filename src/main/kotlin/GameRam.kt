@@ -96,7 +96,9 @@ class GameRam {
     @RamLocation(0x770) var operMode: OperMode = OperMode.TitleScreen
     @RamLocation(0x772) var operModeTask: Byte = 0
     @RamLocation(0x73c) var screenRoutineTask: Byte = 0
+    // Bitfield: bit 0 = paused, bit 7 = debounce timer active (prevents re-toggle)
     @RamLocation(0x776) var gamePauseStatus: Byte = 0
+    val isPaused: Boolean get() = (gamePauseStatus.toInt() and 0x01) != 0
     @RamLocation(0x777) var gamePauseTimer: Byte = 0
     @RamLocation(0x717) var demoAction: Byte = 0
     @RamLocation(0x718) var demoActionTimer: Byte = 0
