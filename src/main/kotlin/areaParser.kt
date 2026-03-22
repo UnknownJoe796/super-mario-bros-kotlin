@@ -1080,7 +1080,7 @@ private fun System.scrollLockObject() {
     //> lda ScrollLock      ;invert scroll lock to turn it on
     //> eor #%00000001
     //> sta ScrollLock
-    ram.scrollLock = (ram.scrollLock.toInt() xor 0x01).toByte()
+    ram.scrollLock = !ram.scrollLock
     //> rts
 }
 

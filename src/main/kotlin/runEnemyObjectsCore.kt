@@ -1374,7 +1374,7 @@ private fun System.firebarCollision(sprOfs: Int, oamOfs: Int, screenY: Int): Int
         playerY = (playerY + 0x18) and 0xFF
     } else {
         //> lda CrouchingFlag; beq BigJp
-        if (ram.crouchingFlag != 0.toByte()) {
+        if (ram.crouchingFlag) {
             //> AdjSm: inc $05; inc $05; tya; clc; adc #$18; tay
             collisionPhase = 2
             playerY = (playerY + 0x18) and 0xFF

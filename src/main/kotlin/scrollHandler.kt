@@ -30,7 +30,7 @@ fun System.scrollHandler() {
 
     //> lda ScrollLock            ;check scroll lock flag
     //> bne InitScrlAmt           ;skip a bunch of code here if set
-    if (ram.scrollLock != 0.toByte()) {
+    if (ram.scrollLock) {
         // InitScrlAmt
         ram.scrollAmount = 0
         chkPOffscr()

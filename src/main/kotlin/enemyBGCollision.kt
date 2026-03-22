@@ -991,7 +991,7 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
 
     //> ldy #$00; lda CrouchingFlag; bne SmallBP
     //> lda PlayerSize; beq BigBP; SmallBP: iny
-    val sizeOffset = if (ram.crouchingFlag != 0.toByte() || ram.playerSize == PlayerSize.Small) 1 else 0
+    val sizeOffset = if (ram.crouchingFlag || ram.playerSize == PlayerSize.Small) 1 else 0
 
     //> BigBP: lda Player_Y_Position; clc; adc BlockYPosAdderData,y
     //> jmp InvOBit              ;skip subroutine to do last part of code here
@@ -1343,14 +1343,14 @@ fun System.warpZoneObject() {
     val x = ram.objectOffset.toInt() and 0xFF
 
     //> lda ScrollLock; beq ExGTimer
-    if (ram.scrollLock == 0.toByte()) return
+    if (!ram.scrollLock) return
 
     //> lda Player_Y_Position; and Player_Y_HighPos; bne ExGTimer
     val yPosCheck = (ram.playerYPosition.toInt() and 0xFF) and (ram.playerYHighPos.toInt() and 0xFF)
     if (yPosCheck != 0) return
 
     //> sta ScrollLock
-    ram.scrollLock = 0
+    ram.scrollLock = false
     //> inc WarpZoneControl
     ram.warpZoneControl = (ram.warpZoneControl + 1).toByte()
     //> jmp EraseEnemyObject

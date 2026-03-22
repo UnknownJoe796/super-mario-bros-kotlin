@@ -1455,7 +1455,7 @@ fun System.playerBGCollision() {
     //> PlayerBGCollision:
     //> ExPBGCol: rts                       ;otherwise leave
     //> lda DisableCollisionDet; bne ExPBGCol
-    if (ram.disableCollisionDet != 0.toByte()) return
+    if (ram.disableCollisionDet) return
     //> lda GameEngineSubroutine; cmp #$0b; beq ExPBGCol
     if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerDeath) return
     //> cmp #$04; bcc ExPBGCol
@@ -1489,7 +1489,7 @@ fun System.playerBGCollision() {
     //> ChkCollSize:
     //> ldy #$02; lda CrouchingFlag; bne GBBAdr
     var adderIdx = 2
-    if (ram.crouchingFlag == 0.toByte()) {
+    if (!ram.crouchingFlag) {
         //> lda PlayerSize; bne GBBAdr
         if (ram.playerSize == PlayerSize.Big) {
             //> dey  ;big player not crouching
@@ -1508,7 +1508,7 @@ fun System.playerBGCollision() {
 
     //> ldx PlayerSize; lda CrouchingFlag; beq HeadChk; inx
     var sizeOfs = ram.playerSize.ordinal
-    if (ram.crouchingFlag != 0.toByte()) sizeOfs++
+    if (ram.crouchingFlag) sizeOfs++
 
     //> HeadChk: lda Player_Y_Position; cmp PlayerBGUpperExtent,x; bcc DoFootCheck
     //> jmp DoFootCheck             ;jump ahead to skip these other parts here
@@ -1945,7 +1945,7 @@ private fun System.flagpoleCollision(metatile: Int) {
     //> lda #$01; sta PlayerFacingDir
     ram.playerFacingDir = Direction.Left
     //> inc ScrollLock
-    ram.scrollLock = (ram.scrollLock + 1).toByte()
+    ram.scrollLock = true
 
     if (ram.gameEngineSubroutine == GameEngineRoutine.FlagpoleSlide) {
         // already running flagpole slide

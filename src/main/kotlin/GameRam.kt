@@ -166,7 +166,7 @@ class GameRam {
     @RamLocation(0x749) var secondaryMsgCounter: Byte = 0
     @RamLocation(0x73f) var horizontalScroll: Byte = 0
     @RamLocation(0x740) var verticalScroll: Byte = 0
-    @RamLocation(0x723) var scrollLock: Byte = 0
+    @RamLocation(0x723) var scrollLock: Boolean = false
     @RamLocation(0x73d) var scrollThirtyTwo: Byte = 0
     @RamLocation(0x6ff) var playerXScroll: Byte = 0
     @RamLocation(0x755) var playerPosForScroll: Byte = 0
@@ -440,7 +440,7 @@ class GameRam {
     var playerYMoveForce: Byte
         get() = sprObjYMoveForce[0]
         set(value) { sprObjYMoveForce[0] = value }
-    @RamLocation(0x716) var disableCollisionDet: Byte = 0
+    @RamLocation(0x716) var disableCollisionDet: Boolean = false
     @RamLocation(0x490) var playerCollisionBits: Byte = 0
     var enemyCollisionBits: Byte
         get() = enemyCollisionBitsArr[0]
@@ -479,9 +479,9 @@ class GameRam {
     @RamLocation(0x70b) var playerChangeSizeFlag: Byte = 0
     @RamLocation(0x70c) var playerAnimTimerSet: Byte = 0
     @RamLocation(0x70d) var playerAnimCtrl: Byte = 0
-    @RamLocation(0x712) var deathMusicLoaded: Byte = 0
+    @RamLocation(0x712) var deathMusicLoaded: Boolean = false
     @RamLocation(0x713) var flagpoleSoundQueue: Byte = 0
-    @RamLocation(0x714) var crouchingFlag: Byte = 0
+    @RamLocation(0x714) var crouchingFlag: Boolean = false
     @RamLocation(0x450) var maximumLeftSpeed: Byte = 0
     @RamLocation(0x456) var maximumRightSpeed: Byte = 0
     // by Claude - delegates to offscrBits[0] for scalar/array coherence (same NES address $3D0)

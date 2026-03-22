@@ -176,7 +176,7 @@ fun System.playerCtrlRoutine() {
     val boundBoxY: Byte = if (ram.playerSize == PlayerSize.Small) {
         0x01 // small
     } else {
-        if (ram.crouchingFlag != 0x00.toByte()) 0x02 else 0x00 // big crouching or big standing
+        if (ram.crouchingFlag) 0x02 else 0x00 // big crouching or big standing
     }
     ram.playerBoundBoxCtrl = boundBoxY
 
@@ -230,7 +230,7 @@ fun System.playerCtrlRoutine() {
 
     //> ldx #$01
     //> stx ScrollLock              ;set scroll lock
-    ram.scrollLock = 0x01
+    ram.scrollLock = true
     //> ldy #$04
     //> sty $07                     ;set value here
     var hole07: Int = 0x04
@@ -253,12 +253,12 @@ fun System.playerCtrlRoutine() {
         if (ram.gameEngineSubroutine != GameEngineRoutine.PlayerDeath) {
             //> ldy DeathMusicLoaded        ;check value here
             //> bne HoleBottom              ;if already set, branch to next part
-            if (ram.deathMusicLoaded == 0x00.toByte()) {
+            if (!ram.deathMusicLoaded) {
                 //> iny
                 //> sty EventMusicQueue         ;otherwise play death music
                 //> sty DeathMusicLoaded        ;and set value here
                 ram.eventMusicQueue = 0x01
-                ram.deathMusicLoaded = 0x01
+                ram.deathMusicLoaded = true
             }
             //> HoleBottom: ldy #$06
             //> sty $07                     ;change value here
@@ -318,14 +318,14 @@ private fun System.playerMovementSubs() {
     //> lda #$00                  ;set A to init crouch flag by default
     //> ldy PlayerSize            ;is player small?
     //> bne SetCrouch             ;if so, branch
-    var crouchVal: Byte = 0x00
+    var crouchVal = false
     if (ram.playerSize == PlayerSize.Big) {
         //> lda Player_State          ;check state of player
         //> bne ProcMove              ;if not on the ground, branch
         if (ram.playerState == PlayerState.OnGround) {
             //> lda Up_Down_Buttons       ;load controller bits for up and down
             //> and #%00000100            ;single out bit for down button
-            crouchVal = ram.upDownButtons and 0b00000100
+            crouchVal = (ram.upDownButtons.toInt() and 0b00000100) != 0
         }
     }
     //> SetCrouch: sta CrouchingFlag         ;store value in crouch flag
