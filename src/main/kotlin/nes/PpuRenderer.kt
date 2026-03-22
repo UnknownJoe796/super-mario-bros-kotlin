@@ -1,11 +1,21 @@
 package com.ivieleague.smbtranslation.nes
 
 import com.ivieleague.smbtranslation.utils.get
-import org.jetbrains.skia.Canvas
-import org.jetbrains.skia.Paint
-import org.jetbrains.skia.Rect
+import org.jetbrains.skia.*
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 object PpuRenderer {
+    private const val SCREEN_W = 256
+    private const val SCREEN_H = 240
+    private const val TILE_SIZE = 8
+
+    // Reusable pixel buffer (ARGB ints)
+    private val pixels = IntArray(SCREEN_W * SCREEN_H)
+
+    // Reusable byte buffer for Skia N32 format (BGRA on little-endian)
+    private val byteBuffer = ByteArray(SCREEN_W * SCREEN_H * 4)
+
     /**
      * Renders a simple view of the current PPU state (background + sprites) to the provided Skia canvas.
      *
@@ -29,65 +39,51 @@ object PpuRenderer {
      *                     (rows 0-1 are empty NES overscan), so the unscrolled region must cover all 4 rows.
      */
     fun render(canvas: Canvas, ppu: PictureProcessingUnit, scale: Int = 2, scrollStartY: Int = 0) {
-        val tileSize = 8
-        val screenW = 256
-        val screenH = 240
-        val paint = Paint()
+        val bgArgb = ppu.universalBackgroundColor.argb
 
-        // Fill with PPU universal background color ($3F00)
-        val backgroundColor = ppu.universalBackgroundColor
-        paint.color = backgroundColor.argb
-        canvas.drawRect(
-            Rect.Companion.makeXYWH(0f, 0f, (screenW * scale).toFloat(), (screenH * scale).toFloat()),
-            paint
-        )
+        // Fill entire pixel buffer with universal background color
+        pixels.fill(bgArgb)
+
+        // Pre-extract scroll values for the hot loop
+        val baseNt = ppu.control.baseNametableAddress.toInt()
+        val scrollX = ppu.scrollX
+        val scrollY = ppu.scrollY
+        val ntXBit = (baseNt and 0x01) * 256
+        val ntYBit = (baseNt and 0x02) / 2 * 240
 
         /**
-         * Resolves the nametable index and local tile coordinates for a given virtual (vx, vy).
-         * SMB uses vertical mirroring:
-         * - Nametables at $2000 and $2800 are mirrored (physical index 0)
-         * - Nametables at $2400 and $2C00 are mirrored (physical index 1)
-         * This results in a 512x240 logical space mirrored vertically.
+         * Resolves the background color index at a given screen pixel.
+         * Returns the Tile and color index byte. SMB uses vertical mirroring.
          */
         fun bgLookup(sx: Int, sy: Int): Pair<Tile, Byte> {
             val vx: Int
             val vy: Int
-            val baseNt: Int = ppu.control.baseNametableAddress.toInt()
             if (sy >= scrollStartY) {
-                // Combine base nametable address with scroll registers for full 15-bit internal scroll position
-                // Bit 0 of baseNt is X scroll (bit 8), Bit 1 of baseNt is Y scroll (bit 8)
-                vx = (sx + ppu.scrollX + (baseNt and 0x01) * 256) % 512
-                vy = (sy + ppu.scrollY + (baseNt and 0x02) / 2 * 240) % 480
+                vx = (sx + scrollX + ntXBit) % 512
+                vy = (sy + scrollY + ntYBit) % 480
             } else {
-                // Status bar usually fixed at Nametable 0
                 vx = sx
                 vy = sy
             }
 
-            // Vertical mirroring: physical nametable is based on X coordinate only
             val ntIdx = (vx / 256) and 1
-            val tx = (vx and 255) / tileSize
-            val ty = (vy % 240) / tileSize
-            
+            val tx = (vx and 255) / TILE_SIZE
+            val ty = (vy % 240) / TILE_SIZE
+
             val tile = ppu.backgroundTiles[ntIdx][tx, ty]
-            return tile to tile.pattern.colorIndex(vx % tileSize, vy % tileSize)
+            return tile to tile.pattern.colorIndex(vx % TILE_SIZE, vy % TILE_SIZE)
         }
 
-        // Draw background — iterate over screen pixels, look up from correct nametable
+        // Draw background
         if (ppu.mask.backgroundEnabled) {
-            for (sy in 0 until screenH) {
-                val hideLeft = !ppu.mask.showLeftBackground
-                for (sx in 0 until screenW) {
+            val hideLeft = !ppu.mask.showLeftBackground
+            for (sy in 0 until SCREEN_H) {
+                val rowOffset = sy * SCREEN_W
+                for (sx in 0 until SCREEN_W) {
                     if (hideLeft && sx < 8) continue
                     val (tile, ci) = bgLookup(sx, sy)
                     if (ci == 0.toByte()) continue // bg color already filled
-                    paint.color = tile.palette.colors[ci].argb
-                    canvas.drawRect(
-                        Rect.Companion.makeXYWH(
-                            (sx * scale).toFloat(), (sy * scale).toFloat(),
-                            scale.toFloat(), scale.toFloat()
-                        ), paint
-                    )
+                    pixels[rowOffset + sx] = tile.palette.colors[ci].argb
                 }
             }
         }
@@ -102,21 +98,19 @@ object PpuRenderer {
                 if (yBase >= 240) continue
                 val flags = spr.attributes
                 val paletteIndex = flags.palette.toInt()
-                val palette = ppu.spritePalettes.getOrNull(paletteIndex)
+                val palette = ppu.spritePalettes.getOrNull(paletteIndex) ?: continue
                 val flipH = flags.flipHorizontal
                 val flipV = flags.flipVertical
                 val behind = flags.behindBackground
                 val hideLeft = !ppu.mask.showLeftSprites
 
-                // Skip if palette is missing
-                if (palette == null) continue
-
-                for (py in 0 until tileSize) {
-                    val srcY = if (flipV) (tileSize - 1 - py) else py
+                for (py in 0 until TILE_SIZE) {
+                    val srcY = if (flipV) (TILE_SIZE - 1 - py) else py
                     val y = yBase + py + 1
                     if (y >= 240) continue
-                    for (px in 0 until tileSize) {
-                        val srcX = if (flipH) (tileSize - 1 - px) else px
+                    val rowOffset = y * SCREEN_W
+                    for (px in 0 until TILE_SIZE) {
+                        val srcX = if (flipH) (TILE_SIZE - 1 - px) else px
                         val x = xBase + px
                         if (x >= 256) continue
                         if (hideLeft && x < 8) continue
@@ -130,16 +124,28 @@ object PpuRenderer {
                             if (bgCi != 0.toByte()) continue
                         }
 
-                        val colorIdx = ci
-                        val argb = palette.colors[colorIdx].argb
-                        paint.color = argb
-                        canvas.drawRect(
-                            Rect.Companion.makeXYWH((x * scale).toFloat(), (y * scale).toFloat(), scale.toFloat(), scale.toFloat()),
-                            paint
-                        )
+                        pixels[rowOffset + x] = palette.colors[ci].argb
                     }
                 }
             }
         }
+
+        // Convert ARGB int array to byte array in Skia N32 format.
+        // On little-endian (all modern platforms), N32 is BGRA byte order.
+        // ARGB int 0xAARRGGBB stored as bytes: [BB, GG, RR, AA] = BGRA.
+        val buf = ByteBuffer.wrap(byteBuffer).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer()
+        buf.put(pixels)
+
+        // Create image from pixel data and draw scaled with nearest-neighbor filtering
+        val imageInfo = ImageInfo.makeN32Premul(SCREEN_W, SCREEN_H)
+        val image = Image.makeRaster(imageInfo, byteBuffer, SCREEN_W * 4)
+        canvas.drawImageRect(
+            image,
+            Rect.makeXYWH(0f, 0f, SCREEN_W.toFloat(), SCREEN_H.toFloat()),
+            Rect.makeXYWH(0f, 0f, (SCREEN_W * scale).toFloat(), (SCREEN_H * scale).toFloat()),
+            FilterMipmap(FilterMode.NEAREST, MipmapMode.NONE),
+            null,
+            true
+        )
     }
 }

@@ -17,7 +17,7 @@ import javax.swing.SwingUtilities
 
 fun main() {
     val system = System()
-    if (java.lang.System.getProperty("smb.shadow") != "false") {
+    if (java.lang.System.getProperty("smb.shadow") == "true") {
         system.shadow = com.ivieleague.smbtranslation.interpreter.ShadowValidator.create("smb.nes")
     }
     val audioOutput = com.ivieleague.smbtranslation.nes.ApuAudioOutput()
@@ -48,10 +48,16 @@ fun main() {
 
             override fun onRender(canvas: Canvas, width: Int, height: Int, nanoTime: Long) {
                 val now = java.lang.System.nanoTime()
-                if (now - lastNmiTime >= nmiIntervalNs) {
-                    lastNmiTime += nmiIntervalNs
-                    // Catch up but don't spiral — cap to one frame behind
-                    if (now - lastNmiTime > nmiIntervalNs) {
+                val turbo = KeyEvent.VK_TAB in pressedKeys
+                val runFrame = turbo || now - lastNmiTime >= nmiIntervalNs
+                if (runFrame) {
+                    if (!turbo) {
+                        lastNmiTime += nmiIntervalNs
+                        // Catch up but don't spiral — cap to one frame behind
+                        if (now - lastNmiTime > nmiIntervalNs) {
+                            lastNmiTime = now
+                        }
+                    } else {
                         lastNmiTime = now
                     }
 
@@ -72,7 +78,7 @@ fun main() {
                         }
                     } else {
                         system.nonMaskableInterrupt()
-                        audioOutput.outputFrame(system.apu)
+                        if (!turbo) audioOutput.outputFrame(system.apu)
                     }
 
                     if (system.ram.disableScreenFlag != lastDisableScreenFlag) {
@@ -88,6 +94,7 @@ fun main() {
 
                 val currentScale = (width.toFloat() / 256f).coerceAtMost(height.toFloat() / 240f)
                 PpuRenderer.render(canvas, system.ppu, currentScale.toInt(), scrollStartY = 32)
+                // Always request redraw to keep the timing poll alive
                 skiaLayer.needRedraw()
             }
         }
