@@ -6,7 +6,7 @@ Note that we won't be emulating the various limitations of the NES.
 
 The port includes *every single line of the disassembly* as comments, next to their equivalent Kotlin code or explanations of how they aren't relevant anymore.
 
-One day, when this is runnable, you will be able to use a SMB rom to play on your computer.
+This is now completely working!  You can run it!
 
 ## Samples
 
@@ -74,10 +74,11 @@ Each phase will remain its own branch, as each is interesting and usable in its 
   - [X] Port the assembly (at 100%, apparently, thanks to Claude)
   - [X] Extract character ROM data
   - [X] Emulate the PPU
-    - Seems to be mostly complete, renders to Skiko, probably way too inefficient.  Need to check scroll behaviors.
-  - [ ] Emulate the APU
+  - [X] Emulate the APU
   - [X] Emulate the Joypads
-  - [ ] Validation tools against interpreter
+  - [X] Validation tools against interpreter
+  - [X] Validate against the HappyLee TAS
+  - [X] Validate against a secondary testing TAS
 - Phase 2 - Organized
   - [ ] Organize the top level functions and game RAM block into classes
 - Phase 3 - Un-NES
