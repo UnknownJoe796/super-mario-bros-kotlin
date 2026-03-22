@@ -637,7 +637,10 @@ private fun System.chkForPlayerAttrib() {
     val isKilled = (ram.gameEngineSubroutine == 0x0b.toByte())
     val gfxOfs = ram.playerGfxOffset.toInt() and 0xFF
 
-    if (isKilled) {
+    // NES flow: killed and gfxOfs==0xC8 (big standing) both fall through to KilledAtt,
+    // which fixes row 3 then falls through to C_S_IGAtt for row 4.
+    // gfxOfs 0x50/0xB8/0xC0 jump directly to C_S_IGAtt (row 4 only).
+    if (isKilled || gfxOfs == 0xc8) {
         //> KilledAtt: lda Sprite_Attributes+16,y
         //> and #%00111111              ;mask out horizontal and vertical flip bits
         //> sta Sprite_Attributes+16,y  ;for third row sprites and save
@@ -650,8 +653,6 @@ private fun System.chkForPlayerAttrib() {
     }
 
     //> C_S_IGAtt:
-    // Check if we need to handle fourth row attributes
-    // (killed always does both 3rd and 4th; crouch/standing/intermediate-grow do only 4th)
     if (isKilled || gfxOfs == 0x50 || gfxOfs == 0xb8 || gfxOfs == 0xc0 || gfxOfs == 0xc8) {
         //> lda Sprite_Attributes+24,y
         //> and #%00111111              ;mask out horizontal and vertical flip bits
@@ -767,13 +768,10 @@ fun System.drawPlayerIntermediate() {
     //> lda Sprite_Attributes+36       ;get empty sprite attributes
     //> ora #%01000000                 ;set horizontal flip bit for bottom-right sprite
     //> sta Sprite_Attributes+32       ;store and leave
-    // Sprite_Attributes+36 is sprite at base offset 4 + 36/4 = 4+9 = sprite 10 (from base sprOfs=1, that's 1+9=10)
-    // Sprite_Attributes+32 is sprite 4+8 = sprite 9 (from base sprOfs=1, that's 1+8=9)
-    // In terms of our indexing: starting sprite was 1, after drawing 4 rows of 2, we used sprites 1-8.
-    // +36 bytes from base = +9 sprites from base, +32 bytes = +8 sprites from base
-    // Base offset in NES was 4 bytes. Sprite_Attributes+36 from sprite data offset 4 = byte 40 = sprite 10
-    // Sprite_Attributes+32 from sprite data offset 4 = byte 36 = sprite 9
-    val emptyAttr = ram.sprites[10].attributes.byte.toInt()
-    ram.sprites[9].attributes = SpriteFlags((emptyAttr or 0x40).toByte())
+    // NES uses absolute addressing (LDA $0226, STA $0222), NOT Y-indexed.
+    // $0226 = Sprite_Attributes + 36 = $0202 + 36 = sprite 9 attributes (first empty sprite after player)
+    // $0222 = Sprite_Attributes + 32 = $0202 + 32 = sprite 8 attributes (bottom-right foot sprite)
+    val emptyAttr = ram.sprites[9].attributes.byte.toInt()
+    ram.sprites[8].attributes = SpriteFlags((emptyAttr or 0x40).toByte())
     //> rts
 }

@@ -1243,8 +1243,17 @@ private fun System.spawnBrickChunks(x: Int) {
     ram.sprObjYSpeed[9 + x] = 0xfa.toByte()
     //> lda #$fc; sta Block_Y_Speed+2,x
     ram.sprObjYSpeed[9 + x + 2] = 0xfc.toByte()
-    //> lda #$00; sta Block_Y_MoveForce,x
+    //> lda #$00; sta Block_Y_MoveForce,x; sta Block_Y_MoveForce+2,x
     ram.sprObjYMoveForce[9 + x] = 0
+    ram.sprObjYMoveForce[9 + x + 2] = 0
+    //> lda Block_PageLoc,x; sta Block_PageLoc+2,x
+    ram.sprObjPageLoc[9 + x + 2] = ram.sprObjPageLoc[9 + x]
+    //> lda Block_X_Position,x; sta Block_X_Position+2,x
+    ram.sprObjXPos[9 + x + 2] = ram.sprObjXPos[9 + x]
+    //> lda Block_Y_Position,x; clc; adc #$08; sta Block_Y_Position+2,x
+    ram.sprObjYPos[9 + x + 2] = (ram.sprObjYPos[9 + x] + 8).toByte()
+    //> lda #$fa; sta Block_Y_Speed,x  ;(redundant, already set above)
+    ram.sprObjYSpeed[9 + x] = 0xfa.toByte()
 }
 
 // =====================================================================

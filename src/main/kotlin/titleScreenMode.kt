@@ -340,18 +340,17 @@ fun System.drawTitleScreen() {
     //> bcc OutputTScr               ;if not, loop back and do another
     //> lda #$05                     ;set buffer transfer control to $0300,
     //> jmp SetVRAMAddr_B            ;increment task and exit
+    // NES: SetVRAMAddr_B sets VRAM_Buffer_AddrCtrl then falls through to IncSubtask
+    // (increments ScreenRoutineTask, NOT OperMode_Task)
 
     // Title screen pattern data lives in CHR at $1EC0
-    val titleScreenDataOffset = 0x1EC0
-    val totalBytes = 0x13A
-
-    // Ensure CHR is loaded (rawChrData returns a zeroed array if ROM missing)
     val vramBufferBytes = rawChrData.copyOfRange(0x1EC0, 0x1EC0 + 0x13A)
 
     ram.vRAMBuffer1.clear()
     ram.vRAMBuffer1.addAll(BufferedPpuUpdate.parseVramBuffer(vramBufferBytes))
     ram.vRAMBufferAddrCtrl = 5
-    ram.operModeTask++
+    //> IncSubtask: inc ScreenRoutineTask
+    ram.screenRoutineTask++
 }
 
 

@@ -83,7 +83,8 @@ class ShadowValidator private constructor(
     /** Addresses excluded from comparison (PPU/VRAM/sound areas that structurally differ) */
     private val excludedAddresses: Set<Int> = buildSet {
         addAll(0x200..0x2FF)    // OAM sprite data
-        addAll(0x300..0x3AC)    // VRAM buffer 1
+        addAll(0xEB..0xEF)      // Zero-page scratch ($EB-$EF): temp variables, Kotlin uses locals
+        addAll(0x300..0x3CB)    // VRAM buffer 1 ($300-$3AC) + overflow into relXPos/relYPos/sprAttrib
         addAll(0x4AC..0x4FF)    // Bounding box coordinates (transient per-frame collision data)
         addAll(0x500..0x7FF)    // Block buffers, display digits, sound queues
         add(0xFF)               // Sound queue
@@ -93,7 +94,6 @@ class ShadowValidator private constructor(
         // VRAM buffer overflow: NES physically writes past VRAM buffer 1 ($300-$3AC)
         // into adjacent game RAM. Kotlin's ArrayList-based buffer doesn't overflow.
         add(0x00E3)             // sprObjYPos[21] — unused slot, VRAM overflow target
-        add(0x03BE)             // relYPos[6] — past VRAM buffer 1 end
         add(0x03EC)             // blockRepFlags[0] — VRAM overflow target
         add(0x03ED)             // blockRepFlags[1] — VRAM overflow target
         add(0x03F0)             // blockResidualCounter — VRAM overflow target
