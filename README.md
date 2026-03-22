@@ -1,100 +1,107 @@
-# Super Mario Bros - Kotlin Port
+# Super Mario Bros - Kotlin Translation
 
-This is an attempt to port Super Mario Bros to readable, modifiable, and proper Kotlin, while retaining full accuracy to the original's physics, look, and intent.
+A complete, accurate translation of Super Mario Bros from 6502 assembly into readable, modifiable Kotlin. Every line of the original disassembly is preserved as comments alongside its Kotlin equivalent.
 
-Note that we won't be emulating the various limitations of the NES.
+The game is fully playable and **verified frame-perfect** against the original ROM via TAS replay (36,165 frames, zero divergences).
 
-The port includes *every single line of the disassembly* as comments, next to their equivalent Kotlin code or explanations of how they aren't relevant anymore.
+## Running
 
-This is now completely working!  You can run it!
+```
+./gradlew run
+```
 
-## Samples
+Controls: Arrow keys = D-pad, X = A, Z = B, Enter = Start, Shift = Select
+
+Requires a JDK and an `smb.nes` ROM file in the project root for shadow validation (optional; runs without it).
+
+## Code Sample
+
+Every function is a direct translation of the original assembly, with the source preserved as `//>` comments:
 
 ```kotlin
-fun System.nonMaskableInterrupt() {
-    //> NonMaskableInterrupt:
-    //> lda Mirror_PPU_CTRL_REG1  ;disable NMIs in mirror reg
-    //> and #%01111111            ;save all other bits
-    //> sta Mirror_PPU_CTRL_REG1
-    ram.mirrorPPUCTRLREG1.nmiEnabled = false
+fun System.flagpoleRoutine() {
+    //> FlagpoleRoutine:
+    //> ldx #$05                  ;set enemy object offset to special use slot
+    //> stx ObjectOffset
+    val x = 5
+    ram.objectOffset = x.toByte()
 
-    //> and #%01111110            ;alter name table address to be $2800
-    //> sta PPU_CTRL_REG1         ;(essentially $2000) but save other bits
-    ppu.control.access.value = ram.mirrorPPUCTRLREG1.access.value
-    ppu.control.baseNametableAddress = 2
+    //> lda Enemy_ID,x
+    //> cmp #FlagpoleFlagObject   ;if flagpole flag not found,
+    //> bne ExitFlagP             ;branch to leave
+    if (ram.enemyID[x] != EnemyId.FlagpoleFlagObject.byte) return
 
-    //> lda Mirror_PPU_CTRL_REG2  ;disable OAM and background display by default
-    val tempReg2 = PictureProcessingUnit.Mask(object : ByteAccess {
-        override var value: Byte = 0
-    })
-    tempReg2.access.value = ram.mirrorPPUCTRLREG2.access.value
-    //> and #%11100110
-    tempReg2.spriteEnabled = false
-    tempReg2.backgroundEnabled = false
-    
-    //...
+    //> lda GameEngineSubroutine
+    //> cmp #$04                  ;if flagpole slide routine not running,
+    //> bne SkipScore             ;branch to near the end of code
+    if (ram.gameEngineSubroutine != GameEngineRoutine.FlagpoleSlide) {
+        flagpoleGfx(x)
+        return
+    }
+
+    //> lda Player_State
+    //> cmp #$03                  ;if player state not climbing,
+    //> bne SkipScore             ;branch to near the end of code
+    if (ram.playerState != PlayerState.Climbing) {
+        flagpoleGfx(x)
+        return
+    }
+    // ...
 }
 ```
 
-```kotlin
-class GameRam {
-    val wholeBlock = ByteArray(0x800)
-    //...
-    var savedJoypad1Bits: Byte by Access(0x6fc)
-    var savedJoypad2Bits: Byte by Access(0x6fd)
-    var joypadBitMask: Byte by Access(0x74a)
-    var joypadOverride: Byte by Access(0x758)
-    var aBButtons: Byte by Access(0xa)
-    var previousABButtons: Byte by Access(0xd)
-    var upDownButtons: Byte by Access(0xb)
-    var leftRightButtons: Byte by Access(0xc)
-    var gameEngineSubroutine: Byte by Access(0xe)
-    val mirrorPPUCTRLREG1 = PictureProcessingUnit.Control(Access(0x778))
-    val mirrorPPUCTRLREG2 = PictureProcessingUnit.Mask(Access(0x779))
-    //...
-}
-```
+Raw bytes and magic numbers from the original are replaced with typed enums (`EnemyId`, `PlayerState`, `GameEngineRoutine`, `AreaType`, `Direction`, etc.) and named constants (`MetatileId`) while preserving identical behavior.
+
+## Architecture
+
+- **`System`** - Top-level container holding `GameRam`, `PictureProcessingUnit`, `AudioProcessingUnit`, and `Inputs`
+- **`GameRam`** - All game state as typed Kotlin properties backed by a flat byte array matching NES RAM layout
+- **Game logic** - Extension functions on `System`, one file per major subsystem (~70k lines of Kotlin across 80+ files)
+- **`nes/`** - PPU renderer, APU audio synthesis, input handling
+- **`interpreter/`** - 6502 binary interpreter used for validation, not gameplay
+
+## Verification
+
+The translation was validated at multiple levels:
+
+| Level | Scope | Result |
+|-------|-------|--------|
+| Tier 1 | 29 leaf subroutines compared against interpreter | All passing |
+| Tier 2 | 17 composite subroutines | All passing |
+| Tier 3 | 12 frame-level scenarios | Zero diffs |
+| TAS Replay | happylee-warps (17,858 frames) + full playthrough (18,307 frames) | **0 divergent frames** |
+
+The `GameRamMapper` provides bidirectional mapping between Kotlin properties and flat NES RAM for automated comparison testing. A `ShadowValidator` can run alongside gameplay to catch divergences in real time.
+
+## Project Status
+
+- **Phase 1 - Readable and Running**: Complete
+  - All game logic translated (0 TODO stubs remaining)
+  - PPU rendering, APU audio synthesis, joypad input
+  - Frame-perfect TAS validation
+- **Phase 2 - Organized**: In progress
+  - Replacing magic numbers with typed enums and value classes
+  - Boolean conversions for flag fields
+  - Named constants for metatile IDs
+- **Phase 3 - Un-NES**: Future
+  - Remove NES-specific complications (PPU update juggling, sprite limits, etc.)
 
 ## Purpose
 
-- to learn 6502 assembly programming better 
-- compare assembly to full programming languages
-- create extreme moddability for the game, enabling access of resources beyond the NES
-- have super-accurate physics to the original game to better support speedrunners
+- Create an accurate, readable reference implementation of SMB's game logic
+- Enable deep modding beyond NES hardware limitations
+- Preserve frame-perfect physics for speedrunning accuracy
+- Study the relationship between 6502 assembly and modern programming languages
 
-## Progress
+## Mod Ideas
 
-![Title](docs/demo-000-title.png)
+- **Super Mario Bros 4K** - Render entire levels on a single 4K display without scrolling
+- **SMB1+2J Flow** - Run through both games without interruption
+- **Procedural levels** - Generate new levels using techniques impossible on the NES
+- **Speedrun multiplayer** - Players race through levels; fall behind and you lose
 
-*Above: Output of a unit test running the DrawTitleScreen subroutine (translated), GroundPaletteData, MushroomIconData, and a set of four test sprites making up small mario jumping in the top left*
+## Design Decisions
 
-Each phase will remain its own branch, as each is interesting and usable in its own right.
-
-- Phase 1 - Readable and Running
-  - [X] Port the assembly (at 100%, apparently, thanks to Claude)
-  - [X] Extract character ROM data
-  - [X] Emulate the PPU
-  - [X] Emulate the APU
-  - [X] Emulate the Joypads
-  - [X] Validation tools against interpreter
-  - [X] Validate against the HappyLee TAS
-  - [X] Validate against a secondary testing TAS
-- Phase 2 - Organized
-  - [ ] Organize the top level functions and game RAM block into classes
-- Phase 3 - Un-NES
-  - [ ] Remove complications that only exist to support the PPU and other limitations of the NES
-
-## Mod Ideas for when we're done
-
-- Super Mario Bros 4k - keeping the original resolution of the graphics, fit the vast majority of the game's levels onto a single 4k display.  Who needs scrolling?
-- SMB1+2J Flow - Run without interruption through both SMB1 and SMB2J.
-- Procedural level generation - Generate full new levels without the limitation of the NES, enabling us to use complex techniques
-- Speedrunners - Multiplayer, players left behind lose. 
-
-## Decisions
-
-- We don't care about emulating the visual limitations of the NES's PPU, nor the complicated logic for juggling updates to it.  We're just going to directly update things as needed.
-  - This will yield some inaccuracies in RAM.
-  - This will eliminate visual glitches from the original.  Boo hoo.
-  - This will make the game run faster.  Yay!
-  - This will enable modders to do things beyond the original NES.
+- NES PPU limitations are not emulated; graphics update directly. This eliminates original visual glitches and enables rendering beyond the NES's capabilities.
+- The original RAM layout is preserved in `GameRam` for validation compatibility, with typed property accessors layered on top.
+- Assembly comments use the `//> ` prefix to distinguish them from regular Kotlin comments.
