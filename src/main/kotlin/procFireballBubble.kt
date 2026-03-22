@@ -159,12 +159,13 @@ private fun System.fireballObjCore(fbIdx: Int) {
         //> sta Fireball_Y_HighPos,x     ;set high byte of vertical position
         ram.sprObjYHighPos[7 + fbIdx] = 1
         //> ldy PlayerFacingDir          ;get player's facing direction
-        //> dey                          ;decrement to use as offset
-        val facingIdx = ram.playerFacingDir.byte.toInt() - 1
+        //> dey                          ;decrement to use as offset (wraps 0→$FF on NES)
+        val facingIdx = (ram.playerFacingDir.byte.toInt() - 1) and 0xFF
         //> lda FireballXSpdData,y       ;set horizontal speed accordingly
         //> sta Fireball_X_Speed,x
-        // by Claude - PlayerFacingDir is always 1 or 2 in normal gameplay, giving index 0 or 1
-        ram.sprObjXSpeed[7 + fbIdx] = fireballXSpdData.getOrElse(facingIdx) { 0 }.toByte()
+        // Normally index 0 or 1. Overflow values from NES ROM for edge cases:
+        // index 2 (Both=3): ROM $B689=$86. index $FF (None=0): ROM $B786=$A9.
+        ram.sprObjXSpeed[7 + fbIdx] = fireballXSpdData.getOrElse(facingIdx) { 0xA9 }.toByte()
         //> lda #$04
         //> sta Fireball_Y_Speed,x       ;set vertical speed of fireball
         ram.sprObjYSpeed[7 + fbIdx] = 0x04
