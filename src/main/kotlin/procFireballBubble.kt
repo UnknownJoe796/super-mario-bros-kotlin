@@ -252,11 +252,12 @@ internal fun System.setupBubble(x: Int, randBit: Int) {
     //> lsr                      ;move d0 to carry
     //> bcc PosBubl              ;branch to use default value if facing left
     //> ldy #$08                 ;otherwise load alternate value here
-    val adder = if (ram.playerFacingDir == Direction.Left) 0x08 else 0x00
+    // NES uses LSR; BCC — tests d0 (bit 0). Left=1 and Both=3 have d0=1 → adder=8
+    val adder = if (ram.playerFacingDir.byte.toInt() and 0x01 != 0) 0x08 else 0x00
 
     //> PosBubl: tya             ;use value loaded as adder
     //> adc Player_X_Position    ;add to player's horizontal position
-    // by Claude - carry from lsr is still set when facing right (d0=1), clear when facing left
+    // by Claude - carry from lsr: d0=1 when Left(1) or Both(3), d0=0 when Right(2)
     val carry = ram.playerFacingDir.byte.toInt() and 0x01
     val playerX = ram.playerXPosition.toInt() and 0xFF
     val bubbleXResult = adder + playerX + carry

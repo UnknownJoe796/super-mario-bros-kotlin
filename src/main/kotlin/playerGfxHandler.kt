@@ -158,7 +158,8 @@ fun System.playerGfxHandler() {
     //> lda PlayerFacingDir         ;get player's facing direction
     //> lsr
     //> bcs SwimKT                  ;if player facing to the right, use current offset
-    if (ram.playerFacingDir != Direction.Left) {
+    // NES uses LSR; BCS — branches when d0=1 (Left=1, Both=3). Skip iny when d0 set.
+    if (ram.playerFacingDir.byte.toInt() and 0x01 == 0) {
         //> iny
         //> iny                         ;otherwise move to next OAM data
         //> iny
