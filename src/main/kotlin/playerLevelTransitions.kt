@@ -121,7 +121,7 @@ private fun System.vineEntr() {
     //> ldy #$00                  ;load default values to be written to
     //> lda #$01                  ;this value moves player to the right off the vine
     //> bcc OffVine               ;if vertical coordinate < preset value, use defaults
-    var disableCollision = 0
+    var disableCollision = false
     var controlA: Byte = 0x01
 
     if (playerY >= 0x99) {
@@ -129,7 +129,7 @@ private fun System.vineEntr() {
         //> sta Player_State          ;otherwise set player state to climbing
         ram.playerState = 0x03
         //> iny                       ;increment value in Y
-        disableCollision = 1
+        disableCollision = true
         //> lda #$08                  ;set block in block buffer to cover hole, then
         //> sta Block_Buffer_1+$b4    ;use same value to force player to climb
         ram.blockBuffer1[0xB4] = 0x08
@@ -137,7 +137,7 @@ private fun System.vineEntr() {
     }
 
     //> OffVine:    sty DisableCollisionDet   ;set collision detection disable flag
-    ram.disableCollisionDet = disableCollision.toByte()
+    ram.disableCollisionDet = disableCollision
     //> jsr AutoControlPlayer     ;use contents of A to move player up or right, execute sub
     autoControlPlayer(controlA)
     //> lda Player_X_Position
@@ -164,7 +164,7 @@ private fun System.playerRdy() {
     //> sta AltEntranceControl    ;init mode of entry
     ram.altEntranceControl = 0x00
     //> sta DisableCollisionDet   ;init collision detection disable flag
-    ram.disableCollisionDet = 0x00
+    ram.disableCollisionDet = false
     //> sta JoypadOverride        ;nullify controller override bits
     ram.joypadOverride = 0x00
     //> ExitEntr:   rts                       ;leave!
@@ -228,13 +228,13 @@ fun System.playerEndLevel() {
     if ((ram.playerYPosition.toInt() and 0xFF) >= 0xAE) {
         //> lda ScrollLock            ;if scroll lock not set, branch ahead to next part
         //> beq ChkStop               ;because we only need to do this part once
-        if (ram.scrollLock != 0.toByte()) {
+        if (ram.scrollLock) {
             //> lda #EndOfLevelMusic
             //> sta EventMusicQueue       ;load win level music in event music queue
             ram.eventMusicQueue = Constants.EndOfLevelMusic
             //> lda #$00
             //> sta ScrollLock            ;turn off scroll lock to skip this part later
-            ram.scrollLock = 0x00
+            ram.scrollLock = false
         }
     }
 

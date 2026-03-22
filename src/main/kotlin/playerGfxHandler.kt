@@ -356,7 +356,7 @@ private fun System.processPlayerAction(): Int {
             //> ldy #$06              ;load offset for crouching
             //> lda CrouchingFlag     ;get crouching flag
             //> bne NonAnimatedActs   ;if set, branch to get offset for graphics table
-            if (ram.crouchingFlag != 0.toByte()) return nonAnimatedActs(0x06)
+            if (ram.crouchingFlag) return nonAnimatedActs(0x06)
             //> ldy #$00              ;otherwise load offset for jumping
             //> jmp NonAnimatedActs   ;go to get offset to graphics table
             return nonAnimatedActs(0x00)
@@ -367,7 +367,7 @@ private fun System.processPlayerAction(): Int {
             //> ldy #$06                   ;load offset for crouching
             //> lda CrouchingFlag          ;get crouching flag
             //> bne NonAnimatedActs        ;if set, branch to get offset for graphics table
-            if (ram.crouchingFlag != 0.toByte()) return nonAnimatedActs(0x06)
+            if (ram.crouchingFlag) return nonAnimatedActs(0x06)
             //> ldy #$02                   ;load offset for standing
             //> lda Player_X_Speed         ;check player's horizontal speed
             //> ora Left_Right_Buttons     ;and left/right controller bits

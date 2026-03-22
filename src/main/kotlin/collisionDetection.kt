@@ -1410,7 +1410,7 @@ private fun System.setPRout(engineSubroutine: Int, playerState: Int) {
 fun System.playerBGCollision() {
     //> PlayerBGCollision:
     //> lda DisableCollisionDet; bne ExPBGCol
-    if (ram.disableCollisionDet != 0.toByte()) return
+    if (ram.disableCollisionDet) return
     //> lda GameEngineSubroutine; cmp #$0b; beq ExPBGCol
     val geSubroutine = ram.gameEngineSubroutine.toInt() and 0xFF
     if (geSubroutine == 0x0b) return
@@ -1445,7 +1445,7 @@ fun System.playerBGCollision() {
     //> ChkCollSize:
     //> ldy #$02; lda CrouchingFlag; bne GBBAdr
     var adderIdx = 2
-    if (ram.crouchingFlag == 0.toByte()) {
+    if (!ram.crouchingFlag) {
         //> lda PlayerSize; bne GBBAdr
         if (ram.playerSize == 0.toByte()) {
             //> dey  ;big player not crouching
@@ -1464,7 +1464,7 @@ fun System.playerBGCollision() {
 
     //> ldx PlayerSize; lda CrouchingFlag; beq HeadChk; inx
     var sizeOfs = ram.playerSize.toInt() and 0xFF
-    if (ram.crouchingFlag != 0.toByte()) sizeOfs++
+    if (ram.crouchingFlag) sizeOfs++
 
     //> HeadChk: lda Player_Y_Position; cmp PlayerBGUpperExtent,x; bcc DoFootCheck
     val upperExtent = playerBGUpperExtent[sizeOfs.coerceIn(0, 1)].toInt() and 0xFF
@@ -1884,7 +1884,7 @@ private fun System.flagpoleCollision(metatile: Int) {
     //> lda #$01; sta PlayerFacingDir
     ram.playerFacingDir = 1
     //> inc ScrollLock
-    ram.scrollLock = (ram.scrollLock + 1).toByte()
+    ram.scrollLock = true
 
     if (geSub == 0x04) {
         // already running flagpole slide

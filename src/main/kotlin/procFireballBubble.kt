@@ -88,7 +88,7 @@ private fun System.tryCreateFireball() {
 
     //> lda CrouchingFlag          ;if player crouching, branch
     //> bne ProcFireballs
-    if (ram.crouchingFlag != 0.toByte()) return
+    if (ram.crouchingFlag) return
 
     //> lda Player_State           ;if player's state = climbing, branch
     //> cmp #$03
