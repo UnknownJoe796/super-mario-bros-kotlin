@@ -158,7 +158,7 @@ private fun System.fireballObjCore(fbIdx: Int) {
         ram.sprObjYHighPos[7 + fbIdx] = 1
         //> ldy PlayerFacingDir          ;get player's facing direction
         //> dey                          ;decrement to use as offset
-        val facingIdx = (ram.playerFacingDir.toInt() and 0xFF) - 1
+        val facingIdx = ram.playerFacingDir.byte.toInt() - 1
         //> lda FireballXSpdData,y       ;set horizontal speed accordingly
         //> sta Fireball_X_Speed,x
         // by Claude - PlayerFacingDir is always 1 or 2 in normal gameplay, giving index 0 or 1
@@ -252,12 +252,12 @@ internal fun System.setupBubble(x: Int, randBit: Int) {
     //> lsr                      ;move d0 to carry
     //> bcc PosBubl              ;branch to use default value if facing left
     //> ldy #$08                 ;otherwise load alternate value here
-    val adder = if ((ram.playerFacingDir.toInt() and 0x01) != 0) 0x08 else 0x00
+    val adder = if (ram.playerFacingDir == Direction.Left) 0x08 else 0x00
 
     //> PosBubl: tya             ;use value loaded as adder
     //> adc Player_X_Position    ;add to player's horizontal position
     // by Claude - carry from lsr is still set when facing right (d0=1), clear when facing left
-    val carry = ram.playerFacingDir.toInt() and 0x01
+    val carry = ram.playerFacingDir.byte.toInt() and 0x01
     val playerX = ram.playerXPosition.toInt() and 0xFF
     val bubbleXResult = adder + playerX + carry
     //> sta Bubble_X_Position,x

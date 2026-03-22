@@ -159,7 +159,7 @@ private fun System.playerRdy() {
     ram.gameEngineSubroutine = 0x08
     //> lda #$01                  ;set to face player to the right
     //> sta PlayerFacingDir
-    ram.playerFacingDir = 0x01
+    ram.playerFacingDir = Direction.Left
     //> lsr                       ;init A (1 >> 1 = 0)
     //> sta AltEntranceControl    ;init mode of entry
     ram.altEntranceControl = 0x00

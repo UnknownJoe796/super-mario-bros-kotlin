@@ -158,7 +158,7 @@ fun System.playerGfxHandler() {
     //> lda PlayerFacingDir         ;get player's facing direction
     //> lsr
     //> bcs SwimKT                  ;if player facing to the right, use current offset
-    if ((ram.playerFacingDir.toInt() and 0x01) == 0) {
+    if (ram.playerFacingDir != Direction.Left) {
         //> iny
         //> iny                         ;otherwise move to next OAM data
         //> iny
@@ -303,7 +303,7 @@ private fun System.renderPlayerSub(rowCount: Int) {
         //> lda PlayerGraphicsTable+1,x  ;now load right side
         val tile1 = PlayerGraphicsTable[tblOfs + 1]
         //> jsr DrawOneSpriteRow (-> DrawSpriteObject)
-        val hFlip = (flipCtrl.toInt() and 0x02) != 0
+        val hFlip = flipCtrl == Direction.Right
         if (hFlip) {
             ram.sprites[sprOfs + 1].tilenumber = tile0
             ram.sprites[sprOfs].tilenumber = tile1
@@ -378,7 +378,7 @@ private fun System.processPlayerAction(): Int {
             //> lda Player_MovingDir       ;otherwise check to see if moving direction
             //> and PlayerFacingDir        ;and facing direction are the same
             //> bne ActionWalkRun          ;if moving direction = facing direction, branch, don't skid
-            if ((ram.playerMovingDir.toInt() and ram.playerFacingDir.toInt()) != 0) return actionWalkRun()
+            if ((ram.playerMovingDir.byte.toInt() and ram.playerFacingDir.byte.toInt()) != 0) return actionWalkRun()
             //> iny                        ;otherwise increment to skid offset ($03)
             return nonAnimatedActs(0x03)
         }

@@ -154,7 +154,7 @@ class GameRam {
         get() = screenEdgeXPos
         set(v) { screenEdgeXPos = v }
     @RamLocation(0x71d) var screenRightXPos: Byte = 0
-    @RamLocation(0x33) var playerFacingDir: Byte = 0
+    @RamLocation(0x33, size = 0) var playerFacingDir: Direction = Direction.None
     var destinationPageLoc: Byte // alias for firebarSpinDirection[0] (same NES address $34)
         get() = firebarSpinDirection[0]
         set(v) { firebarSpinDirection[0] = v }
@@ -333,10 +333,10 @@ class GameRam {
     var miscState: Byte
         get() = miscStates[0]
         set(value) { miscStates[0] = value }
-    @RamLocation(0x45) var playerMovingDir: Byte = 0
-    var enemyMovingDir: Byte
-        get() = enemyMovingDirs[0]
-        set(value) { enemyMovingDirs[0] = value }
+    @RamLocation(0x45, size = 0) var playerMovingDir: Direction = Direction.None
+    var enemyMovingDir: Direction
+        get() = Direction.fromByte(enemyMovingDirs[0])
+        set(value) { enemyMovingDirs[0] = value.byte }
     // by Claude - delegates to sprObjXSpeed[0] for scalar/array coherence (same NES address $57)
     var playerXSpeed: Byte
         get() = sprObjXSpeed[0]

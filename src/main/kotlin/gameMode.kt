@@ -76,7 +76,7 @@ fun System.gameRoutines() {
  */
 fun System.gameEngine() {
     if (debugEnemyTrace) {
-        println("[GE-start] pX=${ram.playerXPosition.toInt() and 0xFF} pP=${ram.playerPageLoc.toInt() and 0xFF} eX1=${ram.sprObjXPos[2].toInt() and 0xFF} eP1=${ram.sprObjPageLoc[2].toInt() and 0xFF} eState1=${ram.enemyState[1].toInt() and 0xFF} eDir1=${ram.enemyMovingDirs[1].toInt() and 0xFF}")
+        println("[GE-start] pX=${ram.playerXPosition.toInt() and 0xFF} pP=${ram.playerPageLoc.toInt() and 0xFF} eX1=${ram.sprObjXPos[2].toInt() and 0xFF} eP1=${ram.sprObjPageLoc[2].toInt() and 0xFF} eState1=${ram.enemyState[1].toInt() and 0xFF} eDir1=${ram.enemyMovingDirs[1]}")
     }
     //> GameEngine:
     //> jsr ProcFireball_Bubble    ;process fireballs and air bubbles

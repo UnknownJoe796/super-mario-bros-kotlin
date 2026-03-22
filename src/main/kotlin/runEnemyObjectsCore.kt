@@ -281,7 +281,7 @@ fun System.moveBloober() {
         //> Set moving direction toward player
         //> txa; lsr; bcs ChkRev (odd slot uses player dir)
         if ((x and 1) != 0) {
-            ram.enemyMovingDirs[x] = ram.playerMovingDir
+            ram.enemyMovingDirs[x] = ram.playerMovingDir.byte
         } else {
             //> ChkRev: jsr PlayerEnemyDiff; bpl LMovBloworker
             var dir = 2
@@ -1315,7 +1315,7 @@ private fun System.firebarCollision(sprOfs: Int, oamOfs: Int, screenY: Int): Int
                         moveDir = 2
                     }
                     //> SetSDir: stx Enemy_MovingDir
-                    ram.enemyMovingDir = moveDir.toByte()
+                    ram.enemyMovingDir = Direction.fromByte(moveDir.toByte())
                     //> ldx #$00
                     //> lda $00; pha        ;save firebar part counter
                     //> jsr InjurePlayer

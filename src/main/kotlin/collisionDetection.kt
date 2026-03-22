@@ -1600,7 +1600,7 @@ private fun System.processFootMetatile(metatile: Int, result: BlockBufferResult,
         return false  // falls through to DoPlayerSideCheck
     } else {
         //> lda Player_MovingDir; sta $00; jmp ImpedePlayerMove  — exits entirely
-        impedePlayerMove(ram.playerMovingDir.toInt() and 0xFF)
+        impedePlayerMove(ram.playerMovingDir.byte.toInt() and 0xFF)
         return true
     }
 }
@@ -1699,7 +1699,7 @@ private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult, sid
     }
 
     //> ldy PlayerFacingDir; dey; bne StopPlayerMove
-    if ((ram.playerFacingDir.toInt() and 0xFF) != 1) {
+    if (ram.playerFacingDir != Direction.Left) {
         stopPlayerMove(sideCounter)
         return
     }
@@ -1881,7 +1881,7 @@ private fun System.flagpoleCollision(metatile: Int) {
     }
 
     //> lda #$01; sta PlayerFacingDir
-    ram.playerFacingDir = 1
+    ram.playerFacingDir = Direction.Left
     //> inc ScrollLock
     ram.scrollLock = (ram.scrollLock + 1).toByte()
 
@@ -1928,11 +1928,11 @@ private fun System.putPlayerOnVine(result: BlockBufferResult) {
     val diff = (playerX - screenX) and 0xFF
     if (diff < 0x10) {
         //> lda #$02; sta PlayerFacingDir
-        ram.playerFacingDir = 2
+        ram.playerFacingDir = Direction.Right
     }
 
     //> SetVXPl: ldy PlayerFacingDir
-    val facingDir = ram.playerFacingDir.toInt() and 0xFF
+    val facingDir = ram.playerFacingDir.byte.toInt() and 0xFF
     //> lda $06; asl; asl; asl; asl  ;low byte of block buffer address * 16
     val bbLow = result.blockBufferBase and 0xFF  // approximate: $06 in assembly
     // Actually $06 is the low byte of the block buffer pointer.

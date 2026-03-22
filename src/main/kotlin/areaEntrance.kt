@@ -135,7 +135,7 @@ fun System.entranceGameTimerSetup() {
     //> lda #$01                    ;set high byte of player position and
     //> sta PlayerFacingDir         ;set facing direction so that player faces right
     //> sta Player_Y_HighPos
-    ram.playerFacingDir = 0x01
+    ram.playerFacingDir = Direction.Left
     ram.playerYHighPos = 0x01
 
     //> lda #$00                    ;set player state to on the ground by default
