@@ -1,6 +1,0 @@
-# Missing ASM lines for blockObjectsCore.kt
-# 1 lines to add
-
-
---- Near UpdSte ---
-  ASM  7499 [comment       ]: ;$02 - used to store offset to block buffer

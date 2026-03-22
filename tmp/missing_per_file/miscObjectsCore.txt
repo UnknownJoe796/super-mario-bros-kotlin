@@ -1,8 +1,0 @@
-# Missing ASM lines for miscObjectsCore.kt
-# 3 lines to add
-
-
---- Near MiscLoop ---
-  ASM  7024 [comment       ]: ;$00 - used to set downward force
-  ASM  7025 [comment       ]: ;$01 - used to set upward force (residual)
-  ASM  7026 [comment       ]: ;$02 - used to set maximum speed

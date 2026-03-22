@@ -1,2 +1,0 @@
-=== Finding Sync Points ===
-Looking for frames where interpreter state matches FCEUX state

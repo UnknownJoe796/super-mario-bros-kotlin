@@ -1,6 +1,0 @@
-# Missing ASM lines for areaParser.kt
-# 1 lines to add
-
-
---- Near BrickQBlockMetatiles ---
-  ASM  7364 [comment       ]: ;these two sets are functionally identical, but look different

@@ -1,3 +1,0 @@
-# Simple NMI-per-frame TAS execution log
-# Buttons offset by 1 frame to match FCEUX input timing
-# TRANSITION: Frame 0 -> Title Screen

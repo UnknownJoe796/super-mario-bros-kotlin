@@ -45,4 +45,5 @@ bin/
 .DS_Store
 
 smb.nes
+tmp/
 .claude/worktrees/
