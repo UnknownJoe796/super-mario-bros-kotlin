@@ -104,7 +104,7 @@ private fun System.fireCannon(x: Int, y: Int) {
     ram.enemyBoundBoxCtrls[x] = 0x09
     //> lda #BulletBill_CannonVar
     //> sta Enemy_ID,x             ;load identifier for bullet bill (cannon variant)
-    ram.enemyID[x] = Constants.BulletBill_CannonVar
+    ram.enemyID[x] = EnemyId.BulletBillCannonVar.byte
     //> jmp Next3Slt               ;move onto next slot (done via loop continue)
 }
 
@@ -113,7 +113,7 @@ private fun System.chkBulletBill(x: Int) {
     //> lda Enemy_ID,x             ;check enemy identifier for bullet bill (cannon variant)
     //> cmp #BulletBill_CannonVar
     //> bne Next3Slt               ;if not found, branch to get next slot
-    if (ram.enemyID[x] != Constants.BulletBill_CannonVar) return
+    if (ram.enemyID[x] != EnemyId.BulletBillCannonVar.byte) return
 
     //> jsr OffscreenBoundsCheck   ;otherwise, check to see if it went offscreen
     offscreenBoundsCheck()
@@ -234,7 +234,7 @@ fun System.offscreenBoundsCheck() {
     //> cmp #FlyingCheepCheep   ;branch to leave if found
     //> beq ExScrnBd
     val enemyId = ram.enemyID[x]
-    if (enemyId == Constants.FlyingCheepCheep) return
+    if (enemyId == EnemyId.FlyingCheepCheep.byte) return
 
     //> lda ScreenLeft_X_Pos    ;get horizontal coordinate for left side of screen
     var leftBound = ram.screenLeftXPos.toInt() and 0xFF
@@ -244,7 +244,7 @@ fun System.offscreenBoundsCheck() {
     //> cpy #PiranhaPlant       ;check for piranha plant object
     //> bne ExtendLB
     var carry: Int
-    if (enemyId == Constants.HammerBro || enemyId == Constants.PiranhaPlant) {
+    if (enemyId == EnemyId.HammerBro.byte || enemyId == EnemyId.PiranhaPlant.byte) {
         //> LimitB: adc #$38    ;add 56 pixels if hammer bro or piranha plant
         // Carry is SET from cpy (enemyId == HammerBro or PiranhaPlant, both >= compared value)
         val adcResult = leftBound + 0x38 + 1  // +1 for carry set from cpy
@@ -253,7 +253,7 @@ fun System.offscreenBoundsCheck() {
     } else {
         // For non-matching enemies: carry from last cpy #PiranhaPlant
         // enemyId < PiranhaPlant → carry CLEAR (bne branches, so we reach ExtendLB)
-        carry = if ((enemyId.toInt() and 0xFF) >= (Constants.PiranhaPlant.toInt() and 0xFF)) 1 else 0
+        carry = if ((enemyId.toInt() and 0xFF) >= (EnemyId.PiranhaPlant.byte.toInt() and 0xFF)) 1 else 0
     }
     //> ExtendLB: sbc #$48      ;subtract 72 pixels regardless
     // SBC with carry: result = A - operand - (1 - carry)
@@ -309,15 +309,15 @@ fun System.offscreenBoundsCheck() {
     // Enemy is offscreen to the right - check exemptions
     //> lda Enemy_State,x       ;if in state used by spiny's egg, do not erase
     //> cmp #HammerBro
-    if (ram.enemyState[x] == Constants.HammerBro) return
+    if (ram.enemyState[x] == EnemyId.HammerBro.byte) return
     //> cpy #PiranhaPlant       ;if piranha plant, do not erase
-    if (enemyId == Constants.PiranhaPlant) return
+    if (enemyId == EnemyId.PiranhaPlant.byte) return
     //> cpy #FlagpoleFlagObject ;if flagpole flag, do not erase
-    if (enemyId == Constants.FlagpoleFlagObject) return
+    if (enemyId == EnemyId.FlagpoleFlagObject.byte) return
     //> cpy #StarFlagObject     ;if star flag, do not erase
-    if (enemyId == Constants.StarFlagObject) return
+    if (enemyId == EnemyId.StarFlagObject.byte) return
     //> cpy #JumpspringObject   ;if jumpspring, do not erase
-    if (enemyId == Constants.JumpspringObject) return
+    if (enemyId == EnemyId.JumpspringObject.byte) return
 
     //> TooFar: jsr EraseEnemyObject ;erase all others too far to the right
     eraseEnemyObject(x)

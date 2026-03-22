@@ -182,7 +182,7 @@ fun System.flagpoleSlide() {
     //> lda Enemy_ID+5           ;check special use enemy slot
     //> cmp #FlagpoleFlagObject  ;for flagpole flag object
     //> bne NoFPObj              ;if not found, branch to something residual
-    if (ram.enemyID[5] != Constants.FlagpoleFlagObject) {
+    if (ram.enemyID[5] != EnemyId.FlagpoleFlagObject.byte) {
         //> NoFPObj:     inc GameEngineSubroutine ;increment to next routine (this may
         ram.gameEngineSubroutine++
         //> rts                      ;be residual code)

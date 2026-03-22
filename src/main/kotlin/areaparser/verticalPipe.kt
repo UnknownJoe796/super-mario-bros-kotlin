@@ -55,7 +55,7 @@ fun System.verticalPipe() {
                 ram.sprObjYPos[1 + slot] = getAreaObjYPosition(row.toByte())
                 //> lda #PiranhaPlant        ;write piranha plant's value into buffer
                 //> sta Enemy_ID,x
-                ram.enemyID[slot] = Constants.PiranhaPlant
+                ram.enemyID[slot] = EnemyId.PiranhaPlant.byte
                 //> jsr InitPiranhaPlant
                 val savedOffset = ram.objectOffset
                 ram.objectOffset = slot.toByte()

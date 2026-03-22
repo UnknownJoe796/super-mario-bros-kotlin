@@ -749,7 +749,7 @@ fun System.moveLakitu() {
         ram.sprObjXSpeed[1 + x] = 0x10  // LakituMoveSpeed,x ($58+x)
     } else {
         //> Fr12S: set spiny as frenzy and track player
-        ram.enemyFrenzyBuffer = Constants.Spiny
+        ram.enemyFrenzyBuffer = EnemyId.Spiny.byte
         playerLakituDiff(x)
     }
 
@@ -792,7 +792,7 @@ internal fun System.playerLakituDiff(x: Int) {
     if (absDiff >= 0x3C) {
         absDiff = 0x3C  //> lda #$3c; sta $00
         //> lda Enemy_ID,x; cmp #Lakitu; bne ChkPSpeed
-        if (ram.enemyID[x] == Constants.Lakitu) {
+        if (ram.enemyID[x] == EnemyId.Lakitu.byte) {
             //> tya; cmp LakituMoveDirection,x; beq ChkPSpeed
             if (dirY != (ram.sprObjYSpeed[1 + x].toInt() and 0xFF)) {  // LakituMoveDirection,x
                 //> lda LakituMoveDirection,x; beq SetLMovD
@@ -829,7 +829,7 @@ internal fun System.playerLakituDiff(x: Int) {
 
     //> ChkSpinyO / ChkEmySpd logic (only reached when playerXSpd != 0 && scrollAmount != 0)
     if (adjIdx > 0) {
-        val isSpiny = ram.enemyID[x] == Constants.Spiny
+        val isSpiny = ram.enemyID[x] == EnemyId.Spiny.byte
         if (isSpiny) {
             //> Spiny AND player moving: bne SubDifAdj (playerXSpd guaranteed nonzero here)
             //> Skip ChkEmySpd, use current adjIdx

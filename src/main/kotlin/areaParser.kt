@@ -928,7 +928,7 @@ private val BlockBuffLowBounds = ubyteArrayOf(
 //> FrenzyIDData:
 //>   .db FlyCheepCheepFrenzy, BBill_CCheep_Frenzy, Stop_Frenzy
 private val FrenzyIDData = byteArrayOf(
-    Constants.FlyCheepCheepFrenzy, Constants.BBill_CCheep_Frenzy, Constants.Stop_Frenzy
+    EnemyId.FlyCheepCheepFrenzy.byte, EnemyId.BBillCCheepFrenzy.byte, EnemyId.StopFrenzy.byte
 )
 
 //> CastleMetatiles:
@@ -1088,7 +1088,7 @@ private fun System.scrollLockObject_Warp() {
     writeGameText(textNum.toByte())
     //> lda #PiranhaPlant
     //> jsr KillEnemies     ;load identifier for piranha plants and do sub
-    killEnemies(Constants.PiranhaPlant)
+    killEnemies(EnemyId.PiranhaPlant.byte)
     //> (falls through to ScrollLockObject)
     scrollLockObject()
 }
@@ -1514,7 +1514,7 @@ private fun System.castleObject() {
     ram.sprObjYPos[1 + slot] = 0x90.toByte()
     //> lda #StarFlagObject      ;set star flag value in buffer itself
     //> sta Enemy_ID,x
-    ram.enemyID[slot] = Constants.StarFlagObject
+    ram.enemyID[slot] = EnemyId.StarFlagObject.byte
     //> rts
 }
 
@@ -1671,7 +1671,7 @@ private fun System.flagpoleObject() {
     ram.flagpoleFNumYPos = 0xb0.toByte()
     //> lda #FlagpoleFlagObject
     //> sta Enemy_ID+5           ;set flag identifier, note that identifier and coordinates
-    ram.enemyID[5] = Constants.FlagpoleFlagObject
+    ram.enemyID[5] = EnemyId.FlagpoleFlagObject.byte
     //> inc Enemy_Flag+5         ;use last space in enemy object buffer
     ram.enemyFlags[5] = (ram.enemyFlags[5] + 1).toByte()
     //> rts
@@ -1908,7 +1908,7 @@ private fun System.jumpspring() {
     ram.sprObjXSpeed[1 + slot] = yPos
     //> lda #JumpspringObject
     //> sta Enemy_ID,x              ;write jumpspring object to enemy object buffer
-    ram.enemyID[slot] = Constants.JumpspringObject
+    ram.enemyID[slot] = EnemyId.JumpspringObject.byte
     //> ldy #$01
     //> sty Enemy_Y_HighPos,x       ;store vertical high byte
     ram.sprObjYHighPos[1 + slot] = 0x01

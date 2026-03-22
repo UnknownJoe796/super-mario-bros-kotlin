@@ -389,7 +389,7 @@ private fun System.raiseFlagSetoffFWorks(x: Int) {
     if (fireworks != 0 && (fireworks and 0x80) == 0) {
         //> lda #Fireworks
         //> sta EnemyFrenzyBuffer   ;otherwise set fireworks object in frenzy queue
-        ram.enemyFrenzyBuffer = Constants.Fireworks
+        ram.enemyFrenzyBuffer = EnemyId.Fireworks.byte
         //> (fall through to DrawStarFlag)
         drawStarFlag(x)
         return
@@ -641,10 +641,10 @@ fun System.enemiesCollision() {
     if (enemyId >= 0x15) return
     //> cmp #Lakitu                 ;if lakitu, branch to leave
     //> beq ExitECRoutine
-    if (enemyId == Constants.Lakitu.toInt() and 0xFF) return
+    if (enemyId == EnemyId.Lakitu.byte.toInt() and 0xFF) return
     //> cmp #PiranhaPlant           ;if piranha plant, branch to leave
     //> beq ExitECRoutine
-    if (enemyId == Constants.PiranhaPlant.toInt() and 0xFF) return
+    if (enemyId == EnemyId.PiranhaPlant.byte.toInt() and 0xFF) return
     //> lda EnemyOffscrBitsMasked,x ;if masked offscreen bits nonzero, branch to leave
     //> bne ExitECRoutine
     if (ram.enemyOffscrBitsMaskeds[x] != 0.toByte()) return
@@ -672,9 +672,9 @@ fun System.enemiesCollision() {
             //> bcs ReadyNextEnemy
             if (secondEnemyId < 0x15 &&
                 //> cmp #Lakitu; beq ReadyNextEnemy
-                secondEnemyId != Constants.Lakitu.toInt() and 0xFF &&
+                secondEnemyId != EnemyId.Lakitu.byte.toInt() and 0xFF &&
                 //> cmp #PiranhaPlant; beq ReadyNextEnemy
-                secondEnemyId != Constants.PiranhaPlant.toInt() and 0xFF &&
+                secondEnemyId != EnemyId.PiranhaPlant.byte.toInt() and 0xFF &&
                 //> lda EnemyOffscrBitsMasked,x; bne ReadyNextEnemy
                 ram.enemyOffscrBitsMaskeds[secondIdx] == 0.toByte()
             ) {
@@ -759,7 +759,7 @@ private fun System.procEnemyCollisions(firstIdx: Int, secondIdx: Int) {
         val firstEnemyId = ram.enemyID[firstIdx].toInt() and 0xFF
         //> cmp #HammerBro           ;if hammer bro found in alt state, branch to leave
         //> beq ExitProcessEColl
-        if (firstEnemyId == Constants.HammerBro.toInt() and 0xFF) return
+        if (firstEnemyId == EnemyId.HammerBro.byte.toInt() and 0xFF) return
 
         //> lda Enemy_State,y        ;check first enemy state for d7 set
         //> asl; bcc ShellCollisions ;branch if d7 is clear
@@ -800,7 +800,7 @@ private fun System.procEnemyCollisions(firstIdx: Int, secondIdx: Int) {
             //> lda Enemy_ID,y           ;check first enemy identifier for hammer bro
             val secondEnemyId = ram.enemyID[secondIdx].toInt() and 0xFF
             //> cmp #HammerBro; beq ExitProcessEColl
-            if (secondEnemyId == Constants.HammerBro.toInt() and 0xFF) return
+            if (secondEnemyId == EnemyId.HammerBro.byte.toInt() and 0xFF) return
 
             //> jsr ShellOrBlockDefeat   ;kill first enemy (using X = ObjectOffset)
             shellOrBlockDefeat(firstIdx)

@@ -24,7 +24,7 @@ fun System.flagpoleRoutine() {
     //> lda Enemy_ID,x
     //> cmp #FlagpoleFlagObject   ;if flagpole flag not found,
     //> bne ExitFlagP             ;branch to leave
-    if (ram.enemyID[x] != Constants.FlagpoleFlagObject) return
+    if (ram.enemyID[x] != EnemyId.FlagpoleFlagObject.byte) return
 
     //> lda GameEngineSubroutine
     //> cmp #$04                  ;if flagpole slide routine not running,

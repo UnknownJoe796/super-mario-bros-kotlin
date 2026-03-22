@@ -331,7 +331,7 @@ private fun System.checkFireBreath(x: Int) {
     ram.bowserFireBreathTimer = flameTime.toByte()
     //> lda #BowserFlame           ;put bowser's flame identifier
     //> sta EnemyFrenzyBuffer      ;in enemy frenzy buffer
-    ram.enemyFrenzyBuffer = Constants.BowserFlame
+    ram.enemyFrenzyBuffer = EnemyId.BowserFlame.byte
 
     bowserGfxHandler()
 }
@@ -399,7 +399,7 @@ fun System.bowserGfxHandler() {
 
     //> lda #Bowser              ;set bowser's enemy identifier
     //> sta Enemy_ID,x           ;store in bowser's rear object
-    ram.enemyID[dupOffset] = Constants.Bowser
+    ram.enemyID[dupOffset] = EnemyId.Bowser.byte
 
     //> jsr ProcessBowserHalf    ;do a sub here to process bowser's rear
     processBowserHalf()

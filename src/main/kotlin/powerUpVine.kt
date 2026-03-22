@@ -206,7 +206,7 @@ fun System.moveNormalEnemy() {
             moveSteadyEnemy(x)
             return
         }
-        if (ram.enemyID[x] == Constants.PowerUpObject) {
+        if (ram.enemyID[x] == EnemyId.PowerUpObject.byte) {
             moveSteadyEnemy(x)
             return
         }
@@ -257,7 +257,7 @@ fun System.moveNormalEnemy() {
             moveSteadyEnemy(x)
         } else {
             // cmp #PowerUpObject; beq SteadM; bne SlowM
-            if (ram.enemyID[x] == Constants.PowerUpObject) {
+            if (ram.enemyID[x] == EnemyId.PowerUpObject.byte) {
                 moveSteadyEnemy(x)
             } else {
                 moveSlowEnemy(x)
@@ -335,7 +335,7 @@ private fun System.reviveStunned(x: Int) {
         //> bne NKGmba
         if (timer == 0x0e) {
             //> lda Enemy_ID,x; cmp #Goomba; bne NKGmba
-            if (ram.enemyID[x] == Constants.Goomba) {
+            if (ram.enemyID[x] == EnemyId.Goomba.byte) {
                 //> jsr EraseEnemyObject
                 eraseEnemyObject()
             }
@@ -572,7 +572,7 @@ private fun System.sprObjectOffscrChkPowerUp(sprOfs: Int) {
             ram.sprites[sprOfs + i].y = 0xf8.toUByte()
         }
         //> lda Enemy_ID,x; cmp #Podoboo; beq ExEGHandler
-        if (ram.enemyID[x] != Constants.Podoboo) {
+        if (ram.enemyID[x] != EnemyId.Podoboo.byte) {
             //> lda Enemy_Y_HighPos,x; cmp #$02; bne ExEGHandler
             if ((ram.sprObjYHighPos[x + 1].toInt() and 0xFF) == 0x02) {
                 //> jsr EraseEnemyObject
@@ -832,7 +832,7 @@ fun System.setupVine(enemySlot: Int, blockSlot: Int) {
     //> Setup_Vine:
     //> lda #VineObject          ;load identifier for vine object
     //> sta Enemy_ID,x           ;store in buffer
-    ram.enemyID[enemySlot] = Constants.VineObject
+    ram.enemyID[enemySlot] = EnemyId.VineObject.byte
 
     //> lda #$01
     //> sta Enemy_Flag,x         ;set flag for enemy object buffer
@@ -886,7 +886,7 @@ fun System.setupPowerUp(blockSlot: Int) {
     //> SetupPowerUp:
     //> lda #PowerUpObject        ;load power-up identifier into
     //> sta Enemy_ID+5            ;special use slot of enemy object buffer
-    ram.enemyID[5] = Constants.PowerUpObject
+    ram.enemyID[5] = EnemyId.PowerUpObject.byte
 
     //> lda Block_PageLoc,x       ;store page location of block object
     //> sta Enemy_PageLoc+5

@@ -31,7 +31,7 @@ fun System.bridgeCollapse() {
     //> lda Enemy_ID,x            ;check enemy object identifier for bowser
     //> cmp #Bowser               ;if not found, branch ahead,
     //> bne SetM2                 ;metatile removal not necessary
-    if (ram.enemyID[x] != Constants.Bowser) {
+    if (ram.enemyID[x] != EnemyId.Bowser.byte) {
         return setM2()
     }
 
