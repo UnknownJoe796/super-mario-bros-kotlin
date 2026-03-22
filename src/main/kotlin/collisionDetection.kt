@@ -945,7 +945,7 @@ private fun System.chkToStunEnemies(x: Int) {
         ySpeed = 0xff.toByte()
     } else {
         //> lda #$fd; ldy AreaType; bne SetNotW
-        ySpeed = if (ram.areaType != 0.toByte()) 0xfd.toByte() else 0xff.toByte()
+        ySpeed = if (ram.areaType != AreaType.Water) 0xfd.toByte() else 0xff.toByte()
     }
     //> SetNotW: sta Enemy_Y_Speed,x
     ram.sprObjYSpeed[x + 1] = ySpeed
@@ -1108,7 +1108,7 @@ private fun System.handlePECollisions(x: Int, enemyId: Int) {
     //> cpy #$15; bcs InjurePlayer
     if (enemyId >= 0x15) { injurePlayer(); return }
     //> lda AreaType; beq InjurePlayer
-    if (ram.areaType == 0.toByte()) { injurePlayer(); return }
+    if (ram.areaType == AreaType.Water) { injurePlayer(); return }
 
     //> lda Enemy_State,x; asl; bcs ChkForPlayerInjury
     val state = ram.enemyState[x].toInt() and 0xFF
@@ -1496,7 +1496,7 @@ fun System.playerBGCollision() {
                         ram.playerYSpeed = 1
                     } else {
                         //> ldy AreaType; beq NYSpd  ;water level
-                        if (ram.areaType == 0.toByte()) {
+                        if (ram.areaType == AreaType.Water) {
                             ram.playerYSpeed = 1
                         } else {
                             //> ldy BlockBounceTimer; bne NYSpd

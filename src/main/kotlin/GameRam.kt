@@ -253,7 +253,7 @@ class GameRam {
     @RamLocation(0x742) var backgroundScenery: Byte = 0
     @RamLocation(0x743) var cloudTypeOverride: Boolean = false
     @RamLocation(0x744) var backgroundColorCtrl: Byte = 0
-    @RamLocation(0x74e) var areaType: Byte = 0  // TODO: This should be an enum, I think
+    @RamLocation(0x74e) var areaType: AreaType = AreaType.Water
     @RamLocation(0x74f) var areaAddrsLOffset: Byte = 0
     @RamLocation(0x750) var areaPointer: Byte = 0
     @RamLocation(0x710) var playerEntranceCtrl: Byte = 0

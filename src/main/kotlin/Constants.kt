@@ -118,3 +118,10 @@ object Constants {
 enum class OperMode {
     TitleScreen, Game, Victory, GameOver
 }
+
+enum class AreaType(val byte: Byte) {
+    Water(0), Ground(1), Underground(2), Castle(3);
+    companion object {
+        fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { Water }
+    }
+}

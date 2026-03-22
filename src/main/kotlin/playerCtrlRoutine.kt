@@ -110,7 +110,7 @@ fun System.playerCtrlRoutine() {
     if (ram.gameEngineSubroutine != 0x0b.toByte()) {
         //> lda AreaType                ;are we in a water type area?
         //> bne SaveJoyp                ;if not, branch
-        if (ram.areaType == 0x00.toByte()) {
+        if (ram.areaType == AreaType.Water) {
             //> ldy Player_Y_HighPos
             //> dey                         ;if not in vertical area between
             //> bne DisJoyp                 ;status bar and bottom, branch
@@ -806,7 +806,7 @@ private fun System.xPhysics() {
         y++
         //> lda AreaType               ;check area type
         //> beq ChkRFast               ;if water type, branch
-        if (ram.areaType == 0x00.toByte()) {
+        if (ram.areaType == AreaType.Water) {
             // ChkRFast
             //> ChkRFast: iny                        ;if running timer not set or level type is water,
             //> inc $00                    ;increment Y again and temp variable in memory

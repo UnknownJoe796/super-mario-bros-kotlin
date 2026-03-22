@@ -95,7 +95,7 @@ fun System.getAreaMusic() {
             // fall through to StoreMusic with indexY=5 (PipeIntro)
         } else {
             //> ChkAreaType: ldy AreaType           ;load area type as offset for music bit
-            indexY = ram.areaType
+            indexY = ram.areaType.ordinal.toByte()
             //> lda CloudTypeOverride
             //> beq StoreMusic         ;check for cloud type override
             //> ldy #$04               ;select music for cloud type level if found
@@ -104,7 +104,7 @@ fun System.getAreaMusic() {
     } else {
         // Using area type path directly
         //> ChkAreaType: ldy AreaType           ;load area type as offset for music bit
-        indexY = ram.areaType
+        indexY = ram.areaType.ordinal.toByte()
         //> lda CloudTypeOverride
         //> beq StoreMusic         ;check for cloud type override
         //> ldy #$04               ;select music for cloud type level if found
@@ -153,7 +153,7 @@ fun System.entranceGameTimerSetup() {
     //> bne ChkStPos                ;if water type, set swimming flag, otherwise do not set
     //> iny
     //> ChkStPos: sty SwimmingFlag
-    ram.swimmingFlag = ram.areaType == 0x0.toByte()
+    ram.swimmingFlag = ram.areaType == AreaType.Water
 
     //> ldx PlayerEntranceCtrl      ;get starting position loaded from header
     var playerEntranceCtrl = ram.playerEntranceCtrl
@@ -224,7 +224,7 @@ fun System.entranceGameTimerSetup() {
     //> ChkSwimE: ldy AreaType                ;if level not water-type,
     //> bne SetPESub                ;skip this subroutine
     //> jsr SetupBubble             ;otherwise, execute sub to set up air bubbles
-    if (ram.areaType == 0x00.toByte()) setupBubble()
+    if (ram.areaType == AreaType.Water) setupBubble()
 
     //> SetPESub: lda #$07                    ;set to run player entrance subroutine
     //> sta GameEngineSubroutine    ;on the next frame of game engine

@@ -428,7 +428,7 @@ private fun System.chkToStunEnemiesLocal(x: Int) {
         0xff.toByte()
     } else {
         //> lda #$fd; ldy AreaType; bne SetNotW
-        if (ram.areaType != 0.toByte()) 0xfd.toByte() else 0xff.toByte()
+        if (ram.areaType != AreaType.Water) 0xfd.toByte() else 0xff.toByte()
     }
     //> SetNotW: sta Enemy_Y_Speed,x
     ram.sprObjYSpeed[x + 1] = ySpeed

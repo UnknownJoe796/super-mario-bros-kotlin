@@ -77,7 +77,7 @@ fun System.colorRotation() {
     //> dec $00                  ;decrement counter
     //> bpl GetAreaPal           ;do this until the palette is all copied
     paletteToAdd = paletteToAdd.copy(
-        colors = palette3Data[ram.areaType]
+        colors = palette3Data[ram.areaType.ordinal]
     )
 
     //> ldx VRAM_Buffer1_Offset  ;get current vram buffer offset

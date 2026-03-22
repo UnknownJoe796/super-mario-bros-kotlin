@@ -497,7 +497,7 @@ fun System.drawBlock() {
     //> lda AreaType
     //> cmp #$01                      ;check for ground level type area
     //> beq ChkRep                    ;if found, branch to next part
-    if (ram.areaType != 0x01.toByte()) {
+    if (ram.areaType != AreaType.Ground) {
         //> lda #$86
         //> sta Sprite_Tilenumber,y       ;otherwise remove brick tiles with lines
         //> sta Sprite_Tilenumber+4,y     ;and replace then with lineless brick tiles
@@ -518,7 +518,7 @@ fun System.drawBlock() {
         //> ldx AreaType
         //> dex                           ;check for ground level type area again
         //> beq SetBFlip                  ;if found, use current palette bits
-        if ((ram.areaType.toInt() and 0xFF) - 1 != 0) {
+        if (ram.areaType != AreaType.Ground) {
             //> lsr                           ;otherwise set to $01
             paletteBits = 0x01
         }

@@ -340,7 +340,7 @@ fun System.verticalPipeEntry() {
         //> cmp #$03
         //> bne ChgAreaPipe      ;if not castle type level, use mode 1
         entryMode = 0x01
-        if (ram.areaType == 0x03.toByte()) {
+        if (ram.areaType == AreaType.Castle) {
             //> iny
             //> jmp ChgAreaPipe      ;otherwise use mode 2
             entryMode = 0x02

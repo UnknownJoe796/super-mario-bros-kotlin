@@ -11,7 +11,7 @@ fun System.processWhirlpools() {
     //> ProcessWhirlpools:
     //> lda AreaType                ;check for water type level
     //> bne ExitWh                  ;branch to leave if not found
-    if (ram.areaType != 0.toByte()) return
+    if (ram.areaType != AreaType.Water) return
     //> sta Whirlpool_Flag          ;otherwise initialize whirlpool flag
     ram.whirlpoolFlag = 0
     //> lda TimerControl            ;if master timer control set,

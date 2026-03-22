@@ -338,13 +338,13 @@ private fun System.areaParserCore() {
     //> lda WorldNumber            ;check world number, if not world number eight
     //> cmp #World8                ;then skip this part
     //> bne TerMTile
-    if (ram.areaType == 0.toByte() && ram.worldNumber == World8) {
+    if (ram.areaType == AreaType.Water && ram.worldNumber == World8) {
         //> lda #$62                   ;if set as water level and world number eight,
         aTerrain = 0x62u
         //> jmp StoreMT                ;use castle wall metatile as terrain type
     } else {
         //> TerMTile: lda TerrainMetatiles,y     ;otherwise get appropriate metatile for area type
-        aTerrain = TerrainMetatiles[ram.areaType]
+        aTerrain = TerrainMetatiles[ram.areaType.ordinal]
         //> ldy CloudTypeOverride      ;check for cloud type override
         //> beq StoreMT                ;if not set, keep value otherwise
         if (ram.cloudTypeOverride) {
@@ -400,7 +400,7 @@ private fun System.areaParserCore() {
             //> bne EndUChk                ;if not underground, skip this part
             //> cpx #$0b
             //> bne EndUChk                ;if we're at the bottom of the screen, override
-            if (ram.areaType == 0x02.toByte() && x == 0x0B.toByte()) {
+            if (ram.areaType == AreaType.Underground && x == 0x0B.toByte()) {
                 //> lda #$54                   ;old terrain type with ground level terrain type
                 //> sta $07
                 zp07 = 0x54.toUByte()
@@ -1076,7 +1076,7 @@ private fun System.scrollLockObject_Warp() {
         //> ldy AreaType        ;check area type
         //> dey
         //> bne WarpNum         ;if ground area type, increment for last warp zone
-        if (ram.areaType.toInt() - 1 == 0) {
+        if (ram.areaType == AreaType.Ground) {
             //> inx                 ;(8-7-6) and move on
             textNum++
         }
@@ -1727,7 +1727,7 @@ private fun System.emptyBlock() {
 private fun System.rowOfCoins() {
     //> ldy AreaType            ;get area type
     //> lda CoinMetatileData,y  ;load appropriate coin metatile
-    val metatile = CoinMetatileData[ram.areaType.toInt() and 0xFF]
+    val metatile = CoinMetatileData[ram.areaType.ordinal]
     //> jmp GetRow
     getRow(metatile)
 }
@@ -1735,7 +1735,7 @@ private fun System.rowOfCoins() {
 //> RowOfBricks:
 private fun System.rowOfBricks() {
     //> ldy AreaType           ;load area type obtained from area offset pointer
-    var y = ram.areaType.toInt() and 0xFF
+    var y = ram.areaType.ordinal
     //> lda CloudTypeOverride  ;check for cloud type override
     //> beq DrawBricks
     if (ram.cloudTypeOverride) {
@@ -1751,7 +1751,7 @@ private fun System.rowOfBricks() {
 //> RowOfSolidBlocks:
 private fun System.rowOfSolidBlocks() {
     //> ldy AreaType               ;load area type obtained from area offset pointer
-    val y = ram.areaType.toInt() and 0xFF
+    val y = ram.areaType.ordinal
     //> lda SolidBlockMetatiles,y  ;get metatile
     val metatile = SolidBlockMetatiles[y]
     //> GetRow: (falls through)
@@ -1775,7 +1775,7 @@ private fun System.getRow(metatile: UByte) {
 //> ColumnOfBricks:
 private fun System.columnOfBricks() {
     //> ldy AreaType          ;load area type obtained from area offset
-    val y = ram.areaType.toInt() and 0xFF
+    val y = ram.areaType.ordinal
     //> lda BrickMetatiles,y  ;get metatile (no cloud override as for row)
     val metatile = BrickMetatiles[y]
     //> jmp GetRow2
@@ -1785,7 +1785,7 @@ private fun System.columnOfBricks() {
 //> ColumnOfSolidBlocks:
 private fun System.columnOfSolidBlocks() {
     //> ldy AreaType               ;load area type obtained from area offset
-    val y = ram.areaType.toInt() and 0xFF
+    val y = ram.areaType.ordinal
     //> lda SolidBlockMetatiles,y  ;get metatile
     val metatile = SolidBlockMetatiles[y]
     //> GetRow2: (falls through)
@@ -1965,7 +1965,7 @@ private fun System.brickWithItem() {
     //> ldy AreaType                ;check level type for ground level
     //> dey
     //> beq BWithL                  ;if ground type, do not start with 5
-    if (ram.areaType.toInt() - 1 != 0) {
+    if (ram.areaType != AreaType.Ground) {
         //> lda #$05                    ;otherwise use adder for bricks without lines
         adder = 5
     }
@@ -2021,7 +2021,7 @@ private fun System.hole_Empty() {
     if (fixedLen.justStarting) {
         //> lda AreaType                 ;check for water type level
         //> bne NoWhirlP                 ;if not water type, skip this part
-        if (ram.areaType == 0.toByte()) {
+        if (ram.areaType == AreaType.Water) {
             //> ldx Whirlpool_Offset         ;get offset for data used by cannons and whirlpools
             val wpIdx = ram.cannonOffset.toInt() and 0xFF // whirlpool shares same offset as cannon
             //> jsr GetAreaObjXPosition      ;get proper horizontal coordinate of where we're at
@@ -2055,9 +2055,9 @@ private fun System.hole_Empty() {
         }
     }
     //> NoWhirlP: ldx AreaType                 ;get appropriate metatile, then
-    val areaType = ram.areaType.toInt() and 0xFF
+    val areaTypeOrd = ram.areaType.ordinal
     //> lda HoleMetatiles,x          ;render the hole proper
-    val metatile = HoleMetatiles[areaType]
+    val metatile = HoleMetatiles[areaTypeOrd]
     //> ldx #$08
     //> ldy #$0f                     ;start at ninth row and go to bottom, run RenderUnderPart
     //> (falls through to RenderUnderPart)

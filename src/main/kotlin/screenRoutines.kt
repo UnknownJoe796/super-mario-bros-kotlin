@@ -212,7 +212,7 @@ private fun System.displayIntermediate() {
     //> ldy AreaType                 ;check if we are on castle level
     //> cpy #$03                     ;and if so, branch (possibly residual)
     //> beq PlayerInter
-    if (ram.areaType != 0x03.toByte()) {
+    if (ram.areaType != AreaType.Castle) {
         //> lda DisableIntermediate      ;if this flag is set, skip intermediate lives display
         //> bne NoInter                  ;and jump to specific task, otherwise
         if (ram.disableIntermediate) return noInter()
@@ -304,7 +304,7 @@ private fun System.getAreaPalette() {
     //> ldy AreaType             ;select appropriate palette to load
     //> ldx AreaPalette,y        ;based on area type
     //> SetVRAMAddr_A: stx VRAM_Buffer_AddrCtrl ;store offset into buffer control
-    ram.vRAMBufferAddrCtrl = AreaPalette[ram.areaType]
+    ram.vRAMBufferAddrCtrl = AreaPalette[ram.areaType.ordinal]
     //> NextSubtask:   jmp IncSubtask           ;move onto next task
     incSubtask()
 }
@@ -410,7 +410,7 @@ fun System.getPlayerColors() {
         // backgroundColorCtrl uses values 4..7 when set
         ram.backgroundColorCtrl
     } else {
-        ram.areaType and 0x03.toByte()
+        ram.areaType.ordinal.toByte() and 0x03.toByte()
     }
     //> SetBGColor:    lda BackgroundColors,y   ;to background color instead
     val bg = BackgroundColors[bgIndex]

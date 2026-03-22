@@ -632,7 +632,7 @@ fun System.enemiesCollision() {
 
     //> lda AreaType
     //> beq ExSFN                   ;if water area type, leave
-    if (ram.areaType == 0.toByte()) return
+    if (ram.areaType == AreaType.Water) return
 
     //> lda Enemy_ID,x
     val enemyId = ram.enemyID[x].toInt() and 0xFF

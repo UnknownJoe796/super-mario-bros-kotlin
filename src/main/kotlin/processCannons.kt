@@ -18,7 +18,7 @@ fun System.processCannons() {
     //> ProcessCannons:
     //> lda AreaType                ;get area type
     //> beq ExCannon                ;if water type area, branch to leave
-    if (ram.areaType == 0.toByte()) return
+    if (ram.areaType == AreaType.Water) return
 
     //> ldx #$02
     //> ThreeSChk:

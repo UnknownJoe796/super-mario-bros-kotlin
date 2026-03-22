@@ -1690,7 +1690,7 @@ private fun System.bulletBillCheepCheep(x: Int) {
     if (ram.frenzyEnemyTimer != 0.toByte()) return
 
     //> lda AreaType; bne DoBulletBills
-    if (ram.areaType != 0.toByte()) {
+    if (ram.areaType != AreaType.Water) {
         // --- DoBulletBills ---
         //> ldy #$ff
         //> BB_SLoop: iny; cpy #$05; bcs FireBulletBill
@@ -2242,8 +2242,7 @@ private fun System.spBBox() {
     //> ldy SecondaryHardMode     ;otherwise check for secondary hard mode flag
     //> bne CasPBB                ;if set, use default value
     //> lda #$06                  ;use alternate value if not castle or secondary not set
-    val areaType = ram.areaType.toInt() and 0xFF
-    val bbCtrl = if (areaType == 3 || ram.secondaryHardMode != 0.toByte()) 0x05 else 0x06
+    val bbCtrl = if (ram.areaType == AreaType.Castle || ram.secondaryHardMode != 0.toByte()) 0x05 else 0x06
 
     //> CasPBB: sta Enemy_BoundBoxCtrl,x
     ram.enemyBoundBoxCtrls[x] = bbCtrl.toByte()

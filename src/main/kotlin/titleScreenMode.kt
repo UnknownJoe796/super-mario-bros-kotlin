@@ -548,7 +548,7 @@ fun System.loadAreaPointer() {
     //> GetAreaType: and #%01100000       ;mask out all but d6 and d5
     //> asl / rol / rol / rol             ;make %0xx00000 into %000000xx
     //> sta AreaType
-    ram.areaType = ((pointer and 0x60) shr 5).toByte()
+    ram.areaType = AreaType.fromByte(((pointer and 0x60) shr 5).toByte())
 }
 
 /**
@@ -572,7 +572,7 @@ private fun System.getAreaDataAddrs() {
     //> tay
     val areaType = getAreaType(rawPointer)
     //> sta AreaType
-    ram.areaType = areaType.toByte()
+    ram.areaType = AreaType.fromByte(areaType.toByte())
 
     //> lda AreaPointer          ;mask out all but 5 LSB
     //> and #%00011111

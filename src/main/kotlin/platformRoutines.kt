@@ -1304,7 +1304,7 @@ fun System.drawLargePlatform() {
     //> beq ShrinkPlatform
     //> ldy SecondaryHardMode       ;check for secondary hard mode flag set
     //> beq SetLast2Platform        ;branch if not set elsewhere
-    val isCastle = (ram.areaType.toInt() and 0xFF) == 0x03
+    val isCastle = ram.areaType == AreaType.Castle
     val isHardMode = ram.secondaryHardMode != 0.toByte()
     val last2Y = if (isCastle || isHardMode) {
         //> ShrinkPlatform:

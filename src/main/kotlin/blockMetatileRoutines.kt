@@ -113,7 +113,7 @@ fun System.removeCoinOrAxe(bbLow: Int, vertOfs: Int) {
     //> ldx AreaType             ;check area type
     //> bne WriteBlankMT         ;if not water type, use offset
     //> lda #$04                 ;otherwise load offset for blank metatile used in water
-    if ((ram.areaType) == 0.toByte()) {
+    if (ram.areaType == AreaType.Water) {
         blockIndex = 0x04
     }
     //> WriteBlankMT: jsr PutBlockMetatile     ;do a sub to write blank metatile to vram buffer

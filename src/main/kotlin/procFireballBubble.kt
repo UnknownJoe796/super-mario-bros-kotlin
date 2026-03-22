@@ -48,7 +48,7 @@ fun System.procFireballBubble() {
     //> ProcAirBubbles:
     //> lda AreaType                ;if not water type level, skip the rest
     //> bne BublExit
-    if (ram.areaType != 0.toByte()) return
+    if (ram.areaType != AreaType.Water) return
 
     //> ldx #$02
     //> BublLoop:
