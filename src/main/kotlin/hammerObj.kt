@@ -4,6 +4,8 @@
 // getMiscBoundBox() must be removed for these real implementations to be called.
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.getEnemyState
+
 // hammerEnemyOffsets is now in GameRam as ByteArray(9) at $06AE
 
 //> HammerEnemyOfsData:
@@ -136,7 +138,7 @@ fun System.procHammerObj() {
             //> lda Enemy_State,y          ;get enemy object state
             //> and #%11110111             ;mask out d3
             //> sta Enemy_State,y          ;store new state
-            ram.enemyState[enemyOfs] = (ram.enemyState[enemyOfs].toInt() and 0b11110111).toByte()
+            ram.enemyState[enemyOfs] = ram.enemyState.getEnemyState(enemyOfs).withoutBit(3).byte
             //> ldx Enemy_MovingDir,y      ;get enemy's moving direction
             //> dex                        ;decrement to use as offset
             val dirOfs = ((ram.enemyMovingDirs[enemyOfs].toInt() and 0xFF) - 1) and 0x01

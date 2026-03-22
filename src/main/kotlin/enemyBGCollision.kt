@@ -194,10 +194,10 @@ fun System.enemyToBGCollisionDet() {
     //> EnemyToBGCollisionDet:
     val x = ram.objectOffset.toInt() and 0xFF
 
-    //> lda Enemy_State,x        ;check enemy state for d6 set
+    //> lda Enemy_State,x        ;check enemy state for d5 set
     //> and #%00100000
     //> bne ExEBG                ;if set, branch to leave
-    if ((ram.enemyState[x].toInt() and 0x20) != 0) return
+    if (ram.enemyState.getEnemyState(x).defeated) return
 
     //> jsr SubtEnemyYPos        ;otherwise, do a subroutine here
     //> bcc ExEBG                ;if enemy vertical coord + 62 < 68, branch to leave
@@ -378,8 +378,7 @@ private fun System.shellOrBlockDefeatLocal(x: Int) {
     //> StnE: jsr ChkToStunEnemies
     chkToStunEnemiesLocal(x)
     //> lda Enemy_State,x; and #%00011111; ora #%00100000; sta Enemy_State,x
-    val state = ram.enemyState[x].toInt() and 0x1F
-    ram.enemyState[x] = (state or 0x20).toByte()
+    ram.enemyState[x] = (ram.enemyState.getEnemyState(x) and 0x1F or 0x20).byte
 
     //> lda #$02
     var points = 0x02
@@ -418,8 +417,7 @@ private fun System.chkToStunEnemiesLocal(x: Int) {
     }
 
     //> SetStun: lda Enemy_State,x; and #%11110000; ora #%00000010; sta Enemy_State,x
-    val state = ram.enemyState[x].toInt() and 0xF0
-    ram.enemyState[x] = (state or 0x02).toByte()
+    ram.enemyState[x] = (ram.enemyState.getEnemyState(x) and 0xF0 or 0x02).byte
     //> dec Enemy_Y_Position,x; dec Enemy_Y_Position,x
     ram.sprObjYPos[x + 1] = (ram.sprObjYPos[x + 1] - 2).toByte()
 
@@ -481,8 +479,8 @@ private fun System.landEnemyProperly(x: Int) {
     //> lda Enemy_State,x
     //> and #%01000000          ;branch if d6 in enemy state is set
     //> bne LandEnemyInitState
-    val state = ram.enemyState[x].toInt() and 0xFF
-    if ((state and 0x40) != 0) {
+    val state = ram.enemyState.getEnemyState(x)
+    if (state.fallingOffEdge) {
         landEnemyInitState(x)
         return
     }
@@ -490,7 +488,7 @@ private fun System.landEnemyProperly(x: Int) {
     //> lda Enemy_State,x
     //> asl                     ;branch if d7 in enemy state is not set
     //> bcc ChkLandedEnemyState
-    if ((state and 0x80) != 0) {
+    if (state.kickedOrEmerged) {
         //> SChkA: jmp DoEnemySideCheck
         doEnemySideCheck(x)
         return
@@ -499,23 +497,24 @@ private fun System.landEnemyProperly(x: Int) {
     //> ChkLandedEnemyState:
     //> lda Enemy_State,x       ;if enemy in normal state, branch back
     //> beq SChkA
-    if (state == 0) {
+    if (!state.isActive) {
         doEnemySideCheck(x)
         return
     }
 
     //> cmp #$05                ;if in state used by spiny's egg
     //> beq ProcEnemyDirection
-    if (state == 0x05) {
+    val stateInt = state.byte.toInt() and 0xFF
+    if (state == EnemyState.SPINY_EGG) {
         procEnemyDirection(x)
         return
     }
 
     //> cmp #$03; bcs ExSteChk
-    if (state >= 0x03) return
+    if (stateInt >= 0x03) return
 
     //> lda Enemy_State,x; cmp #$02; bne ProcEnemyDirection
-    if (state != 0x02) {
+    if (state != EnemyState.STUNNED) {
         procEnemyDirection(x)
         return
     }
@@ -530,7 +529,7 @@ private fun System.landEnemyProperly(x: Int) {
     //> ExSteChk:  rts                       ;then leave
     ram.timers[0x16 + x] = timer.toByte()
     //> lda #$03; sta Enemy_State,x
-    ram.enemyState[x] = 0x03
+    ram.enemyState[x] = EnemyState.STUNNED_ON_GROUND.byte
     //> jsr EnemyLanding
     enemyLanding(x)
 }
@@ -590,14 +589,14 @@ private fun System.landEnemyInitState(x: Int) {
     //> jsr EnemyLanding
     enemyLanding(x)
     //> lda Enemy_State,x; and #%10000000; bne NMovShellFallBit
-    val state = ram.enemyState[x].toInt() and 0xFF
-    if ((state and 0x80) != 0) {
+    val state = ram.enemyState.getEnemyState(x)
+    if (state.kickedOrEmerged) {
         //> NMovShellFallBit:
         //> lda Enemy_State,x; and #%10111111; sta Enemy_State,x
-        ram.enemyState[x] = (state and 0xBF).toByte()
+        ram.enemyState[x] = state.withoutBit(6).byte
     } else {
         //> lda #$00; sta Enemy_State,x
-        ram.enemyState[x] = 0
+        ram.enemyState[x] = EnemyState.INACTIVE.byte
     }
 }
 
@@ -627,24 +626,25 @@ private fun System.chkForRedKoopa(x: Int) {
     //> cmp #RedKoopa; bne Chk2MSBSt
     if (enemyId == EnemyId.RedKoopa.byte.toInt() and 0xFF) {
         //> lda Enemy_State,x; beq ChkForBump_HammerBroJ
-        if (ram.enemyState[x] == 0.toByte()) {
+        if (!ram.enemyState.getEnemyState(x).isActive) {
             chkForBumpHammerBroJ(x)
             return
         }
     }
 
     //> Chk2MSBSt: lda Enemy_State,x; tay
-    val state = ram.enemyState[x].toInt() and 0xFF
+    val state = ram.enemyState.getEnemyState(x)
+    val stateVal = state.byte.toInt() and 0xFF
     //> asl; bcc GetSteFromD
-    if ((state and 0x80) != 0) {
+    if (state.kickedOrEmerged) {
         //> lda Enemy_State,x; ora #%01000000; jmp SetD6Ste
-        ram.enemyState[x] = (state or 0x40).toByte()
+        ram.enemyState[x] = (state or 0x40).byte
     } else {
         //> GetSteFromD: lda EnemyBGCStateData,y
-        val newState = if (state in enemyBGCStateData2.indices) {
-            enemyBGCStateData2[state].toInt() and 0xFF
+        val newState = if (stateVal in enemyBGCStateData2.indices) {
+            enemyBGCStateData2[stateVal].toInt() and 0xFF
         } else {
-            state
+            stateVal
         }
         //> SetD6Ste: sta Enemy_State,x
         //> ;$eb - used in DoEnemySideCheck as counter and to compare moving directions
@@ -709,8 +709,7 @@ private fun System.chkForBumpHammerBroJ(x: Int) {
     //> cpx #$05; beq NoBump
     if (x != 0x05) {
         //> lda Enemy_State,x; asl; bcc NoBump
-        val state = ram.enemyState[x].toInt() and 0xFF
-        if ((state and 0x80) != 0) {
+        if (ram.enemyState.getEnemyState(x).kickedOrEmerged) {
             //> lda #Sfx_Bump; sta Square1SoundQueue
             ram.square1SoundQueue = Constants.Sfx_Bump
         }
@@ -739,8 +738,7 @@ private fun System.setHJ(x: Int, bitmask: Int, ySpeed: Byte) {
     //> SetHJ: sty Enemy_Y_Speed,x
     ram.sprObjYSpeed[x + 1] = ySpeed
     //> lda Enemy_State,x; ora #$01; sta Enemy_State,x
-    val state = ram.enemyState[x].toInt() and 0xFF
-    ram.enemyState[x] = (state or 0x01).toByte()
+    ram.enemyState[x] = (ram.enemyState.getEnemyState(x) or 0x01).byte
     //> lda $00; and PseudoRandomBitReg+2,x; tay
     var offset = bitmask and (ram.pseudoRandomBitReg[(2 + x).coerceIn(0, 7)].toInt() and 0xFF)
     //> lda SecondaryHardMode; bne HJump; tay
@@ -858,8 +856,7 @@ private fun System.hammerBroBGColl(x: Int) {
     if (underResult.metatile == 0.toByte()) {
         //> NoUnderHammerBro:
         //> lda Enemy_State,x; ora #$01; sta Enemy_State,x
-        val state = ram.enemyState[x].toInt() and 0xFF
-        ram.enemyState[x] = (state or 0x01).toByte()
+        ram.enemyState[x] = (ram.enemyState.getEnemyState(x) or 0x01).byte
         return
     }
 
@@ -875,14 +872,12 @@ private fun System.hammerBroBGColl(x: Int) {
     //> lda EnemyFrameTimer,x; bne NoUnderHammerBro
     val timer = ram.timers[0x0a + x].toInt() and 0xFF
     if (timer != 0) {
-        val state = ram.enemyState[x].toInt() and 0xFF
-        ram.enemyState[x] = (state or 0x01).toByte()
+        ram.enemyState[x] = (ram.enemyState.getEnemyState(x) or 0x01).byte
         return
     }
 
     //> lda Enemy_State,x; and #%10001000; sta Enemy_State,x
-    val state = ram.enemyState[x].toInt() and 0x88
-    ram.enemyState[x] = state.toByte()
+    ram.enemyState[x] = (ram.enemyState.getEnemyState(x) and 0x88).byte
     //> jsr EnemyLanding
     enemyLanding(x)
     //> jmp DoEnemySideCheck

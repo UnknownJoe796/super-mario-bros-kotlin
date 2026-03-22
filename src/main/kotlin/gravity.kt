@@ -3,6 +3,8 @@
 // MoveD_EnemyVertically, MoveFallingPlatform, MovePlayerVertically.
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.EnemyState
+
 /**
  * Core gravity routine. Applies vertical force accumulation, position update,
  * acceleration via downward force, and optional upward deceleration.
@@ -166,7 +168,7 @@ fun System.moveD_EnemyVertically() {
     //> cmp #$05
     //> bne ContVMove
     val x = ram.objectOffset.toInt()
-    val downForce = if (ram.enemyState[x] == 0x05.toByte()) {
+    val downForce = if (ram.enemyState[x] == EnemyState.SPINY_EGG.byte) {
         //> MoveFallingPlatform: ldy #$20
         0x20
     } else {

@@ -185,10 +185,10 @@ fun System.enemyGfxHandler() {
     //> CheckForRetainerObj:
     //> lda Enemy_State,x           ;store enemy state
     //> sta $ed
-    val savedEnemyState = ram.enemyState[objectX].toInt() and 0xFF
+    val savedEnemyState = ram.enemyState.getEnemyState(objectX)
     //> and #%00011111              ;nullify all but 5 LSB and use as Y
     //> tay
-    var altState = savedEnemyState and 0x1F
+    var altState = savedEnemyState.byte.toInt() and 0x1F
 
     //> lda Enemy_ID,x              ;check for mushroom retainer/princess object
     //> cmp #RetainerObject
@@ -276,7 +276,7 @@ fun System.enemyGfxHandler() {
         //> lda Enemy_State,x
         //> cmp #$02              ;check for defeated state
         //> bcc GmbaAnim          ;if not defeated, go ahead and animate
-        if (savedEnemyState >= 0x02) {
+        if (savedEnemyState.toInt() >= 0x02) {
             //> ldx #$04              ;if defeated, write new value here
             //> stx $ec
             savedAltState = 0x04
@@ -284,7 +284,7 @@ fun System.enemyGfxHandler() {
         //> GmbaAnim: and #%00100000        ;check for d5 set in enemy object state
         //> ora TimerControl      ;or timer disable flag set
         //> bne CheckBowserFront  ;if either condition true, do not animate goomba
-        val noAnimate = ((savedEnemyState and 0x20) != 0) || (ram.timerControl != 0.toByte())
+        val noAnimate = savedEnemyState.defeated || (ram.timerControl != 0.toByte())
         if (!noAnimate) {
             //> lda FrameCounter
             //> and #%00001000        ;check for every eighth frame
@@ -324,7 +324,7 @@ fun System.enemyGfxHandler() {
             //> ChkFrontSte: lda $ed                     ;check saved enemy state
             //> and #%00100000              ;if bowser not defeated, do not set flag
             //> beq DrawBowser
-            if ((savedEnemyState and 0x20) != 0) {
+            if (savedEnemyState.defeated) {
                 //> FlipBowserOver:
                 //> stx VerticalFlipFlag  ;set vertical flip flag to nonzero
                 //> jmp DrawEnemyObject   ;draw bowser's graphics now
@@ -342,7 +342,7 @@ fun System.enemyGfxHandler() {
             }
             //> ChkRearSte: lda $ed                 ;check saved enemy state
             //> and #%00100000          ;if bowser not defeated, do not set flag
-            if ((savedEnemyState and 0x20) != 0) {
+            if (savedEnemyState.defeated) {
                 //> lda $02                 ;subtract 16 pixels from
                 //> sec                     ;saved vertical coordinate
                 //> sbc #$10
@@ -381,7 +381,7 @@ fun System.enemyGfxHandler() {
             //> lda $ed
             //> and #%00100000            ;check for d5 set in enemy state
             //> bne NoLAFr                ;branch if set
-            if ((savedEnemyState and 0x20) == 0) {
+            if (!savedEnemyState.defeated) {
                 //> lda FrenzyEnemyTimer
                 //> cmp #$10                  ;check timer to see if we've reached a certain range
                 //> bcs NoLAFr                ;branch if not
@@ -436,7 +436,7 @@ fun System.enemyGfxHandler() {
                     gfxTableOfs = 0x54
                     //> lda $ed                ;note that this only gets performed if enemy state => $02
                     //> and #%00100000         ;check saved enemy state for d5 set
-                    if ((savedEnemyState and 0x20) == 0) {
+                    if (!savedEnemyState.defeated) {
                         //> ldx #$8a               ;load offset for defeated goomba
                         gfxTableOfs = 0x8a
                         //> dec $02                ;set different value and decrement saved vertical position
@@ -452,10 +452,10 @@ fun System.enemyGfxHandler() {
         if (enemyCode == EnemyId.HammerBro.byte.toInt() and 0xFF) {
             //> lda $ed
             //> beq CheckToAnimateEnemy  ;branch if not in normal enemy state
-            if (savedEnemyState != 0) {
+            if (savedEnemyState.isActive) {
                 //> and #%00001000
                 //> beq CheckDefeatedState   ;if d3 not set, branch further away
-                if ((savedEnemyState and 0x08) != 0) {
+                if (savedEnemyState.hammerThrown) {
                     //> ldx #$b4                 ;otherwise load offset for different frame
                     gfxTableOfs = 0xb4
                 }
@@ -488,7 +488,7 @@ fun System.enemyGfxHandler() {
                         yCoord = (yCoord.toInt() + 3).toByte()
                         //> jmp CheckAnimationStop   ;and do something else
                         // CheckAnimationStop: check for stopped animation
-                        if (((savedEnemyState and 0xA0) == 0) && (ram.timerControl == 0.toByte())) {
+                        if ((!savedEnemyState.defeated && !savedEnemyState.kickedOrEmerged) && (ram.timerControl == 0.toByte())) {
                             gfxTableOfs += 6
                         }
                         // Skip the normal animation path, go to CheckDefeatedState
@@ -531,7 +531,7 @@ fun System.enemyGfxHandler() {
                                 //> and #%10100000          ;for d7 or d5, or check for timers stopped
                                 //> ora TimerControl
                                 //> bne CheckDefeatedState  ;if either condition true, branch
-                                if (((savedEnemyState and 0xA0) == 0) && (ram.timerControl == 0.toByte())) {
+                                if ((!savedEnemyState.defeated && !savedEnemyState.kickedOrEmerged) && (ram.timerControl == 0.toByte())) {
                                     //> txa
                                     //> clc
                                     //> adc #$06                ;add $06 to current enemy offset
@@ -548,8 +548,7 @@ fun System.enemyGfxHandler() {
         //> CheckDefeatedState:
         //> lda $ed               ;check saved enemy state
         //> and #%00100000        ;for d5 set
-        //> beq DrawEnemyObject   ;branch if not set
-        if ((savedEnemyState and 0x20) != 0) {
+        if (savedEnemyState.defeated) {
             //> lda $ef
             //> cmp #$04              ;check for saved enemy object => $04
             //> bcc DrawEnemyObject   ;branch if less

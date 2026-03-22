@@ -180,6 +180,59 @@ value class PpuStatus(val byte: Byte) {
     ) = PpuStatus(vblank, sprite0Hit, spriteOverflow)
 }
 
+/** Bitfield for Enemy_State array entries. Individual bits are flags; some whole-byte values have special meaning. */
+@JvmInline
+value class EnemyState(val byte: Byte) {
+    constructor(value: Int) : this(value.toByte())
+
+    val isActive: Boolean get() = byte != 0.toByte()
+    /** Bit 0 -- enemy is airborne/jumping */
+    val airborne: Boolean get() = byte.bit(0)
+    /** Bit 1 -- enemy is stunned (set via SetStun) */
+    val stunned: Boolean get() = byte.bit(1)
+    /** Bit 3 -- hammer bro has thrown a hammer (cleared when hammer detaches) */
+    val hammerThrown: Boolean get() = byte.bit(3)
+    /** Bit 5 -- enemy is defeated and falling off screen */
+    val defeated: Boolean get() = byte.bit(5)
+    /** Bit 6 -- enemy falling off edge / Bowser bridge defeat */
+    val fallingOffEdge: Boolean get() = byte.bit(6)
+    /** Bit 7 -- kicked shell moving / power-up fully emerged */
+    val kickedOrEmerged: Boolean get() = byte.bit(7)
+    /** Low 3 bits, used for sub-state dispatch */
+    val lowBits: Int get() = byte.toInt() and 0x07
+
+    /** Unsigned int value (0..255) for numeric comparisons. */
+    fun toInt(): Int = byte.toInt() and 0xFF
+
+    /** Returns a new EnemyState with the given bit set */
+    fun withBit(bit: Int): EnemyState = EnemyState(byte.bit(bit, true))
+    /** Returns a new EnemyState with the given bit cleared */
+    fun withoutBit(bit: Int): EnemyState = EnemyState(byte.bit(bit, false))
+    /** Bitwise OR with a mask */
+    infix fun or(mask: Int): EnemyState = EnemyState((byte.toInt() or mask).toByte())
+    /** Bitwise AND with a mask */
+    infix fun and(mask: Int): EnemyState = EnemyState((byte.toInt() and mask).toByte())
+
+    override fun toString(): String = "EnemyState(0x${(byte.toInt() and 0xFF).toString(16).padStart(2, '0')})"
+
+    companion object {
+        val INACTIVE = EnemyState(0x00)
+        val NORMAL = EnemyState(0x01)
+        val STUNNED = EnemyState(0x02)
+        val STUNNED_ON_GROUND = EnemyState(0x03)
+        val STOMPED_SHELL = EnemyState(0x04)
+        val SPINY_EGG = EnemyState(0x05)
+        val DEFEATED = EnemyState(0x20)
+        val BOWSER_FALLING = EnemyState(0x40)
+        val KICKED_SHELL = EnemyState(0x80)
+    }
+}
+
+/** Read an element as a typed EnemyState. */
+fun ByteArray.getEnemyState(index: Int): EnemyState = EnemyState(this[index])
+/** Write a typed EnemyState into the array. */
+fun ByteArray.setEnemyState(index: Int, state: EnemyState) { this[index] = state.byte }
+
 @JvmInline
 value class VramBufferControl(val byte: Byte) {
     val drawVertically: Boolean get() = byte.bit(7)

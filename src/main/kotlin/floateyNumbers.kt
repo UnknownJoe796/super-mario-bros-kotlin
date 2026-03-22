@@ -127,7 +127,7 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
             //> lda Enemy_State,x
             //> cmp #$02                     ;if enemy state defeated or otherwise
             //> bcs FloateyPart              ;$02 or greater, branch beyond this part
-            ram.enemyState[x].toUByte() < 0x2.toUByte()
+            (ram.enemyState[x].toInt() and 0xFF) < 0x02  // only INACTIVE or NORMAL use alt offset
         }
     }
 

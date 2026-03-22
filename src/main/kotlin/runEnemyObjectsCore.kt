@@ -10,6 +10,9 @@
 //     MoveLakitu, MoveFlyingCheepCheep, ProcFirebar
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.EnemyState
+import com.ivieleague.smbtranslation.utils.getEnemyState
+
 // ---- Data tables ----
 
 //> HammerThrowTmrData:
@@ -65,15 +68,14 @@ private val lakituDiffAdj = intArrayOf(0x15, 0x30, 0x40)
  */
 fun System.procHammerBro() {
     val x = ram.objectOffset.toInt()
-    val state = ram.enemyState[x].toInt() and 0xFF
+    val state = ram.enemyState.getEnemyState(x)
 
     //> ProcHammerBro:
     //> lda Enemy_State,x    ;check enemy state for d5 set
     //> and #%00100000
-    //> jmp MoveJ_EnemyVertically  ;otherwise jump to move defeated bullet bill downwards
-    //> beq ChkJH                  ;if not set, go ahead with code
-    if ((state and 0x20) != 0) {
-        //> jmp MoveDefeatedEnemy      ;otherwise jump to something else
+    //> beq ChkHBTime        ;if not set, branch to jump/throw code
+    if (state.defeated) {
+        //> jsr MoveDefeatedEnemy
         moveD_EnemyVertically()
         moveEnemyHorizontally()
         return
@@ -111,7 +113,7 @@ fun System.procHammerBro() {
             val spawned = spawnHammerObj()
             if (spawned) {
                 //> SetHBThr: lda Enemy_State,x; ora #%00001000; sta Enemy_State,x
-                ram.enemyState[x] = (state or 0x08).toByte()
+                ram.enemyState[x] = state.withBit(3).byte
             }
             moveHammerBroXDir(x)
             return
@@ -126,8 +128,7 @@ fun System.procHammerBro() {
 
     //> HammerBroJumpCode:
     //> lda Enemy_State,x; and #%00000111; cmp #$01; beq MoveHammerBroXDir
-    val lowState = state and 0x07
-    if (lowState == 1) {
+    if (state.lowBits == 1) {
         moveHammerBroXDir(x)
         return
     }
@@ -157,7 +158,7 @@ fun System.procHammerBro() {
     //> sta Enemy_Y_Speed,x  ;set jump speed
     ram.sprObjYSpeed[1 + x] = jumpSpd.toByte()
     //> lda Enemy_State,x; ora #$01; sta Enemy_State,x
-    ram.enemyState[x] = (state or 0x01).toByte()
+    ram.enemyState[x] = (state or 0x01).byte
 
     //> Set frame timer based on random data
     val masked = preset and (ram.pseudoRandomBitReg[(2 + x).coerceIn(0, ram.pseudoRandomBitReg.size - 1)].toInt() and 0xFF)
@@ -225,7 +226,7 @@ fun System.movePodoboo() {
         ram.sprObjYHighPos[1 + x] = 2
         ram.sprObjYPos[1 + x] = 2
         //> lda #$00; sta Enemy_State,x
-        ram.enemyState[x] = 0
+        ram.enemyState[x] = EnemyState.INACTIVE.byte
         //> lda #$09; sta EnemyBoundBoxCtrl,x
         ram.enemyBoundBoxCtrls[x] = 0x09
 
@@ -274,11 +275,11 @@ private fun System.moveEnemySlowVert() {
  */
 fun System.moveBloober() {
     val x = ram.objectOffset.toInt()
-    val state = ram.enemyState[x].toInt() and 0xFF
+    val state = ram.enemyState.getEnemyState(x)
 
     //> MoveBloober:
     //> lda Enemy_State,x; and #%00100000; bne MoveDefeatedBloober
-    if ((state and 0x20) != 0) {
+    if (state.defeated) {
         //> MoveDefeatedBloober: jmp MoveEnemySlowVert
         moveEnemySlowVert()
         return
@@ -425,7 +426,7 @@ fun System.moveBulletBill() {
 
     //> MoveBulletBill:
     //> lda Enemy_State,x; and #%00100000; beq NotDefB
-    if ((ram.enemyState[x].toInt() and 0x20) != 0) {
+    if (ram.enemyState.getEnemyState(x).defeated) {
         //> jsr MoveJ_EnemyVertically; rts
         moveJ_EnemyVertically()
         return
@@ -445,12 +446,11 @@ fun System.moveBulletBill() {
  */
 fun System.moveSwimmingCheepCheep() {
     val x = ram.objectOffset.toInt()
-    val state = ram.enemyState[x].toInt() and 0xFF
+    val state = ram.enemyState.getEnemyState(x)
 
     //> MoveSwimmingCheepCheep:
-    //> lda Enemy_State,x; and #%00100000
-    //> beq CCSwim                ;if not set, continue with movement code
-    if ((state and 0x20) != 0) {
+    //> lda Enemy_State,x; and #%00100000; bne MoveDefeatedCCheep
+    if (state.defeated) {
         //> MoveDefeatedCCheep: jmp MoveEnemySlowVert
         moveEnemySlowVert()
         return
@@ -529,7 +529,7 @@ fun System.movePiranhaPlant() {
 
     //> MovePiranhaPlant:
     //> lda Enemy_State,x; bne PutinPipe
-    if (ram.enemyState[x] != 0.toByte()) {
+    if (ram.enemyState.getEnemyState(x).isActive) {
         //> PutinPipe: set background priority
         ram.sprAttrib[1 + x] = 0x20 // by Claude - indexed by x
         return
@@ -808,21 +808,18 @@ private fun System.moveWithXMCntrs(x: Int) {
  */
 fun System.moveLakitu() {
     val x = ram.objectOffset.toInt()
-    val state = ram.enemyState[x].toInt() and 0xFF
 
     //> MoveLakitu:
-    //> lda Enemy_State,x; and #%00100000
-    //> beq ChkLS                  ;if not set, continue with code
-    if ((state and 0x20) != 0) {
+    //> lda Enemy_State,x; and #%00100000; bne KillLakitu
+    if (ram.enemyState.getEnemyState(x).defeated) {
         //> KillLakitu: defeated, fall with gravity
         //> jmp MoveD_EnemyVertically  ;otherwise jump to move defeated lakitu downwards
         moveD_EnemyVertically()
         return
     }
 
-    //> ChkLS:   lda Enemy_State,x  ;if lakitu's enemy state not set at all
-    //> beq Fr12S                    ;go ahead and continue with code
-    if (state != 0) {
+    //> lda Enemy_State,x; bne Fr12S (non-zero state = injured, no frenzy)
+    if (ram.enemyState.getEnemyState(x).isActive) {
         //> Clear movement/frenzy state: sta LakituMoveDirection,x; sta EnemyFrenzyBuffer
         ram.sprObjYSpeed[1 + x] = 0  // LakituMoveDirection,x ($A0+x)
         ram.enemyFrenzyBuffer = 0
@@ -954,7 +951,7 @@ fun System.moveFlyingCheepCheep() {
 
     //> MoveFlyingCheepCheep:
     //> lda Enemy_State,x; and #%00100000; beq FlyCC
-    if ((ram.enemyState[x].toInt() and 0x20) != 0) {
+    if (ram.enemyState.getEnemyState(x).defeated) {
         //> Defeated: clear sprite attrib and fall
         ram.sprAttrib[1 + x] = 0
         //> jmp MoveJ_EnemyVertically  ;and jump to move defeated cheep-cheep downwards

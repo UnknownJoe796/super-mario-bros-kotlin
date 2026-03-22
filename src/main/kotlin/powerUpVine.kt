@@ -55,13 +55,13 @@ fun System.powerUpObjHandler() {
     ram.objectOffset = x.toByte()
 
     //> lda Enemy_State+5          ;check power-up object's state
-    val state = ram.enemyState[5].toInt() and 0xFF
+    val state = ram.enemyState.getEnemyState(5)
     //> beq ExitPUp                ;if not set, branch to leave
-    if (state == 0) return
+    if (!state.isActive) return
 
     //> asl                        ;shift to check if d7 was set in object state
     //> bcc GrowThePowerUp         ;if not set, branch ahead to skip this part
-    if ((state and 0x80) != 0) {
+    if (state.kickedOrEmerged) {
         //> lda TimerControl           ;if master timer control set,
         //> bne RunPUSubs              ;branch ahead to enemy object routines
         if (ram.timerControl != 0.toByte()) {
@@ -116,9 +116,9 @@ fun System.powerUpObjHandler() {
         ram.sprObjYPos[6] = (ram.sprObjYPos[6] - 1).toByte()
 
         //> lda Enemy_State+5          ;load power-up object state
-        val currentState = ram.enemyState[5].toInt() and 0xFF
+        val currentState = ram.enemyState[5].toInt() and 0xFF  // used as numeric rise counter
         //> inc Enemy_State+5          ;increment state for next frame (to make power-up rise)
-        ram.enemyState[5] = ((currentState + 1) and 0xFF).toByte()
+        ram.enemyState[5] = (currentState + 1).toByte()
 
         //> cmp #$11                   ;if power-up object state not yet past 16th pixel,
         //> bcc ChkPUSte               ;branch ahead to last part here
@@ -129,7 +129,7 @@ fun System.powerUpObjHandler() {
 
             //> lda #%10000000
             //> sta Enemy_State+5          ;and then set d7 in power-up object's state
-            ram.enemyState[5] = 0x80.toByte()
+            ram.enemyState[5] = EnemyState.KICKED_SHELL.byte
 
             //> asl                        ;shift once to init A (0x80 << 1 = 0x00, carry set)
             //> sta Enemy_SprAttrib+5      ;initialize background priority bit set here
@@ -144,8 +144,7 @@ fun System.powerUpObjHandler() {
     //> ChkPUSte:  lda Enemy_State+5          ;check power-up object's state
     //> cmp #$06                   ;for if power-up has risen enough
     //> bcc ExitPUp                ;if not, don't even bother running these routines
-    val checkState = ram.enemyState[5].toInt() and 0xFF
-    if (checkState < 0x06) return
+    if ((ram.enemyState[5].toInt() and 0xFF) < 0x06) return  // numeric rise counter comparison
 
     //> RunPUSubs:
     runPowerUpSubs()
@@ -206,15 +205,15 @@ fun System.moveJumpingEnemy() {
 fun System.moveNormalEnemy() {
     //> MoveNormalEnemy:
     val x = ram.objectOffset.toInt()
-    val state = ram.enemyState[x].toInt() and 0xFF
+    val state = ram.enemyState.getEnemyState(x)
 
     //> and #%01000000             ;check enemy state for d6 set
     //> bne FallE                  ;to move enemy vertically, then horizontally if necessary
-    if ((state and 0x40) != 0) {
+    if (state.fallingOffEdge) {
         // FallE path
         moveD_EnemyVertically()
-        val stateAfterFall = ram.enemyState[x].toInt() and 0xFF
-        if ((stateAfterFall and 0x40) == 0) {
+        val stateAfterFall = ram.enemyState.getEnemyState(x)
+        if (!stateAfterFall.fallingOffEdge) {
             moveSteadyEnemy(x)
             return
         }
@@ -229,7 +228,7 @@ fun System.moveNormalEnemy() {
     //> lda Enemy_State,x
     //> asl                        ;check enemy state for d7 set
     //> bcs SteadM                 ;if set, branch to move enemy horizontally
-    if ((state and 0x80) != 0) {
+    if (state.kickedOrEmerged) {
         moveSteadyEnemy(x)
         return
     }
@@ -237,7 +236,7 @@ fun System.moveNormalEnemy() {
     //> lda Enemy_State,x
     //> and #%00100000             ;check enemy state for d5 set
     //> bne MoveDefeatedEnemy      ;if set, branch to move defeated enemy object
-    if ((state and 0x20) != 0) {
+    if (state.defeated) {
         moveD_EnemyVertically()
         moveEnemyHorizontally()
         return
@@ -245,7 +244,7 @@ fun System.moveNormalEnemy() {
 
     //> lda Enemy_State,x
     //> and #%00000111             ;check d2-d0 of enemy state for any set bits
-    val lowBits = state and 0x07
+    val lowBits = state.lowBits
     //> beq SteadM                 ;if enemy in normal state, branch to move enemy horizontally
     if (lowBits == 0) {
         moveSteadyEnemy(x)
@@ -264,8 +263,8 @@ fun System.moveNormalEnemy() {
     if (lowBits == 0x05) {
         moveD_EnemyVertically()
         // after FallE: and #%01000000; beq SteadM
-        val stateAfterFall = ram.enemyState[x].toInt() and 0xFF
-        if ((stateAfterFall and 0x40) == 0) {
+        val stateAfterFall = ram.enemyState.getEnemyState(x)
+        if (!stateAfterFall.fallingOffEdge) {
             moveSteadyEnemy(x)
         } else {
             // cmp #PowerUpObject; beq SteadM; bne SlowM
@@ -358,7 +357,7 @@ private fun System.reviveStunned(x: Int) {
     }
 
     //> sta Enemy_State,x         ;initialize enemy state to normal
-    ram.enemyState[x] = 0
+    ram.enemyState[x] = EnemyState.INACTIVE.byte
     //> lda FrameCounter; and #$01; tay; iny
     val dir = (ram.frameCounter.toInt() and 0x01) + 1
     //> sty Enemy_MovingDir,x     ;store as pseudorandom movement direction
@@ -936,7 +935,7 @@ fun System.setupPowerUp(blockSlot: Int) {
 
     //> PwrUpJmp: lda #$01
     //> sta Enemy_State+5         ;set power-up object's state
-    ram.enemyState[5] = 1
+    ram.enemyState[5] = EnemyState.NORMAL.byte
     //> sta Enemy_Flag+5          ;set buffer flag
     ram.enemyFlags[5] = 1
 

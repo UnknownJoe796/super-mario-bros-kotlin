@@ -775,7 +775,7 @@ fun System.fireballEnemyCollision() {
         val savedFbBBOffset = fbBBOffset  // push fireball offset to stack equivalent
 
         //> lda Enemy_State,x; and #%00100000; bne NoFToECol
-        if ((ram.enemyState[enemyIdx].toInt() and 0x20) != 0) continue
+        if (ram.enemyState.getEnemyState(enemyIdx).defeated) continue
 
         //> lda Enemy_Flag,x; beq NoFToECol
         if (ram.enemyFlags[enemyIdx] == 0.toByte()) continue
@@ -886,14 +886,14 @@ private fun System.hurtBowser(bowserIdx: Int, enemyIdx: Int) {
     //> lda BowserIdentities,y; sta Enemy_ID,x
     ram.enemyID[bowserIdx] = bowserIdentities[worldNum.coerceIn(0, 7)]
     //> lda #$20
-    var state = 0x20
+    var state = EnemyState.DEFEATED.toInt()
     //> cpy #$03; bcs SetDBSte
     if (worldNum < 0x03) {
         //> ora #$03
         state = state or 0x03
     }
     //> SetDBSte: sta Enemy_State,x
-    ram.enemyState[bowserIdx] = state.toByte()
+    ram.enemyState.setEnemyState(bowserIdx, EnemyState(state))
     //> lda #Sfx_BowserFall; sta Square2SoundQueue
     ram.square2SoundQueue = Constants.Sfx_BowserFall
     //> ldx $01  ;get enemy offset
@@ -920,8 +920,7 @@ fun System.shellOrBlockDefeat(x: Int) {
     //> StnE: jsr ChkToStunEnemies
     chkToStunEnemies(x)
     //> lda Enemy_State,x; and #%00011111; ora #%00100000; sta Enemy_State,x
-    val state = ram.enemyState[x].toInt() and 0x1F
-    ram.enemyState[x] = (state or 0x20).toByte()
+    ram.enemyState[x] = (ram.enemyState.getEnemyState(x) and 0x1F or 0x20).byte
 
     //> lda #$02  ;award 200 points by default
     var points = 0x02
@@ -966,8 +965,7 @@ private fun System.chkToStunEnemies(x: Int) {
     }
 
     //> SetStun: lda Enemy_State,x; and #%11110000; ora #%00000010; sta Enemy_State,x
-    val state = ram.enemyState[x].toInt() and 0xF0
-    ram.enemyState[x] = (state or 0x02).toByte()
+    ram.enemyState[x] = (ram.enemyState.getEnemyState(x) and 0xF0 or 0x02).byte
     //> dec Enemy_Y_Position,x; dec Enemy_Y_Position,x
     ram.sprObjYPos[x + 1] = (ram.sprObjYPos[x + 1] - 2).toByte()
 
@@ -1086,7 +1084,7 @@ fun System.playerEnemyCollision() {
     if (ram.gameEngineSubroutine != GameEngineRoutine.PlayerCtrlRoutine) return
 
     //> lda Enemy_State,x; and #%00100000; bne NoPECol
-    if ((ram.enemyState[x].toInt() and 0x20) != 0) return
+    if (ram.enemyState.getEnemyState(x).defeated) return
 
     //> jsr GetEnemyBoundBoxOfs
     val (bbOffset, _) = getEnemyBoundBoxOfs()
@@ -1148,12 +1146,11 @@ private fun System.handlePECollisions(x: Int, enemyId: Int) {
     if (ram.areaType == AreaType.Water) { injurePlayer(); return }
 
     //> lda Enemy_State,x; asl; bcs ChkForPlayerInjury
-    val state = ram.enemyState[x].toInt() and 0xFF
-    if ((state and 0x80) != 0) { chkForPlayerInjury(x); return }
+    val state = ram.enemyState.getEnemyState(x)
+    if (state.kickedOrEmerged) { chkForPlayerInjury(x); return }
 
     //> lda Enemy_State,x; and #%00000111; cmp #$02; bcc ChkForPlayerInjury
-    val lowState = state and 0x07
-    if (lowState < 0x02) { chkForPlayerInjury(x); return }
+    if (state.lowBits < 0x02) { chkForPlayerInjury(x); return }
 
     //> lda Enemy_ID,x; cmp #Goomba; beq ExPEC
     if (enemyId == EnemyId.Goomba.byte.toInt() and 0xFF) return
@@ -1161,7 +1158,7 @@ private fun System.handlePECollisions(x: Int, enemyId: Int) {
     //> lda #Sfx_EnemySmack; sta Square1SoundQueue
     ram.square1SoundQueue = Constants.Sfx_EnemySmack
     //> lda Enemy_State,x; ora #%10000000; sta Enemy_State,x
-    ram.enemyState[x] = (state or 0x80).toByte()
+    ram.enemyState[x] = (state or 0x80).byte
     //> jsr EnemyFacePlayer
     val dirOfs = enemyFacePlayer()
     //> lda KickedShellXSpdData,y; sta Enemy_X_Speed,x
@@ -1307,13 +1304,12 @@ private fun System.enemyStomped(x: Int) {
     val savedDir = ram.enemyMovingDirs[x]
     //> jsr SetStun  (same as the kill enemy logic)
     // SetStun sets enemy state d1 and applies knockback - equivalent to part of ChkToStunEnemies
-    val state2 = ram.enemyState[x].toInt() and 0xF0
-    ram.enemyState[x] = (state2 or 0x02).toByte()
+    ram.enemyState[x] = (ram.enemyState.getEnemyState(x) and 0xF0 or 0x02).byte
     ram.sprObjYPos[x + 1] = (ram.sprObjYPos[x + 1] - 2).toByte()
     //> pla; sta Enemy_MovingDir,x
     ram.enemyMovingDirs[x] = savedDir
     //> lda #%00100000; sta Enemy_State,x
-    ram.enemyState[x] = 0x20
+    ram.enemyState[x] = EnemyState.DEFEATED.byte
     //> jsr InitVStf; sta Enemy_X_Speed,x
     initVStf(x)
     ram.sprObjXSpeed[x + 1] = 0
@@ -1332,7 +1328,7 @@ private fun System.chkForDemoteKoopa(x: Int, enemyId: Int) {
     //> and #%00000001; sta Enemy_ID,x
     ram.enemyID[x] = (enemyId and 0x01).toByte()
     //> ldy #$00; sty Enemy_State,x
-    ram.enemyState[x] = 0
+    ram.enemyState[x] = EnemyState.INACTIVE.byte
     //> lda #$03; jsr SetupFloateyNumber
     val savedOfs = ram.objectOffset
     ram.objectOffset = x.toByte()
@@ -1354,7 +1350,7 @@ private fun System.chkForDemoteKoopa(x: Int, enemyId: Int) {
 private fun System.handleStompedShellE(x: Int) {
     //> HandleStompedShellE:
     //> lda #$04; sta Enemy_State,x
-    ram.enemyState[x] = 0x04
+    ram.enemyState[x] = EnemyState.STOMPED_SHELL.byte
     //> inc StompChainCounter
     ram.stompChainCounter = (ram.stompChainCounter + 1).toByte()
     //> lda StompChainCounter; clc; adc StompTimer

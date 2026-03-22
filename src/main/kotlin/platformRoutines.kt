@@ -121,7 +121,7 @@ fun System.largePlatformCollision() {
     if (ram.timerControl != 0.toByte()) return
     //> lda Enemy_State,x            ;if d7 set in object state,
     //> bmi ExLPC                    ;branch to leave
-    if (ram.enemyState[x] < 0) return
+    if (ram.enemyState.getEnemyState(x).kickedOrEmerged) return  // d7 set = $ff = secondary platform
     //> lda Enemy_ID,x
     //> cmp #$24                     ;check enemy object identifier for
     //> bne ChkForPlayerC_LargeP     ;balance platform, branch if not found
@@ -624,7 +624,7 @@ fun System.balancePlatform() {
 
     //> DoBPl: lda Enemy_State,x           ;get object's state (set to $ff or other platform offset)
     //> bpl CheckBalPlatform        ;if doing other balance platform, branch to leave
-    if (ram.enemyState[x] < 0) return  // d7 set = $ff = this is the secondary platform
+    if (ram.enemyState.getEnemyState(x).kickedOrEmerged) return  // d7 set = $ff = secondary platform
 
     //> CheckBalPlatform:
     //> tay                         ;save offset from state as Y

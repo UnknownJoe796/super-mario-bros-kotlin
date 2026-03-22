@@ -3,6 +3,9 @@
 // TerminateGame (end-of-game routine) from smbdism.asm.
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.EnemyState
+import com.ivieleague.smbtranslation.utils.getEnemyState
+
 import kotlin.experimental.and
 import kotlin.experimental.xor
 
@@ -39,8 +42,8 @@ fun System.bridgeCollapse() {
     ram.objectOffset = x.toByte()
     //> lda Enemy_State,x         ;if bowser in normal state, skip all of this
     //> beq RemoveBridge
-    val enemyState = ram.enemyState[x]
-    if (enemyState == 0.toByte()) {
+    val enemyState = ram.enemyState.getEnemyState(x)
+    if (!enemyState.isActive) {
         // Bowser in normal state: remove bridge metatiles
         removeBridge(x)
         return
@@ -48,7 +51,7 @@ fun System.bridgeCollapse() {
 
     //> and #%01000000            ;if bowser's state has d6 clear, skip to silence music
     //> beq SetM2
-    if (enemyState and 0b01000000 == 0.toByte()) {
+    if (!enemyState.fallingOffEdge) {
         return setM2()
     }
 
@@ -150,7 +153,7 @@ private fun System.removeBridge(x: Int) {
     initVStf(x)
     //> lda #%01000000
     //> sta Enemy_State,x         ;set bowser's state to one of defeated states (d6 set)
-    ram.enemyState[x] = 0b01000000
+    ram.enemyState[x] = EnemyState.BOWSER_FALLING.byte
     //> lda #Sfx_BowserFall
     //> sta Square2SoundQueue     ;play bowser defeat sound
     ram.square2SoundQueue = Constants.Sfx_BowserFall

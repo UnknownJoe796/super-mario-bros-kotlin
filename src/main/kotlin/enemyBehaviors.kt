@@ -2,7 +2,9 @@
 // Translates enemy behavior dispatch and top-level enemy processing routines from smbdism.asm.
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.EnemyState
 import com.ivieleague.smbtranslation.utils.SpriteFlags
+import com.ivieleague.smbtranslation.utils.getEnemyState
 
 // ---- Data tables ----
 
@@ -695,9 +697,10 @@ fun System.enemiesCollision() {
                     //> lda Enemy_State,x
                     //> ora Enemy_State,y           ;check both enemy states for d7 set
                     //> and #%10000000
-                    val bothD7 = (ram.enemyState[x].toInt() or ram.enemyState[savedSecondIdx].toInt()) and 0x80
+                    val eitherKicked = ram.enemyState.getEnemyState(x).kickedOrEmerged ||
+                            ram.enemyState.getEnemyState(savedSecondIdx).kickedOrEmerged
                     //> bne YesEC                   ;branch if at least one of them is set
-                    if (bothD7 == 0) {
+                    if (!eitherKicked) {
                         //> lda Enemy_CollisionBits,y   ;load first enemy's collision-related bits
                         val collBits = ram.enemyCollisionBitsArr[savedSecondIdx].toInt() and 0xFF
                         //> and SetBitsMask,x           ;check to see if bit connected to second enemy is
@@ -750,14 +753,15 @@ private fun System.procEnemyCollisions(firstIdx: Int, secondIdx: Int) {
     //> ora Enemy_State,x
     //> and #%00100000           ;if d5 is set in either state, or both, branch to leave
     //> bne ExitProcessEColl
-    val combinedD5 = (ram.enemyState[secondIdx].toInt() or ram.enemyState[firstIdx].toInt()) and 0x20
-    if (combinedD5 != 0) return
+    val eitherDefeated = ram.enemyState.getEnemyState(secondIdx).defeated ||
+            ram.enemyState.getEnemyState(firstIdx).defeated
+    if (eitherDefeated) return
 
     //> lda Enemy_State,x
-    val firstState = ram.enemyState[firstIdx].toInt() and 0xFF
+    val firstStateVal = ram.enemyState[firstIdx].toInt() and 0xFF
     //> cmp #$06                 ;if second enemy state < $06, branch elsewhere
     //> bcc ProcSecondEnemyColl
-    if (firstState >= 0x06) {
+    if (firstStateVal >= 0x06) {
         //> lda Enemy_ID,x           ;check second enemy identifier for hammer bro
         val firstEnemyId = ram.enemyID[firstIdx].toInt() and 0xFF
         //> cmp #HammerBro           ;if hammer bro found in alt state, branch to leave
@@ -766,8 +770,7 @@ private fun System.procEnemyCollisions(firstIdx: Int, secondIdx: Int) {
 
         //> lda Enemy_State,y        ;check first enemy state for d7 set
         //> asl; bcc ShellCollisions ;branch if d7 is clear
-        val secondState = ram.enemyState[secondIdx].toInt() and 0xFF
-        if ((secondState and 0x80) != 0) {
+        if (ram.enemyState.getEnemyState(secondIdx).kickedOrEmerged) {
             //> lda #$06; jsr SetupFloateyNumber   ;award 1000 points for killing enemy
             val savedOfs = ram.objectOffset
             ram.objectOffset = firstIdx.toByte()
@@ -796,10 +799,10 @@ private fun System.procEnemyCollisions(firstIdx: Int, secondIdx: Int) {
         ram.shellChainCounters[firstIdx] = ((chainCount + 1) and 0xFF).toByte()
     } else {
         //> ProcSecondEnemyColl:
-        val secondState = ram.enemyState[secondIdx].toInt() and 0xFF
+        val secondStateVal = ram.enemyState[secondIdx].toInt() and 0xFF
         //> lda Enemy_State,y        ;if first enemy state < $06, branch elsewhere
         //> cmp #$06; bcc MoveEOfs
-        if (secondState >= 0x06) {
+        if (secondStateVal >= 0x06) {
             //> lda Enemy_ID,y           ;check first enemy identifier for hammer bro
             val secondEnemyId = ram.enemyID[secondIdx].toInt() and 0xFF
             //> cmp #HammerBro; beq ExitProcessEColl

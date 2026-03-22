@@ -4,6 +4,8 @@
 package com.ivieleague.smbtranslation
 
 import com.ivieleague.smbtranslation.areaparser.EnemyObjByte1
+import com.ivieleague.smbtranslation.utils.EnemyState
+import com.ivieleague.smbtranslation.utils.getEnemyState
 
 // NES Y register tracking for Setup_Vine: on the NES, the Y register at Setup_Vine
 // comes from JumpEngine's dispatch mechanism: Y = enemyID * 2 + 2. This is because
@@ -381,7 +383,7 @@ private fun System.chkEnemyFrenzy() {
         ram.enemyFlags[x] = 1
         //> lda #$00
         //> sta Enemy_State,x     ;initialize state and frenzy queue
-        ram.enemyState[x] = 0
+        ram.enemyState[x] = EnemyState.INACTIVE.byte
         //> sta EnemyFrenzyQueue
         ram.enemyFrenzyQueue = 0
         //> jmp InitEnemyObject   ;and then jump to deal with this enemy
@@ -816,7 +818,7 @@ fun System.initEnemyObject() {
     //> InitEnemyObject:
     //> lda #$00                 ;initialize enemy state
     //> sta Enemy_State,x
-    ram.enemyState[x] = 0
+    ram.enemyState[x] = EnemyState.INACTIVE.byte
     //> jsr CheckpointEnemyID    ;jump ahead to run jump engine and subroutines
     checkpointEnemyID()
     //> ExEPar: rts                      ;then leave
@@ -997,7 +999,7 @@ private fun System.initRedKoopa() {
 
     //> lda #$01              ;set enemy state for red koopa troopa $03
     //> sta Enemy_State,x
-    ram.enemyState[x] = 1
+    ram.enemyState[x] = EnemyState.NORMAL.byte
 }
 
 /**
@@ -1113,7 +1115,7 @@ private fun System.initPodoboo() {
 
     //> lsr
     //> sta Enemy_State,x         ;initialize enemy state (1 >> 1 = 0)
-    ram.enemyState[x] = 0
+    ram.enemyState[x] = EnemyState.INACTIVE.byte
 
     //> jmp SmallBBox             ;$09 as bounding box size and set other things
     smallBBox()
@@ -1132,7 +1134,7 @@ internal fun System.initPiranhaPlant() {
 
     //> lsr
     //> sta Enemy_State,x            ;initialize enemy state (1 >> 1 = 0)
-    ram.enemyState[x] = 0
+    ram.enemyState[x] = EnemyState.INACTIVE.byte
 
     //> sta PiranhaPlant_MoveFlag,x  ;initialize move flag
     ram.sprObjYSpeed[1 + x] = 0  // PiranhaPlant_MoveFlag,x = Enemy_Y_Speed,x ($A0+x)
@@ -1293,7 +1295,7 @@ private fun System.endFrenzy() {
         if (ram.enemyID[y] == EnemyId.Lakitu.byte) {
             //> lda #$01               ;if found, set state
             //> sta Enemy_State,y
-            ram.enemyState[y] = 1
+            ram.enemyState[y] = EnemyState.NORMAL.byte
         }
         //> NextFSlot: dey          ;move onto the next slot
         //> bpl LakituChk           ;do this until all slots are checked
@@ -1401,7 +1403,7 @@ private fun System.lakituAndSpinyHandler(x: Int) {
 
         //> lda Enemy_State,y          ;if lakitu is not in normal state, branch to leave
         //> bne ExLSHand
-        if (ram.enemyState[lakituSlot] != 0.toByte()) return
+        if (ram.enemyState.getEnemyState(lakituSlot).isActive) return
 
         //> lda Enemy_PageLoc,y; sta Enemy_PageLoc,x
         ram.sprObjPageLoc[1 + x] = ram.sprObjPageLoc[1 + lakituSlot]
@@ -1439,7 +1441,7 @@ private fun System.lakituAndSpinyHandler(x: Int) {
         //> lda #$01; sta Enemy_Flag,x
         ram.enemyFlags[x] = 1
         //> lda #$05; sta Enemy_State,x  ;put spiny in egg state
-        ram.enemyState[x] = 5
+        ram.enemyState[x] = EnemyState.SPINY_EGG.byte
         return
     }
 
@@ -1463,7 +1465,7 @@ private fun System.lakituAndSpinyHandler(x: Int) {
 
     //> CreateL:
     //> lda #$00; sta Enemy_State,x
-    ram.enemyState[emptySlot] = 0
+    ram.enemyState[emptySlot] = EnemyState.INACTIVE.byte
     //> lda #Lakitu; sta Enemy_ID,x
     ram.enemyID[emptySlot] = EnemyId.Lakitu.byte
 
@@ -1513,7 +1515,7 @@ private fun System.finishFlame(x: Int) {
     ram.enemyFlags[x] = 1
     //> lsr; sta Enemy_X_MoveForce,x; sta Enemy_State,x
     ram.sprObjXMoveForce[1 + x] = 0
-    ram.enemyState[x] = 0
+    ram.enemyState[x] = EnemyState.INACTIVE.byte
 }
 
 /**
@@ -2080,7 +2082,7 @@ private fun System.initBowser() {
 private fun System.pwrUpJmp() {
     //> PwrUpJmp:  lda #$01                  ;this is a residual jump point in enemy object jump table
     //> sta Enemy_State+5         ;set power-up object's state
-    ram.enemyState[5] = 1
+    ram.enemyState[5] = EnemyState.NORMAL.byte
 
     //> sta Enemy_Flag+5          ;set buffer flag
     ram.enemyFlags[5] = 1

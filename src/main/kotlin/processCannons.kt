@@ -2,6 +2,9 @@
 // Translates the bullet bill cannon spawning and handling chain.
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.EnemyState
+import com.ivieleague.smbtranslation.utils.getEnemyState
+
 //> CannonBitmasks:
 //> .db %00001111, %00000111
 //> .db $0f, $07
@@ -100,7 +103,7 @@ private fun System.fireCannon(x: Int, y: Int) {
     ram.enemyFlags[x] = 1
     //> lsr                        ;shift right once to init A to 0
     //> sta Enemy_State,x          ;then initialize enemy's state
-    ram.enemyState[x] = 0
+    ram.enemyState[x] = EnemyState.INACTIVE.byte
     //> lda #$09
     //> sta Enemy_BoundBoxCtrl,x   ;set bounding box size control for bullet bill
     ram.enemyBoundBoxCtrls[x] = 0x09
@@ -143,12 +146,12 @@ private fun System.bulletBillHandler(x: Int) {
 
     //> lda Enemy_State,x
     //> bne ChkDSte               ;if bullet bill's state set, branch to check defeated state
-    val enemyStateVal = ram.enemyState[x].toInt() and 0xFF
-    if (enemyStateVal != 0) {
+    val state = ram.enemyState.getEnemyState(x)
+    if (state.isActive) {
         //> ChkDSte: lda Enemy_State,x  ;check enemy state for d5 set
         //> and #%00100000
         //> beq BBFly                 ;if not set, skip to move horizontally
-        if ((enemyStateVal and 0x20) != 0) {
+        if (state.defeated) {
             //> jsr MoveD_EnemyVertically ;otherwise do sub to move bullet bill vertically
             moveD_EnemyVertically()
         }
@@ -196,7 +199,7 @@ private fun System.bulletBillHandler(x: Int) {
 
     //> lda #$01
     //> sta Enemy_State,x         ;otherwise set bullet bill's state
-    ram.enemyState[x] = 1
+    ram.enemyState[x] = EnemyState.NORMAL.byte
     //> lda #$0a
     //> sta EnemyFrameTimer,x     ;set enemy frame timer
     ram.timers[0x0a + x] = 0x0a
@@ -311,8 +314,8 @@ fun System.offscreenBoundsCheck() {
 
     // Enemy is offscreen to the right - check exemptions
     //> lda Enemy_State,x       ;if in state used by spiny's egg, do not erase
-    //> cmp #HammerBro
-    if (ram.enemyState[x] == EnemyId.HammerBro.byte) return
+    //> cmp #HammerBro          ;(HammerBro=$05, same value as spiny egg state)
+    if (ram.enemyState[x] == EnemyState.SPINY_EGG.byte) return
     //> cpy #PiranhaPlant       ;if piranha plant, do not erase
     if (enemyId == EnemyId.PiranhaPlant.byte) return
     //> cpy #FlagpoleFlagObject ;if flagpole flag, do not erase

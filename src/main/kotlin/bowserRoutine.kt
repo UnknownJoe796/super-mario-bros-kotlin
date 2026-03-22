@@ -1,7 +1,9 @@
 // by Claude - RunBowser: Bowser AI, movement, flame attack, bridge collapse interaction
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.utils.EnemyState
 import com.ivieleague.smbtranslation.utils.SpriteFlags
+import com.ivieleague.smbtranslation.utils.getEnemyState
 
 //> PRandomRange:
 //> .db $21, $41, $11, $31
@@ -38,8 +40,7 @@ fun System.runBowser() {
     //> lda Enemy_State,x       ;if d5 in enemy state is not set
     //> and #%00100000          ;then branch elsewhere to run bowser
     //> beq BowserControl
-    val state = ram.enemyState[x].toInt() and 0xFF
-    if (state and 0x20 != 0) {
+    if (ram.enemyState.getEnemyState(x).defeated) {
         //> lda Enemy_Y_Position,x  ;otherwise check vertical position
         //> cmp #$e0                ;if above a certain point, branch to move defeated bowser
         //> bcc MoveD_Bowser        ;otherwise proceed to KillAllEnemies
@@ -436,7 +437,7 @@ private fun System.processBowserHalf(): Boolean {
     val x = ram.objectOffset.toInt()
     //> lda Enemy_State,x
     //> bne ExBGfxH               ;if either enemy object not in normal state, branch to leave
-    if (ram.enemyState[x] != 0.toByte()) {
+    if (ram.enemyState.getEnemyState(x).isActive) {
         return false
     }
 
@@ -545,7 +546,7 @@ fun System.procBowserFlame() {
 
     //> lda Enemy_State,x           ;if bowser's flame not in normal state,
     //> bne ExFl                    ;branch to leave
-    if (ram.enemyState[x] != 0.toByte()) return
+    if (ram.enemyState.getEnemyState(x).isActive) return
 
     //> lda #$51                    ;otherwise, continue
     //> sta $00                     ;write first tile number
