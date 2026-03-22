@@ -1,5 +1,7 @@
 package com.ivieleague.smbtranslation
 
+import com.ivieleague.smbtranslation.areaparser.AreaHeader
+import com.ivieleague.smbtranslation.areaparser.AreaPointer
 import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.chr.OriginalRom
 import com.ivieleague.smbtranslation.chr.rawChrData
@@ -531,32 +533,18 @@ fun System.loadAreaPointer() {
     //> jsr FindAreaPointer  ;find it and store it here
 
     // --- FindAreaPointer inlined ---
-    //> ldy WorldNumber        ;load offset from world variable
-    //> lda WorldAddrOffsets,y
     val worldOffset = RomData.worldAddrOffsets[ram.worldNumber.toInt() and 0xFF]
-    //> clc                    ;add area number used to find data
-    //> adc AreaNumber
-    //> tay
     val areaIdx = (worldOffset + (ram.areaNumber.toInt() and 0xFF)) and 0xFF
-    //> lda AreaAddrOffsets,y  ;from there we have our area pointer
-    val pointer = RomData.areaAddrOffsets[areaIdx]
+    val pointer = AreaPointer(RomData.areaAddrOffsets[areaIdx])
 
     //> sta AreaPointer
-    ram.areaPointer = pointer.toByte()
+    ram.areaPointer = pointer.raw
 
-    // --- GetAreaType inlined (also called standalone by getAreaDataAddrs) ---
-    //> GetAreaType: and #%01100000       ;mask out all but d6 and d5
-    //> asl / rol / rol / rol             ;make %0xx00000 into %000000xx
-    //> sta AreaType
-    ram.areaType = ((pointer and 0x60) shr 5).toByte()
+    // --- GetAreaType inlined ---
+    //> GetAreaType: and #%01100000 / asl / rol / rol / rol / sta AreaType
+    ram.areaType = pointer.areaType.toByte()
 }
 
-/**
- * Extracts the area type (bits 6-5) from a raw area pointer value.
- * Equivalent to the GetAreaType subroutine: masks bits 6-5 and rotates them
- * to the two LSBs, yielding a value 0-3.
- */
-private fun getAreaType(rawPointer: Int): Int = (rawPointer and 0x60) shr 5
 
 /**
  * Uses the area pointer to look up both the enemy data and level (area) data arrays,
@@ -566,30 +554,15 @@ private fun getAreaType(rawPointer: Int): Int = (rawPointer and 0x60) shr 5
  */
 private fun System.getAreaDataAddrs() {
     //> GetAreaDataAddrs:
-    //> lda AreaPointer          ;use 2 MSB for Y
-    val rawPointer = ram.areaPointer.toInt() and 0xFF
-    //> jsr GetAreaType
-    //> tay
-    val areaType = getAreaType(rawPointer)
-    //> sta AreaType
-    ram.areaType = areaType.toByte()
-
-    //> lda AreaPointer          ;mask out all but 5 LSB
-    //> and #%00011111
-    //> sta AreaAddrsLOffset     ;save as low offset
-    val lowOffset = rawPointer and 0x1F
-    ram.areaAddrsLOffset = lowOffset.toByte()
+    //> lda AreaPointer
+    val pointer = AreaPointer(ram.areaPointer)
+    //> jsr GetAreaType / sta AreaType
+    ram.areaType = pointer.areaType.toByte()
+    //> and #%00011111 / sta AreaAddrsLOffset
+    ram.areaAddrsLOffset = pointer.lowOffset.toByte()
 
     // --- Look up enemy data array ---
-    //> lda EnemyAddrHOffsets,y  ;load base value with 2 altered MSB
-    //> clc
-    //> adc AreaAddrsLOffset     ;becomes offset for level data
-    //> tay
-    val enemyIdx = (RomData.enemyAddrHOffsets[areaType] + lowOffset) and 0xFF
-    //> lda EnemyDataAddrLow,y   ;use offset to load pointer
-    //> sta EnemyDataLow
-    //> lda EnemyDataAddrHigh,y
-    //> sta EnemyDataHigh
+    val enemyIdx = (RomData.enemyAddrHOffsets[pointer.areaType] + pointer.lowOffset) and 0xFF
     val enemyRomAddr = RomData.enemyDataAddresses[enemyIdx]
     // Use overflow-safe slice so reads past this area's data return actual
     // following ROM bytes (needed for W8-4 castle loops where offset > array size).
@@ -601,16 +574,7 @@ private fun System.getAreaDataAddrs() {
     ram.enemyDataHigh = ((enemyRomAddr shr 8) and 0xFF).toByte()
 
     // --- Look up area (level) data array ---
-    //> ldy AreaType             ;use area type as offset
-    //> lda AreaDataHOffsets,y   ;do the same thing but with different base value
-    //> clc
-    //> adc AreaAddrsLOffset
-    //> tay
-    val areaDataIdx = (RomData.areaDataHOffsets[areaType] + lowOffset) and 0xFF
-    //> lda AreaDataAddrLow,y    ;use this offset to load another pointer
-    //> sta AreaDataLow
-    //> lda AreaDataAddrHigh,y
-    //> sta AreaDataHigh
+    val areaDataIdx = (RomData.areaDataHOffsets[pointer.areaType] + pointer.lowOffset) and 0xFF
     val levelData = RomData.areaDataArrays[areaDataIdx]
     ram.areaData = levelData
     // Store the actual ROM addresses so the shadow validator's interpreter can
@@ -620,67 +584,18 @@ private fun System.getAreaDataAddrs() {
     ram.areaDataHigh = ((areaRomAddr shr 8) and 0xFF).toByte()
 
     // --- Parse 2-byte level header ---
-    //> ldy #$00                 ;load first byte of header
-    //> lda (AreaData),y
-    val headerByte0 = levelData[0].toInt() and 0xFF
+    val header = AreaHeader(levelData[0], levelData[1])
 
-    //> and #%00000111           ;save 3 LSB for foreground scenery or bg color control
-    //> cmp #$04
-    //> bcc StoreFore
-    val low3 = headerByte0 and 0x07
-    if (low3 >= 0x04) {
-        //> sta BackgroundColorCtrl  ;if 4 or greater, save value here as bg color control
-        ram.backgroundColorCtrl = low3.toByte()
-        //> lda #$00
-        //> StoreFore: sta ForegroundScenery
-        ram.foregroundScenery = 0
-    } else {
-        //> StoreFore: sta ForegroundScenery    ;if less, save value here as foreground scenery
-        ram.foregroundScenery = low3.toByte()
-    }
-
-    //> and #%00111000           ;save player entrance control bits
-    //> lsr / lsr / lsr
-    //> sta PlayerEntranceCtrl
-    ram.playerEntranceCtrl = ((headerByte0 and 0x38) shr 3).toByte()
-
-    //> and #%11000000           ;save 2 MSB for game timer setting
-    //> clc / rol / rol / rol    ;rotate to LSBs
-    //> sta GameTimerSetting
-    ram.gameTimerSetting = ((headerByte0 and 0xC0) ushr 6).toByte()
-
-    //> iny
-    //> lda (AreaData),y         ;load second byte of header
-    val headerByte1 = levelData[1].toInt() and 0xFF
-
-    //> and #%00001111           ;mask out all but lower nybble
-    //> sta TerrainControl
-    ram.terrainControl = (headerByte1 and 0x0F).toByte()
-
-    //> and #%00110000           ;save 2 bits for background scenery type
-    //> lsr / lsr / lsr / lsr
-    //> sta BackgroundScenery
-    ram.backgroundScenery = ((headerByte1 and 0x30) shr 4).toByte()
-
-    //> and #%11000000
-    //> clc / rol / rol / rol    ;rotate to LSBs
-    //> cmp #%00000011           ;if set to 3, store here and nullify other value
-    //> bne StoreStyle
-    val styleBits = (headerByte1 and 0xC0) ushr 6
-    if (styleBits == 0x03) {
-        //> sta CloudTypeOverride    ;store value in cloud type override
-        ram.cloudTypeOverride = true
-        //> lda #$00
-        //> StoreStyle: sta AreaStyle
-        ram.areaStyle = 0
-    } else {
-        //> StoreStyle: sta AreaStyle
-        ram.areaStyle = styleBits.toByte()
-    }
+    ram.foregroundScenery = header.foregroundScenery.toByte()
+    ram.backgroundColorCtrl = header.backgroundColorCtrl.toByte()
+    ram.playerEntranceCtrl = header.playerEntranceCtrl.toByte()
+    ram.gameTimerSetting = header.timerSetting.toByte()
+    ram.terrainControl = header.terrainControl.toByte()
+    ram.backgroundScenery = header.backgroundScenery.toByte()
+    ram.cloudTypeOverride = header.cloudTypeOverride
+    ram.areaStyle = header.areaStyle.toByte()
 
     //> lda AreaDataLow          ;increment area data address by 2 bytes
-    //> clc / adc #$02 / sta AreaDataLow
-    //> lda AreaDataHigh / adc #$00 / sta AreaDataHigh
     val finalAreaRomAddr = areaRomAddr + 2
     ram.areaDataLow = (finalAreaRomAddr and 0xFF).toByte()
     ram.areaDataHigh = ((finalAreaRomAddr shr 8) and 0xFF).toByte()
