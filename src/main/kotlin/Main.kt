@@ -87,7 +87,7 @@ fun main() {
                 }
 
                 val currentScale = (width.toFloat() / 256f).coerceAtMost(height.toFloat() / 240f)
-                PpuRenderer.render(canvas, system.ppu, currentScale.toInt(), scrollStartY = 16)
+                PpuRenderer.render(canvas, system.ppu, currentScale.toInt(), scrollStartY = 32)
                 skiaLayer.needRedraw()
             }
         }

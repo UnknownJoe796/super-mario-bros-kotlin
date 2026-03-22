@@ -25,7 +25,8 @@ object PpuRenderer {
      * @param scale The integer scaling factor for pixels
      * @param scrollStartY The Y coordinate (in pixels) at which scrolling begins to take effect.
      *                     Rows above this Y coordinate are not scrolled (useful for status bars).
-     *                     In SMB, this is typically 16 (2 rows of 8 pixels) to preserve the score/lives display.
+     *                     In SMB, this is 32 (4 rows of 8 pixels) — the status bar occupies nametable rows 2-3
+     *                     (rows 0-1 are empty NES overscan), so the unscrolled region must cover all 4 rows.
      */
     fun render(canvas: Canvas, ppu: PictureProcessingUnit, scale: Int = 2, scrollStartY: Int = 0) {
         val tileSize = 8
@@ -91,9 +92,10 @@ object PpuRenderer {
             }
         }
 
-        // Draw sprites
+        // Draw sprites (skip sprite 0 — it exists solely for NES sprite-0 hit detection,
+        // which is irrelevant in the Kotlin translation; scroll splitting is handled by scrollStartY)
         if (ppu.mask.spriteEnabled) {
-            for (i in ppu.sprites.size - 1 downTo 0) {
+            for (i in ppu.sprites.size - 1 downTo 1) {
                 val spr = ppu.sprites[i]
                 val xBase = spr.x.toUByte().toInt()
                 val yBase = spr.y.toUByte().toInt()

@@ -182,7 +182,7 @@ class TASReplayTest {
     private fun snapshot(system: System, name: String) {
         val scale = 2
         val surface = Surface.makeRasterN32Premul(256 * scale, 240 * scale)
-        PpuRenderer.render(surface.canvas, system.ppu, scale, scrollStartY = 16)
+        PpuRenderer.render(surface.canvas, system.ppu, scale, scrollStartY = 32)
         val data = surface.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG)
             ?: error("Failed to encode PNG")
         val outPath = Path.of("build", "screenshots", "$name.png")
