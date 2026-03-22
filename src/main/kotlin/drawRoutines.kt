@@ -52,12 +52,15 @@ private data class DrawState(
  * Advances sprOfs by 2, tblOfs by 2, yCoord by 8.
  */
 private fun System.drawSpriteObject(s: DrawState) {
+    //> DrawOneSpriteRow:
+    //> jmp DrawSpriteObject        ;draw them
     //> DrawSpriteObject:
     //> lda $03                    ;get saved flip control bits
     //> lsr
     //> lsr                        ;move d1 into carry
     val hFlip = (s.flipCtrl.toInt() and 0x02) != 0
     //> lda $00
+    //> bcc NoHFlip                ;if d1 not set, branch
     if (hFlip) {
         //> sta Sprite_Tilenumber+4,y  ;store first tile into second sprite
         ram.sprites[s.sprOfs + 1].tilenumber = s.tile0
@@ -65,8 +68,9 @@ private fun System.drawSpriteObject(s: DrawState) {
         //> sta Sprite_Tilenumber,y
         ram.sprites[s.sprOfs].tilenumber = s.tile1
         //> lda #$40                   ;activate horizontal flip OAM attribute
+        //> bne SetHFAt                ;and unconditionally branch
+        //> SetHFAt: ora $04                    ;add other OAM attributes if necessary
         val flipAttr = (0x40 or (s.attribs.toInt() and 0xFF)).toByte()
-        //> ora $04                    ;add other OAM attributes if necessary
         //> sta Sprite_Attributes,y    ;store sprite attributes
         //> sta Sprite_Attributes+4,y
         ram.sprites[s.sprOfs].attributes = SpriteFlags(flipAttr)
@@ -111,6 +115,7 @@ private fun System.drawSpriteObject(s: DrawState) {
     //> inx                        ;routine that called this subroutine
     s.tblOfs += 2
 }
+//> ;unused space
 
 // -------------------------------------------------------------------------------------
 // Helper: dump A into sprite Y coordinate of multiple consecutive sprites
@@ -121,11 +126,15 @@ private fun System.drawSpriteObject(s: DrawState) {
  * Equivalent to assembly DumpTwoSpr when called with a Y-coordinate value.
  */
 private fun System.dumpTwoSprY(sprOfs: Int, value: UByte) {
+    //> DumpTwoSpr:
+    //> sta Sprite_Data+4,y       ;and into first row sprites
     ram.sprites[sprOfs].y = value
     ram.sprites[sprOfs + 1].y = value
 }
 
 private fun System.dumpThreeSprY(sprOfs: Int, value: UByte) {
+    //> DumpThreeSpr:
+    //> sta Sprite_Data+8,y
     ram.sprites[sprOfs].y = value
     ram.sprites[sprOfs + 1].y = value
     ram.sprites[sprOfs + 2].y = value
@@ -135,6 +144,8 @@ private fun System.dumpThreeSprY(sprOfs: Int, value: UByte) {
  * Writes [value] into tile number of 4 sprites starting at [sprOfs].
  */
 private fun System.dumpFourSprTile(sprOfs: Int, value: Byte) {
+    //> DumpFourSpr:
+    //> sta Sprite_Data+12,y      ;into second row sprites
     ram.sprites[sprOfs].tilenumber = value
     ram.sprites[sprOfs + 1].tilenumber = value
     ram.sprites[sprOfs + 2].tilenumber = value
@@ -145,6 +156,8 @@ private fun System.dumpFourSprTile(sprOfs: Int, value: Byte) {
  * Writes [value] into attributes of 4 sprites starting at [sprOfs].
  */
 private fun System.dumpFourSprAttr(sprOfs: Int, value: SpriteFlags) {
+    //> DumpFourSpr:
+    //> sta Sprite_Data+12,y      ;into second row sprites
     ram.sprites[sprOfs].attributes = value
     ram.sprites[sprOfs + 1].attributes = value
     ram.sprites[sprOfs + 2].attributes = value
@@ -157,10 +170,16 @@ private fun System.dumpFourSprAttr(sprOfs: Int, value: SpriteFlags) {
  * When called after iny to tile offset, it dumps tiles; after another iny, attributes.
  */
 private fun System.dumpSixSprTile(sprOfs: Int, value: Byte) {
+    //> DumpSixSpr:
+    //> sta Sprite_Data+20,y      ;dump A contents
+    //> StkLp: sta Sprite_Data,y  ;store X or Y coordinate into OAM data
+    //> bne StkLp          ;do this until all sprites are done
     for (i in 0..5) ram.sprites[sprOfs + i].tilenumber = value
 }
 
 private fun System.dumpSixSprAttr(sprOfs: Int, value: SpriteFlags) {
+    //> DumpSixSpr:
+    //> sta Sprite_Data+20,y      ;dump A contents
     for (i in 0..5) ram.sprites[sprOfs + i].attributes = value
 }
 
@@ -264,6 +283,7 @@ fun System.flagpoleGfxHandler() {
         //> lda #$f8                  ;set offscreen coordinate if jumping here
         moveSixSpritesOffscreen(sprOfs)
     }
+    //> ExitDumpSpr:
 }
 
 /**
@@ -314,6 +334,7 @@ fun System.drawFirebar(sprOfs: Int) {
     ram.sprites[sprOfs].tilenumber = tile.toByte()
     //> pla                      ;get from stack
     //> lsr                      ;divide by four again
+    //> bcc FireA                ;if last bit shifted out was not set, skip this
     //> lsr
     val attr = if ((fc and 0x02) != 0) {
         (0x02 or 0xC0).toByte()
@@ -444,6 +465,7 @@ fun System.drawBubble() {
     //> sta Sprite_Attributes,y     ;set attribute byte
     ram.sprites[y].attributes = SpriteFlags(0x02)
     //> ExDBub: rts
+//> ;$00 - used to store player's vertical offscreen bits
 }
 
 // -------------------------------------------------------------------------------------
@@ -561,6 +583,7 @@ fun System.drawBlock() {
         ram.sprites[y + 2].y = 0xf8.toUByte()
     }
     //> ExDBlk: rts
+//> ;$00 - used to hold palette bits for attribute byte or relative X position
 }
 
 // -------------------------------------------------------------------------------------

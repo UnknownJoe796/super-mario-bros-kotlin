@@ -14,6 +14,8 @@ private val vineHeightData = intArrayOf(0x30, 0x60)
 
 //> VineYPosAdder:
 //>       .db $00, $30
+//> ;$00 - offset to vine Y coordinate adder
+//> ;$02 - offset to sprite data
 // by Claude
 private val vineYPosAdder = intArrayOf(0x00, 0x30)
 
@@ -78,12 +80,17 @@ fun System.powerUpObjHandler() {
                 enemyToBGCollisionDet()
             }
             //> cmp #$03
+            //> FallE: jsr MoveD_EnemyVertically  ;do a sub here to move enemy downwards
             //> beq ShroomM                ;if 1-up mushroom, branch ahead to move it
             0x03 -> {
                 moveNormalEnemy()
                 enemyToBGCollisionDet()
             }
             //> cmp #$02
+            //> MEHor: jmp MoveEnemyHorizontally  ;jump here to move enemy horizontally for <> $2e and d6 set
+            //> bne SlowM                  ;if any other object where d6 set, jump to set Y
+            //> cmp #PowerUpObject         ;check for power-up object
+            //> beq MEHor                  ;if found, branch to move enemy horizontally
             //> bne RunPUSubs              ;if not star, branch elsewhere to skip movement
             0x02 -> {
                 //> jsr MoveJumpingEnemy       ;otherwise impose gravity on star power-up and make it jump
@@ -143,6 +150,11 @@ fun System.powerUpObjHandler() {
     //> RunPUSubs:
     runPowerUpSubs()
     //> ExitPUp:   rts
+//> ;$06-$07 - used as block buffer address indirect
+//> ;$05 - used to store metatile stored in A at beginning of PlayerHeadCollision
+//> ;$02 - used to store vertical high nybble offset from block buffer routine
+//> ;$00 - used to store metatile from block buffer routine
+//> ;These apply to all routines in this section unless otherwise noted:
 }
 
 /**
@@ -289,6 +301,7 @@ private val xSpeedAdderData = intArrayOf(0x00, 0xe8, 0x00, 0x18)
 // by Claude
 private fun System.moveSteadyEnemy(x: Int) {
     //> SteadM: lda Enemy_X_Speed,x; pha; bpl AddHS
+    //> AddHS:  clc
     //> Y=0 for steady, so XSpeedAdderData[0]=$00 or XSpeedAdderData[2]=$00
     // No speed adjustment needed for steady movement
     moveEnemyHorizontally()
@@ -331,6 +344,7 @@ private fun System.reviveStunned(x: Int) {
     val timer = ram.timers[0x16 + x].toInt() and 0xFF
     if (timer != 0) {
         //> ChkKillGoomba:
+        //> NKGmba: rts                   ;leave!
         //> cmp #$0e              ;check to see if enemy timer has reached a certain point
         //> bne NKGmba
         if (timer == 0x0e) {
@@ -350,6 +364,8 @@ private fun System.reviveStunned(x: Int) {
     //> sty Enemy_MovingDir,x     ;store as pseudorandom movement direction
     ram.enemyMovingDirs[x] = dir.toByte()
     //> dey                       ;decrement for use as pointer
+    //> MoveDefeatedEnemy:
+    //> SetRSpd: lda RevivedXSpeed,y       ;load and store new horizontal speed
     var speedIdx = dir - 1
     //> lda PrimaryHardMode; beq SetRSpd
     if (ram.primaryHardMode) {
@@ -523,6 +539,15 @@ private fun System.drawPowerUp() {
     }
 
     //> PUpOfs: jmp SprObjectOffscrChk
+    //> ;$ef - used to hold enemy code used in gfx handler (may or may not resemble Enemy_ID values)
+    //> ;$ed - used to hold enemy state from buffer
+    //> ;$ec - used to hold either altered enemy state or special value used in gfx handler as condition
+    //> ;$eb - used to hold sprite data offset
+    //> ;$05 - used to store X position
+    //> ;$04 - used to store enemy's sprite attributes
+    //> ;$03 - used to store moving direction, used to flip enemies horizontally
+    //> ;$02 - used to store Y position
+    //> ;$00-$01 - used in DrawEnemyObjRow to hold sprite tile numbers
     sprObjectOffscrChkPowerUp(sprOfs)
 }
 
@@ -788,6 +813,7 @@ private fun System.drawVine(vineIndex: Int) {
     //> ldx #$05                   ;set tiles for six sprites
     //> VineTL: lda #$e1           ;set tile number for sprite
     //> sta Sprite_Tilenumber,y
+    //> bpl VineTL                 ;loop until all sprites are done
     for (i in 0..5) {
         ram.sprites[sprOfs + i].tilenumber = 0xe1.toByte()
     }
@@ -803,6 +829,8 @@ private fun System.drawVine(vineIndex: Int) {
 
     //> SkpVTop: ldx #$00           ;start with the first sprite again
     //> ChkFTop: lda VineStart_Y_Position
+    //> bne ChkFTop
+    //> NextVSp: iny                        ;move offset to next OAM data
     val startY = ram.vineStartYPosition.toInt() and 0xFF
     //> sec; sbc Sprite_Y_Position,y   ;subtract sprite's Y coordinate
     //> cmp #$64                   ;if two coordinates are less than 100 pixels apart

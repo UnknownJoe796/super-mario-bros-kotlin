@@ -632,6 +632,12 @@ private fun System.chkForPlayerAttrib() {
     //> lda GameEngineSubroutine
     //> cmp #$0b                    ;if executing specific game engine routine,
     //> beq KilledAtt               ;branch to change third and fourth row OAM attributes
+    //> bne ExPlyrAt                ;if none of these, branch to leave
+    //> beq C_S_IGAtt
+    //> beq C_S_IGAtt               ;go ahead and execute code to change
+    //> cmp #$b8                    ;or intermediate growing offset,
+    //> beq C_S_IGAtt               ;if crouch offset, either standing offset,
+    //> lda PlayerGfxOffset         ;get graphics table offset
     val isKilled = (ram.gameEngineSubroutine == GameEngineRoutine.PlayerDeath)
     val gfxOfs = ram.playerGfxOffset.toInt() and 0xFF
 
@@ -663,6 +669,7 @@ private fun System.chkForPlayerAttrib() {
         ram.sprites[y + 7].attributes = SpriteFlags(((ram.sprites[y + 7].attributes.byte.toInt() and 0x3F) or 0x40).toByte())
     }
     //> ExPlyrAt:  rts
+//> ;$00 - used in adding to get proper offset
 }
 
 /**
@@ -700,6 +707,7 @@ private fun System.playerOffscreenChk() {
         //> sec                           ;subtract eight bytes to do
         //> sbc #$08                      ;next row up
         //> tay
+        //> SzOfs:  rts             ;go back
         sprOfs -= 2  // -8 bytes = -2 sprites (next row up)
         //> dex                           ;decrement row counter
         //> bpl PROfsLoop                 ;do this until all sprite rows are checked
@@ -772,4 +780,10 @@ fun System.drawPlayerIntermediate() {
     val emptyAttr = ram.sprites[9].attributes.byte.toInt()
     ram.sprites[8].attributes = SpriteFlags((emptyAttr or 0x40).toByte())
     //> rts
+//> ;these also used in IntermediatePlayerData
+//> ;$07 - number of rows to draw
+//> ;$05 - horizontal position
+//> ;$04 - attributes
+//> ;$03 - facing direction, used as horizontal flip control
+//> ;$00-$01 - used to hold tile numbers, $00 also used to hold upper extent of animation frames
 }

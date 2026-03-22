@@ -176,6 +176,13 @@ fun System.sprObjectCollisionCore(bbOffsetX: Int, bbOffsetY: Int): Boolean {
             if (drY >= ulX) { x++; y++; continue }
 
             //> NoCollisionFound: (falls through from above checks)
+            //> ;$06-$07 - block buffer address
+            //> ;$05 - modified x coordinate
+            //> ;$04 - comes in with offset to block buffer adder data, goes out with low nybble x/y coordinate
+            //> ;$03 - stores metatile involved in block buffer collisions
+            //> ;$02 - modified y coordinate
+            //> bpl CollisionCoreLoop  ;if counter not expired, branch to loop
+            //> CollisionFound:
             return false
         } else {
             // ulY < ulX
@@ -277,6 +284,10 @@ private fun System.getBlockBufferAddr(columnIndex: Int): Pair<ByteArray, Int> {
     return Pair(buffer, offset)
 }
 
+//> ResidualMiscObjectCode:
+//> jmp ResJmpM  ;probably used in early stages to do misc to bg collision detection
+//> ResJmpM: lda #$00  ;set A to return vertical coordinate
+
 /**
  * Core block buffer collision detection for any sprite object.
  * Reads block buffer at the object's position (with adder offsets) and returns
@@ -289,6 +300,7 @@ private fun System.getBlockBufferAddr(columnIndex: Int): Pair<ByteArray, Int> {
  */
 fun System.blockBufferCollision(sprObjOffset: Int, adderOffset: Int, returnHorizontal: Boolean): BlockBufferResult {
     //> BlockBufferCollision:
+    //> sty $04                     ;save contents of Y here
     var y = adderOffset
 
     //> lda BlockBuffer_X_Adder,y   ;add horizontal coordinate
@@ -320,6 +332,7 @@ fun System.blockBufferCollision(sprObjOffset: Int, adderOffset: Int, returnHoriz
 
     //> lda SprObject_Y_Position,x  ;get vertical coordinate of object
     //> clc
+    //> ExPVne:  rts                     ;finally, we're done!
     //> adc BlockBuffer_Y_Adder,y   ;add it to value obtained using Y as offset
     val objY = ram.sprObjYPos[sprObjOffset].toInt() and 0xFF
     val yAdder = blockBufferYAdder[y].toInt() and 0xFF
@@ -327,6 +340,7 @@ fun System.blockBufferCollision(sprObjOffset: Int, adderOffset: Int, returnHoriz
 
     //> and #%11110000              ;mask out low nybble
     //> sec
+    //> bcs SetVXPl             ;if 16 or more pixels difference, do not alter facing direction
     //> sbc #$20                    ;subtract 32 pixels for the status bar
     //> sta $02                     ;store result here
     val vertOffset = ((modifiedY and 0xF0) - 0x20) and 0xFF
@@ -348,7 +362,9 @@ fun System.blockBufferCollision(sprObjOffset: Int, adderOffset: Int, returnHoriz
         lowNybble = objX and 0x0F
     } else {
         //> lda SprObject_Y_Position,x  ;if A = 0, load vertical coordinate
-        //> and #%00001111              ;and mask out high nybble
+        //> jmp RetYC                   ;and jump
+        //> RetYC: and #%00001111       ;and mask out high nybble
+        //> .db $ff                     ;unused byte
         lowNybble = objY and 0x0F
     }
 
@@ -411,6 +427,7 @@ private fun System.blockBufferColliSide(adderOffset: Int): BlockBufferResult {
  */
 fun System.blockBufferChkEnemy(flag: Int, adderOffset: Int): BlockBufferResult {
     //> BlockBufferChk_Enemy:
+    //> jmp BBChk_E
     //> txa; clc; adc #$01; tax  ;add 1 to X to run sub with enemy offset in mind
     val sprObjOffset = (ram.objectOffset.toInt() and 0xFF) + 1
     //> BBChk_E: jsr BlockBufferCollision
@@ -507,6 +524,8 @@ private fun chkInvisibleMTiles(metatile: Int): Boolean {
     //> beq ExCInvT    ;branch to leave if found
     //> cmp #$60       ;check for hidden 1-up block
     //> ExCInvT: rts   ;leave with zero flag set if either found
+    //> ;$00 - used as flag by ImpedePlayerMove to restrict specific movement
+    //> ;$00-$01 - used to hold bottom right and bottom left metatiles (in that order)
     val mt = metatile and 0xFF
     return mt == 0x5f || mt == 0x60
 }
@@ -635,6 +654,8 @@ fun System.enemyTurnAround(x: Int) {
     ram.sprObjXSpeed[x + 1] = (speed.toInt().inv() + 1).toByte()  // negate (two's complement)
 
     //> lda Enemy_MovingDir,x
+    //> ;$00 - vertical position of platform
+    //> ExTA:  rts                      ;leave!!!
     //> eor #%00000011
     //> sta Enemy_MovingDir,x
     val dir = ram.enemyMovingDirs[x].toInt() and 0xFF
@@ -969,6 +990,8 @@ private fun System.chkToStunEnemies(x: Int) {
     if (highDiff.toByte() < 0) dir = 2
 
     //> ChkBBill:
+    //> beq NoCDirF                ;branch if either found, direction does not change
+    //> beq NoCDirF
     val stunId = ram.enemyID[x].toInt() and 0xFF
     if (stunId != EnemyId.BulletBillCannonVar.byte.toInt() and 0xFF &&
         stunId != EnemyId.BulletBillFrenzyVar.byte.toInt() and 0xFF) {
@@ -1488,6 +1511,7 @@ fun System.playerBGCollision() {
     if (ram.crouchingFlag != 0.toByte()) sizeOfs++
 
     //> HeadChk: lda Player_Y_Position; cmp PlayerBGUpperExtent,x; bcc DoFootCheck
+    //> jmp DoFootCheck             ;jump ahead to skip these other parts here
     val upperExtent = playerBGUpperExtent[sizeOfs.coerceIn(0, 1)].toInt() and 0xFF
     if (playerY >= upperExtent) {
         //> jsr BlockBufferColli_Head
@@ -1536,6 +1560,9 @@ fun System.playerBGCollision() {
     }
 
     //> DoFootCheck:
+    //> jmp HandleCoinMetatile     ;follow the code to erase coin and award to player 1 coin
+    //> AwardTouchedCoin:
+    //> bne ChkFootMTile           ;if anything here, skip this part
     adderY = bbAdderBase  // reset Y to $eb value
     if (playerY < 0xcf) {
         //> jsr BlockBufferColli_Feet  ;bottom left
@@ -1752,6 +1779,9 @@ private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult, sid
     }
 
     //> ChkGERtn: lda GameEngineSubroutine; cmp #$07; beq ExCSM
+    //> ;$06-$07 - block buffer address
+    //> ;$04 - low nybble of horizontal coordinate from block buffer
+    //> ;$02 - high nybble of vertical coordinate from block buffer
     if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerEntrance) return
     //> cmp #$08; bne ExCSM  — only set pipe entry when currently running PlayerCtrlRoutine
     if (ram.gameEngineSubroutine != GameEngineRoutine.PlayerCtrlRoutine) return
@@ -1762,6 +1792,7 @@ private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult, sid
 
 private fun System.stopPlayerMove(sideCounter: Int) {
     //> StopPlayerMove:
+    //> ExCSM: rts                       ;leave
     //> jsr ImpedePlayerMove
     // NES reads $00 (the side check loop counter) — NOT playerMovingDir
     impedePlayerMove(sideCounter)
@@ -1778,6 +1809,7 @@ private fun System.stopPlayerMove(sideCounter: Int) {
 private fun System.impedePlayerMove(side: Int) {
     //> ImpedePlayerMove:
     //> lda #$00
+    //> ExPipeE: rts                       ;leave!!!
     val displacement: Int
     val xMask: Int
     //> ldy Player_X_Speed
@@ -1805,6 +1837,7 @@ private fun System.impedePlayerMove(side: Int) {
             return
         }
         //> lda #$01
+        //> beq RunFR                 ;if running, branch to end of flagpole code here
         displacement = 0x01
     }
 
@@ -1843,6 +1876,9 @@ private fun System.handleCoinMetatile(result: BlockBufferResult) {
 
 private fun System.eraseAreaContentsMetatile(result: BlockBufferResult) {
     //> ErACM:
+    //> ;$06-$07 - block buffer address
+    //> ;$04 - low nybble of horizontal coordinate from block buffer
+    //> ;$02 - high nybble of vertical coordinate from block buffer
     //> ldy $02; lda #$00; sta ($06),y
     val idx = result.blockBufferBase + result.vertOffset
     if (idx in result.blockBuffer.indices) {
@@ -1868,12 +1904,15 @@ private fun System.handleAxeMetatile(result: BlockBufferResult) {
 
 private fun System.handleClimbing(metatile: Int, result: BlockBufferResult) {
     //> HandleClimbing:
+    //> ExHC: rts                ;leave if too far left or too far right
     //> ldy $04; cpy #$06; bcc ExHC
     if (result.lowNybble < 0x06) return
     //> cpy #$0a; bcc ChkForFlagpole
     if (result.lowNybble >= 0x0a) return
 
     //> ChkForFlagpole:
+    //> bne VineCollision      ;branch to alternate code if flagpole shaft not found
+    //> beq FlagpoleCollision  ;branch if flagpole ball found
     if (metatile == 0x24 || metatile == 0x25) {
         //> FlagpoleCollision:
         flagpoleCollision(metatile)
@@ -1882,6 +1921,8 @@ private fun System.handleClimbing(metatile: Int, result: BlockBufferResult) {
         return
     } else if (metatile == 0x26) {
         //> VineCollision:
+        //> bcs PutPlayerOnVine       ;branch if not that far up
+        //> bne PutPlayerOnVine
         val playerY = ram.playerYPosition.toInt() and 0xFF
         if (playerY < 0x20) {
             //> lda #$01; sta GameEngineSubroutine
@@ -1895,6 +1936,7 @@ private fun System.handleClimbing(metatile: Int, result: BlockBufferResult) {
 
 private fun System.flagpoleCollision(metatile: Int) {
     //> FlagpoleCollision:
+    //> beq PutPlayerOnVine       ;if running, branch to end of climbing code
     if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerEndLevel) {
         // putPlayerOnVine path
         return
@@ -1923,6 +1965,9 @@ private fun System.flagpoleCollision(metatile: Int) {
     val playerY = ram.playerYPosition.toInt() and 0xFF
 
     //> ChkFlagpoleYPosLoop:
+    //> bne ChkFlagpoleYPosLoop   ;do this until all data is checked (use last one if all checked)
+    //> bcs MtchF                 ;if player's => current, branch to use current offset
+    //> cmp FlagpoleYPosData,x    ;compare with current vertical coordinate data
     var scoreIdx = 4
     while (scoreIdx > 0) {
         if (playerY >= (flagpoleYPosData[scoreIdx].toInt() and 0xFF)) break
@@ -1946,6 +1991,7 @@ private fun System.putPlayerOnVine(result: BlockBufferResult) {
     val playerX = ram.playerXPosition.toInt() and 0xFF
     val screenX = ram.screenLeftXPos.toInt() and 0xFF
     val diff = (playerX - screenX) and 0xFF
+    //> bcs SetVXPl             ;if 16 or more pixels difference, do not alter facing direction
     if (diff < 0x10) {
         //> lda #$02; sta PlayerFacingDir
         ram.playerFacingDir = Direction.Right
@@ -1965,6 +2011,7 @@ private fun System.putPlayerOnVine(result: BlockBufferResult) {
     // by Claude - use named scalar, not flat array (coherence fix)
     ram.playerXPosition = ((shiftedBBLow + xPosAdder) and 0xFF).toUByte()
 
+    //> ExPVne:  rts                     ;finally, we're done!
     //> lda $06; bne ExPVne
     if (bbLow != 0) return
 
@@ -1990,6 +2037,7 @@ private fun System.killEnemies(identifier: Byte) {
 
 private fun System.handlePipeEntry(rightFootMT: Int, leftFootMT: Int) {
     //> HandlePipeEntry:
+    //> ExPipeE: rts                       ;leave!!!
     //> lda Up_Down_Buttons; and #%00000100; beq ExPipeE
     if ((ram.upDownButtons.toInt() and 0x04) == 0) return
 
@@ -2029,6 +2077,8 @@ private fun System.handlePipeEntry(rightFootMT: Int, leftFootMT: Int) {
 
 private fun System.chkForLandJumpSpring(metatile: Int) {
     //> ChkForLandJumpSpring:
+    //> bcc ExCJSp                  ;if carry not set, jumpspring not found, therefore leave
+    //> ExCJSp: rts                         ;and leave
     if (!chkJumpspringMetatiles(metatile)) return
 
     //> lda #$70; sta VerticalForce

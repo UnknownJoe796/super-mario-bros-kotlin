@@ -168,6 +168,7 @@ private fun System.playerRdy() {
     //> sta JoypadOverride        ;nullify controller override bits
     ram.joypadOverride = 0x00
     //> ExitEntr:   rts                       ;leave!
+//> ;$07 - used to hold upper limit of high byte when player falls down hole
 }
 
 /**

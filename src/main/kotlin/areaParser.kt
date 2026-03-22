@@ -994,6 +994,7 @@ private val SidePipeBottomPart = ubyteArrayOf(0x15u, 0x21u, 0x20u, 0x1fu)
 
 //> BrickQBlockMetatiles:
 //>   .db $c1, $c0, $5f, $60          ;used by question blocks
+//> ;these two sets are functionally identical, but look different
 //>   .db $55, $56, $57, $58, $59     ;used by ground level types
 //>   .db $5a, $5b, $5c, $5d, $5e     ;used by other level types
 private val BrickQBlockMetatiles = ubyteArrayOf(

@@ -72,6 +72,13 @@ fun System.jCoinGfxHandler() {
 
     //> ldx ObjectOffset            ;get misc object offset
     //> ExJCGfx: rts
+//> ;tiles arranged in top left, right, bottom left, right order
+//> ;$07 - counter
+//> ;$05 - used to hold X position
+//> ;$04 - used to hold sprite attributes
+//> ;$03 - used to hold flip control (not used here)
+//> ;$02 - used to hold bottom row Y position
+//> ;$00-$01 - used to hold tiles for drawing the power-up, $00 also used to hold power-up type
 }
 
 /**

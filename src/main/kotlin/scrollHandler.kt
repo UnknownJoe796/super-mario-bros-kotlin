@@ -135,6 +135,7 @@ fun System.scrollScreen(scrollValue: Int) {
 
     //> lda #$08
     //> sta ScrollIntervalTimer   ;set scroll timer (residual, not used elsewhere)
+    //> InitScrlAmt:  lda #$00
     ram.scrollIntervalTimer = 0x08
 
     //> jmp ChkPOffscr            ;skip this part (InitScrlAmt is skipped)

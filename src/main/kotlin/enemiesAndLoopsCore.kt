@@ -14,6 +14,7 @@ import com.ivieleague.smbtranslation.areaparser.EnemyObjByte1
 // This value is set by checkpointEnemyID before dispatching to setupVine.
 private var setupVineBlockY: Int = 0
 
+//> ;loop command data
 // Loop command ROM data tables
 //> LoopCmdWorldNumber:
 //>       .db $03, $03, $06, $06, $06, $06, $06, $06, $07, $07, $07
@@ -304,7 +305,9 @@ private fun System.procLoopCommand() {
                         // else: InitLCmd - just clear the loop command below
                     } else {
                         //> InitMLp:  lda #$00                  ;initialize counters
+                        //> sta MultiLoopPassCntr
                         ram.multiLoopPassCntr = 0
+                        //> sta MultiLoopCorrectCntr
                         ram.multiLoopCorrectCntr = 0
                     }
                 } else {
@@ -339,6 +342,8 @@ private fun System.procLoopCommand() {
                         //> jsr KillAllEnemies
                         killAllEnemies()
                         //> InitMLp:  lda #$00
+                        //> sta MultiLoopCorrectCntr
+                        //> sta MultiLoopPassCntr
                         ram.multiLoopPassCntr = 0
                         ram.multiLoopCorrectCntr = 0
                     }
@@ -360,6 +365,8 @@ private fun System.procLoopCommand() {
  * parses enemy data bytes to determine what to spawn.
  */
 private fun System.chkEnemyFrenzy() {
+    //> ;$06 - used to hold page location of extended right boundary
+    //> ;$07 - used to hold high nybble of position of extended right boundary
     val x = ram.objectOffset.toInt() and 0xFF
 
     //> ChkEnemyFrenzy:
@@ -544,7 +551,7 @@ private fun System.processEnemyData() {
         // fall through to PositionEnemyObj if page select was already set
     }
 
-    // --- PositionEnemyObj ---
+    //> PositionEnemyObj:
     //> lda EnemyObjectPageLoc   ;store page control as page location
     //> sta Enemy_PageLoc,x      ;for enemy object
     ram.sprObjPageLoc[1 + x] = ram.enemyObjectPageLoc
@@ -843,6 +850,8 @@ fun System.checkpointEnemyID() {
     }
 
     //> InitEnemyRoutines:
+    //> ;jump engine table for newly loaded enemy objects
+    //> NoInitCode:
     //> jsr JumpEngine
     // JumpEngine sets Y = A*2 + 2 (ASL;TAY;INY;INY), which Setup_Vine uses to read block data
     setupVineBlockY = enemyId * 2 + 2
@@ -1215,6 +1224,7 @@ private fun System.initLakitu() {
     //> bne KillLakitu             ;the frenzy buffer, and branch to kill lakitu if so
     if (ram.enemyFrenzyBuffer != 0.toByte()) {
         //> KillLakitu: jmp EraseEnemyObject
+        //> ;$01-$03 - used to hold pseudorandom difference adjusters
         eraseEnemyObject(x)
         return
     }
@@ -1249,6 +1259,8 @@ private fun System.initEnemyFrenzy() {
     val offset = enemyId - 0x12
 
     //> jsr JumpEngine
+    //> ;frenzy object jump table
+    //> NoFrenzyCode:
     //> .dw LakituAndSpinyHandler   ;$12
     //> .dw NoFrenzyCode            ;$13
     //> .dw InitFlyingCheepCheep    ;$14
@@ -1382,7 +1394,7 @@ private fun System.lakituAndSpinyHandler(x: Int) {
     }
 
     if (lakituSlot >= 0) {
-        // --- CreateSpiny ---
+        //> CreateSpiny:
         //> lda Player_Y_Position      ;if player above a certain point, branch to leave
         //> cmp #$2c; bcc ExLSHand
         if ((ram.playerYPosition.toInt() and 0xFF) < 0x2c) return
@@ -1411,7 +1423,9 @@ private fun System.lakituAndSpinyHandler(x: Int) {
         playerLakituDiff(x)
 
         //> ldy Player_X_Speed; cpy #$08; bcs SetSpSpd
-        //> ... (speed computation from playerLakituDiff result)
+        //> beq UsePosv                ;branch if neither bits are set
+        //> eor #%11111111             ;otherwise get two's compliment of Y
+        //> UsePosv:  tya              ;put value from A in Y back to A (they will be lost anyway)
         //> SetSpSpd: jsr SmallBBox    ;lose contents of A
         smallBBox()
         //> ldy #$02; sta Enemy_X_Speed,x  ;A=0 after SmallBBox, speed zeroed
@@ -1465,6 +1479,7 @@ private fun System.lakituAndSpinyHandler(x: Int) {
     putAtRightExtent(emptySlot, 0x20)
 
     //> RetEOfs: ldx ObjectOffset
+    //> ExLSHand: rts
     ram.objectOffset = savedOffset
 }
 
@@ -1632,7 +1647,7 @@ private fun System.initBowserFlame(x: Int) {
     val bowserOfs = ram.bowserFrontOffset.toInt() and 0xFF
     //> lda Enemy_ID,y; cmp #Bowser; beq SpawnFromMouth
     if (ram.enemyID[bowserOfs] == EnemyId.Bowser.byte) {
-        // --- SpawnFromMouth ---
+        //> SpawnFromMouth:
         //> lda Enemy_X_Position,y; sec; sbc #$0e; sta Enemy_X_Position,x
         val bowserX = ram.sprObjXPos[1 + bowserOfs].toInt() and 0xFF
         ram.sprObjXPos[1 + x] = ((bowserX - 0x0e) and 0xFF).toByte()
@@ -1686,15 +1701,20 @@ private fun System.initBowserFlame(x: Int) {
  * in non-water levels, spawns bullet bills as frenzy variant.
  */
 private fun System.bulletBillCheepCheep(x: Int) {
+    //> ;$00 - used to store Y position of group enemies
+    //> ;$01 - used to store enemy ID
+    //> ;$02 - used to store page location of right side of screen
+    //> ;$03 - used to store X position of right side of screen
     //> BulletBillCheepCheep:
     //> lda FrenzyEnemyTimer; bne ExF17
     if (ram.frenzyEnemyTimer != 0.toByte()) return
 
     //> lda AreaType; bne DoBulletBills
     if (ram.areaType != AreaType.Water) {
-        // --- DoBulletBills ---
+        //> DoBulletBills:
         //> ldy #$ff
         //> BB_SLoop: iny; cpy #$05; bcs FireBulletBill
+        //> ExF17:    rts                        ;if found, leave
         for (y in 0 until 5) {
             //> lda Enemy_Flag,y; beq BB_SLoop
             if (ram.enemyFlags[y] == 0.toByte()) continue
@@ -1705,6 +1725,10 @@ private fun System.bulletBillCheepCheep(x: Int) {
             }
         }
         //> FireBulletBill:
+        //> ;$03 - used to store X position of right side of screen
+        //> ;$02 - used to store page location of right side of screen
+        //> ;$01 - used to store enemy ID
+        //> ;$00 - used to store Y position of group enemies
         //> lda Square2SoundQueue; ora #Sfx_Blast; sta Square2SoundQueue
         ram.square2SoundQueue = (ram.square2SoundQueue.toInt() or Constants.Sfx_Blast.toInt()).toByte()
         //> lda #BulletBill_FrenzyVar; bne Set17ID (unconditional)
@@ -1765,6 +1789,7 @@ private fun System.bulletBillCheepCheep(x: Int) {
  * Initializes short firebar: set spin state, speed, direction; center on tile (+4px).
  */
 private fun System.initShortFirebar() {
+    //> ;$00-$01 - used to hold pseudorandom bits
     val x = ram.objectOffset.toInt() and 0xFF
 
     //> InitShortFirebar:
@@ -1806,6 +1831,7 @@ private fun System.initShortFirebar() {
     ram.sprObjPageLoc[1 + x] = ((ram.sprObjPageLoc[1 + x].toInt() and 0xFF) + (if (newX > 0xFF) 1 else 0)).toByte()
 
     //> jmp TallBBox2               ;set bounding box control (not used) and leave
+    //> ;$00-$01 - used to hold pseudorandom bits
     ram.enemyBoundBoxCtrls[x] = 0x03
 }
 
@@ -1899,6 +1925,7 @@ private fun System.initVertPlatform() {
     ram.sprObjXMoveForce[1 + x] = topY.toByte()  // YPlatformTopYPos,x ($401+x)
 
     //> tya
+    //> eor #%11111111             ;otherwise get two's compliment of Y
     //> clc                         ;load value from earlier, add number of pixels
     //> adc Enemy_Y_Position,x      ;to vertical position
     //> sta YPlatformCenterYPos,x   ;save result as central vertical position
@@ -2037,10 +2064,12 @@ private fun System.initBowser() {
     ram.timers[0x0a + x] = 0x20
 
     //> lda #$05
+    //> ChpChpEx: rts
     //> sta BowserHitPoints       ;give bowser 5 hit points
     ram.bowserHitPoints = 5
 
     //> lsr
+    //> ExitFWk:  rts
     //> sta BowserMovementSpeed   ;set default movement speed here (5 >> 1 = 2)
     ram.bowserMovementSpeed = 2
 }
@@ -2094,6 +2123,8 @@ private fun System.pwrUpJmp() {
  * When called from checkpointEnemyID, the vine is already positioned from enemy data.
  */
 private fun System.setupVine() {
+    //> ;$06-$07 - used as address to block buffer data
+    //> ;$02 - used as vertical high nybble of block buffer offset
     val x = ram.objectOffset.toInt() and 0xFF
 
     //> Setup_Vine:
@@ -2107,6 +2138,7 @@ private fun System.setupVine() {
 
     //> lda Block_PageLoc,y      ;copy block coordinates to enemy position
     //> sta Enemy_PageLoc,x
+    //> SpawnFromMouth:
     //> lda Block_X_Position,y
     //> sta Enemy_X_Position,x
     //> lda Block_Y_Position,y
@@ -2330,6 +2362,7 @@ private fun System.duplicateEnemyObj() {
 
     //> lda Enemy_Y_Position,x
     //> sta Enemy_Y_Position,y  ;copy vertical coordinate from original to new
+    //> FlmEx:  rts                     ;and then leave
     ram.sprObjYPos[1 + y] = ram.sprObjYPos[1 + x]
 }
 

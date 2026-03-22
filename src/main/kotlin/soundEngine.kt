@@ -115,6 +115,7 @@ private fun System.dumpSq2Regs(regX: Int, regY: Int) {
 }
 
 //> Dump_Freq_Regs: load frequency regs for channel at offset x
+//> NoTone: rts
 //  A (now called freqIdx) indexes into FreqRegLookupTbl
 //  regOffset: 0=square1, 4=square2, 8=triangle
 //  Returns true if a tone was loaded, false if silent (NoTone)
@@ -258,6 +259,8 @@ private fun System.handlePause() {
                 //> PTone2F: lda #$64
                 playSqu1Sfx(0x64, 0x84, 0x7F)
             }
+            //> cmp #$1e                  ;time to play first again?
+            //> beq PTone1F
             0x1E -> {
                 //> PTone1F: lda #$44
                 playSqu1Sfx(0x44, 0x84, 0x7F)
@@ -266,9 +269,11 @@ private fun System.handlePause() {
                 //> PTone2F: lda #$64
                 playSqu1Sfx(0x64, 0x84, 0x7F)
             }
+            //> bne DecPauC               ;only load regs during times, otherwise skip
             // else: DecPauC, just decrement
         }
         //> DecPauC: dec Squ1_SfxLenCounter
+        //> bne SkipSoundSubroutines
         ram.squ1SfxLenCounter = ((lenCounter - 1) and 0xFF).toByte()
         if ((lenCounter - 1) and 0xFF == 0) {
             //> lda #$00; sta SND_MASTERCTRL_REG
@@ -318,6 +323,13 @@ private fun System.square1SfxHandler() {
         ram.square1SoundBuffer = queue.toByte()
         //> bmi PlaySmallJump
         if (queue and 0x80 != 0) { playSmallJump(); return }
+        //> lsr Square1SoundQueue
+        //> lsr Square1SoundQueue
+        //> lsr Square1SoundQueue
+        //> lsr Square1SoundQueue
+        //> lsr Square1SoundQueue
+        //> lsr Square1SoundQueue
+        //> lsr Square1SoundQueue
         // NES LSR shifts bit 0 into carry, BCS branches on carry
         // So we check bit 0 BEFORE shifting to get the carry
         if (queue and 0x01 != 0) { playBigJump(); return }      //> lsr; bcs PlayBigJump (bit 0)
@@ -331,6 +343,7 @@ private fun System.square1SfxHandler() {
     }
 
     //> CheckSfx1Buffer:
+    //> ExS1H: rts
     val buf = ram.square1SoundBuffer.toInt() and 0xFF
     if (buf == 0) return  //> beq ExS1H
     //> bmi ContinueSndJump
@@ -347,7 +360,9 @@ private fun System.square1SfxHandler() {
 //> PlayFlagpoleSlide:
 private fun System.playFlagpoleSlide() {
     ram.squ1SfxLenCounter = 0x40                //> lda #$40; sta Squ1_SfxLenCounter
+    //> bne FPS2nd
     setFreqSqu1(0x62)                            //> lda #$62; jsr SetFreq_Squ1
+    //> FPS2nd:   ldy #$bc               ;the flagpole slide sound shares part of third part
     dumpSqu1Regs(0x99, 0xBC)                     //> ldx #$99; FPS2nd: ldy #$bc; jsr Dump_Squ1_Regs
     //> bne DecJpFPS → bne BranchToDecLength1 → bne DecrementSfx1Length
     decrementSfx1Length()
@@ -372,9 +387,12 @@ private fun System.playBigJump() {
 //> ContinueSndJump:
 private fun System.continueSndJump() {
     val len = ram.squ1SfxLenCounter.toInt() and 0xFF
+    //> bne N2Prt
     when (len) {
+        //> N2Prt:    cmp #$20               ;check for third part
         0x25 -> {
             //> N2Prt... ldx #$5f; ldy #$f6; bne DmpJpFPS
+            //> DmpJpFPS: jsr Dump_Squ1_Regs
             dumpSqu1Regs(0x5F, 0xF6)
         }
         0x20 -> {
@@ -383,7 +401,7 @@ private fun System.continueSndJump() {
         }
         // else: DecJpFPS
     }
-    //> DecJpFPS -> BranchToDecLength1 -> DecrementSfx1Length
+    //> DecJpFPS: bne BranchToDecLength1  ;unconditional branch
     decrementSfx1Length()
 }
 
@@ -406,6 +424,7 @@ private fun System.playBump() {
 }
 
 //> ContinueBumpThrow:
+//> DecJpFPS: bne BranchToDecLength1  ;unconditional branch
 private fun System.continueBumpThrow() {
     val len = ram.squ1SfxLenCounter.toInt() and 0xFF
     if (len == 0x06) {
@@ -426,6 +445,7 @@ private fun System.playSwimStomp() {
 }
 
 //> ContinueSwimStomp:
+//> BranchToDecLength1:
 private fun System.continueSwimStomp() {
     val len = ram.squ1SfxLenCounter.toInt() and 0xFF
     //> ldy Squ1_SfxLenCounter; lda SwimStompEnvelopeData-1,y; sta SND_SQUARE1_REG
@@ -477,6 +497,7 @@ private fun System.decrementSfx1Length() {
 }
 
 //> StopSquare1Sfx:
+//> ExSfx1: rts
 private fun System.stopSquare1Sfx() {
     //> ldx #$00; stx $f1
     ram.square1SoundBuffer = 0
@@ -570,6 +591,7 @@ private fun System.square2SfxHandler() {
 private fun System.playCoinGrab() {
     //> lda #$35; ldx #$8d; bne CGrab_TTickRegL
     ram.squ2SfxLenCounter = 0x35
+    //> CGrab_TTickRegL:
     playSqu2Sfx(0x42, 0x8D, 0x7F)  //> CGrab_TTickRegL -> PlaySqu2Sfx
     continueCGrabTTick()
 }
@@ -598,7 +620,9 @@ private fun System.continueCGrabTTick() {
 private fun System.playBlast() {
     //> lda #$20; sta Squ2_SfxLenCounter; ldy #$94; lda #$5e; bne SBlasJ
     ram.squ2SfxLenCounter = 0x20
-    //> SBlasJ -> PBFRegs: ldx #$9f; bne LoadSqu2Regs -> PlaySqu2Sfx
+    //> SBlasJ: bne BlstSJp             ;unconditional branch to load rest of reg contents
+    //> BlstSJp: bne PBFRegs
+    //> PBFRegs:  ldx #$9f                 ;the fireworks/gunfire sound shares part of reg contents here
     playSqu2Sfx(0x5E, 0x9F, 0x94)
     decrementSfx2Length()
 }
@@ -1460,6 +1484,7 @@ private fun System.loadControlRegs(): Triple<Int, Int, Int> {
     val areaBuf = ram.areaMusicBuffer.toInt() and 0xFF
     if (areaBuf and 0x7D == 0) {
         //> WaterMus: lda #$28
+        //> AllMus:    ldx #$82              ;load contents of other sound regs for square 2
         return Triple(0x28, 0x82, 0x7F)
     }
     //> lda #$08; AllMus: ldx #$82; ldy #$7f
@@ -1475,11 +1500,13 @@ private fun System.loadEnvelopeData(y: Int): Int {
         return SoundData.endOfCastleMusicEnvData[y]
     }
     //> LoadUsualEnvData: lda AreaMusicBuffer; and #%01111101; beq LoadWaterEventMusEnvData
+    //> LoadWaterEventMusEnvData:
     val areaBuf = ram.areaMusicBuffer.toInt() and 0xFF
     if (areaBuf and 0x7D == 0) {
         //> lda WaterEventMusEnvData,y
         return SoundData.waterEventMusEnvData[y]
     }
+    //> ;music header offsets
     //> lda AreaMusicEnvData,y
     return SoundData.areaMusicEnvData[y]
 }

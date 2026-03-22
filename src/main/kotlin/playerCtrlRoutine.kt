@@ -359,6 +359,7 @@ private fun System.playerMovementSubs() {
         PlayerState.Climbing -> climbingSub()
     }
     //> NoMoveSub: rts
+//> ;$00 - used by ClimbingSub to store high vertical adder
 }
 
 // ---- OnGroundStateSub ----
@@ -958,6 +959,7 @@ private fun System.getPlayerAnimSpeed() {
             } else {
                 //> lda #$00                   ;otherwise set zero value here
                 //> SetRunSpd: sta RunningSpeed           ;store zero or running speed here
+                //> jmp SetAnimSpd
                 ram.runningSpeed = 0x00
             }
         }
@@ -971,6 +973,7 @@ private fun System.getPlayerAnimSpeed() {
     //> sta PlayerAnimTimerSet
     ram.playerAnimTimerSet = PlayerAnimTmrData[y]
     //> rts
+//> ;$00 - used to store offset to friction data
 }
 
 // ---- ImposeFriction ----
@@ -1096,6 +1099,9 @@ private fun System.setAbsoluteSpeedWithSign() {
         ram.playerXSpeedAbsolute = ((ram.playerXSpeed.toInt() xor 0xFF) + 1).toByte()
     }
     //> SetAbsSpd: sta Player_XSpeedAbsolute ;store walking/running speed here and leave
+//> ;$07 - used to store pseudorandom bit in BubbleCheck
+//> ;$02 - used to store maximum vertical speed in FireballObjCore
+//> ;$00 - used to store downward movement force in FireballObjCore
 }
 
 /**

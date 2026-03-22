@@ -24,6 +24,9 @@ fun System.miscObjectsCore() {
             //> jsr ProcHammerObj ;otherwise go to process hammer
             procHammerObj()
             //> jmp MiscLoopBack  ;then check next slot
+            //> ;$02 - used to set maximum speed
+            //> ;$01 - used to set upward force (residual)
+            //> ;$00 - used to set downward force
             continue
         }
 

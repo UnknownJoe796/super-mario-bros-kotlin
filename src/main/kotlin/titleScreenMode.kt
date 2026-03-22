@@ -352,7 +352,7 @@ fun System.drawTitleScreen() {
     ram.vRAMBuffer1.addAll(BufferedPpuUpdate.parseVramBuffer(vramBufferBytes))
     ram.vRAMBufferAddrCtrl = 5
     //> IncSubtask: inc ScreenRoutineTask
-    ram.screenRoutineTask++
+    ram.screenRoutineTask = ram.screenRoutineTask.next()
 }
 
 

@@ -3,6 +3,7 @@
 package com.ivieleague.smbtranslation
 
 //> CannonBitmasks:
+//> .db %00001111, %00000111
 //> .db $0f, $07
 private val cannonBitmasks = intArrayOf(0x0f, 0x07)
 
@@ -47,6 +48,7 @@ fun System.processCannons() {
                 if (cannonPage != 0) {
                     //> lda Cannon_Timer,y          ;get cannon timer
                     //> beq FireCannon              ;if expired, branch to fire cannon
+                    //> jmp Chk_BB                  ;then jump ahead to check enemy
                     val cannonTimer = ram.cannonTimers[y].toInt() and 0xFF
                     if (cannonTimer == 0) {
                         fireCannon(x, y)
@@ -218,6 +220,7 @@ private fun System.runBBSubs() {
     //> jsr PlayerEnemyCollision  ;handle player to enemy collisions
     playerEnemyCollision()
     //> jmp EnemyGfxHandler       ;draw the bullet bill and leave
+    //> KillBB:    jsr EraseEnemyObject      ;kill bullet bill and leave
     enemyGfxHandler()
 }
 
@@ -322,6 +325,8 @@ fun System.offscreenBoundsCheck() {
     //> TooFar: jsr EraseEnemyObject ;erase all others too far to the right
     eraseEnemyObject(x)
     //> ExScrnBd: rts
+//> ;$01 - enemy buffer offset
+//> ;some unused space
 }
 
 // playerEnemyDiff() moved to boundingBox.kt

@@ -10,6 +10,8 @@ package com.ivieleague.smbtranslation
  */
 fun System.moveObjectHorizontally(sprObjOffset: Int): Byte {
     //> MoveObjectHorizontally:
+    //> lda SprObject_X_Speed,x     ;get saved value again
+    //> lda SprObject_X_Speed,x     ;get currently saved value (horizontal
     val speed = ram.sprObjXSpeed[sprObjOffset].toInt() and 0xFF
 
     //> asl; asl; asl; asl          ;move low nybble to high
@@ -52,6 +54,9 @@ fun System.moveObjectHorizontally(sprObjOffset: Int): Byte {
 
     //> pla; clc; adc $00           ;return saved carry + integer displacement
     //> ExXMove: rts
+    //> ;$02 - used for maximum vertical speed
+    //> ;$01 - used for upward force
+    //> ;$00 - used for downward force
     return (fracCarry + intDisplacement).toByte()
 }
 

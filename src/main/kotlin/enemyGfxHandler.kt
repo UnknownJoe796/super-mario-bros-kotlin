@@ -192,6 +192,7 @@ fun System.enemyGfxHandler() {
 
     //> lda Enemy_ID,x              ;check for mushroom retainer/princess object
     //> cmp #RetainerObject
+    //> bne CheckForBulletBillCV    ;if not found, branch
     var enemyCode = enemyId  // $ef: enemy code used throughout the handler
 
     if (enemyId == EnemyId.RetainerObject.byte.toInt() and 0xFF) {
@@ -205,6 +206,7 @@ fun System.enemyGfxHandler() {
     }
 
     //> CheckForBulletBillCV:
+    //> bne CheckForJumpspring      ;if not found, branch again
     if (enemyCode == EnemyId.BulletBillCannonVar.byte.toInt() and 0xFF) {
         //> dec $02                     ;decrement saved vertical position
         yCoord = (yCoord - 1).toByte()
@@ -226,6 +228,8 @@ fun System.enemyGfxHandler() {
     }
 
     //> CheckForJumpspring:
+    //> bne CheckForPodoboo
+    //> cmp #JumpspringObject        ;check for jumpspring object
     if (enemyCode == EnemyId.JumpspringObject.byte.toInt() and 0xFF) {
         //> ldy #$03                     ;set enemy state -2 MSB here for jumpspring object
         altState = 0x03
@@ -261,6 +265,7 @@ fun System.enemyGfxHandler() {
         //> cmp #$01
         //> beq SBwsrGfxOfs
         //> iny                 ;otherwise draw bowser's rear
+        //> SBwsrGfxOfs: sty $ef
         enemyCode = if (bowserFlag == 1) 0x16 else 0x17
     }
 
@@ -322,6 +327,8 @@ fun System.enemyGfxHandler() {
             if ((savedEnemyState and 0x20) != 0) {
                 //> FlipBowserOver:
                 //> stx VerticalFlipFlag  ;set vertical flip flag to nonzero
+                //> jmp DrawEnemyObject   ;draw bowser's graphics now
+                //> DrawBowser:
                 ram.verticalFlipFlag = gfxTableOfs.toByte()  // nonzero
             }
         } else {
@@ -345,12 +352,14 @@ fun System.enemyGfxHandler() {
                 ram.verticalFlipFlag = gfxTableOfs.toByte()  // nonzero
             }
         }
-        // DrawBowser: jmp DrawEnemyObject
+        //> DrawBowser: jmp DrawEnemyObject
         // (fall through to drawing code below)
     } else {
         // Not bowser - handle spiny, lakitu, shells, etc.
 
         //> CheckForSpiny:
+        //> bne CheckForLakitu     ;if not found, branch
+        //> cpx #$24               ;check if value loaded is for spiny
         if (gfxTableOfs == 0x24) {
             //> cpy #$05               ;if enemy state set to $05, do this,
             //> bne NotEgg             ;otherwise branch
@@ -367,6 +376,8 @@ fun System.enemyGfxHandler() {
             //> NotEgg: jmp CheckForHammerBro  ;skip a big chunk of this if we found spiny
         } else if (gfxTableOfs == 0x90) {
             //> CheckForLakitu:
+            //> bne CheckUpsideDownShell  ;branch if not loaded
+            //> cpx #$90                  ;check value for lakitu's offset loaded
             //> lda $ed
             //> and #%00100000            ;check for d5 set in enemy state
             //> bne NoLAFr                ;branch if set
@@ -384,6 +395,7 @@ fun System.enemyGfxHandler() {
             //> CheckUpsideDownShell:
             //> lda $ef                    ;check for enemy object => $04
             //> cmp #$04
+            //> bcs CheckRightSideUpShell  ;branch if true
             if (enemyCode < 0x04 && savedAltState >= 0x02) {
                 //> cpy #$02
                 //> bcc CheckRightSideUpShell  ;branch if enemy state < $02
@@ -391,6 +403,7 @@ fun System.enemyGfxHandler() {
                 gfxTableOfs = 0x5a
                 //> ldy $ef
                 //> cpy #BuzzyBeetle           ;check for buzzy beetle object
+                //> bne CheckRightSideUpShell
                 if (enemyCode == EnemyId.BuzzyBeetle.byte.toInt() and 0xFF) {
                     //> ldx #$7e                   ;set for upside-down buzzy beetle shell if found
                     gfxTableOfs = 0x7e
@@ -434,6 +447,7 @@ fun System.enemyGfxHandler() {
         }
 
         //> CheckForHammerBro:
+        //> bne CheckForBloober      ;branch if not found
         x = ram.objectOffset.toInt()
         if (enemyCode == EnemyId.HammerBro.byte.toInt() and 0xFF) {
             //> lda $ed
@@ -453,6 +467,7 @@ fun System.enemyGfxHandler() {
             if (gfxTableOfs == 0x48) {
                 //> cpx #$48                 ;check for cheep-cheep offset loaded
                 //> beq CheckToAnimateEnemy  ;branch if found
+                //> lda EnemyIntervalTimer,y
                 // Cheep-cheep: skip to animation
             } else {
                 val intervalTimer = ram.timers[0x16 + x].toInt() and 0xFF
@@ -533,9 +548,11 @@ fun System.enemyGfxHandler() {
         //> CheckDefeatedState:
         //> lda $ed               ;check saved enemy state
         //> and #%00100000        ;for d5 set
+        //> beq DrawEnemyObject   ;branch if not set
         if ((savedEnemyState and 0x20) != 0) {
             //> lda $ef
             //> cmp #$04              ;check for saved enemy object => $04
+            //> bcc DrawEnemyObject   ;branch if less
             if (enemyCode >= 0x04) {
                 //> ldy #$01
                 //> sty VerticalFlipFlag  ;set vertical flip flag
@@ -717,6 +734,7 @@ fun System.enemyGfxHandler() {
     }
 
     //> CheckToMirrorLakitu:
+    //> bne CheckToMirrorJSpring    ;branch if not found
     if (enemyCode == EnemyId.Lakitu.byte.toInt() and 0xFF) {
         //> lda VerticalFlipFlag
         //> bne NVFLak                  ;branch if vertical flip flag not set
@@ -897,6 +915,9 @@ private fun System.sprObjectOffscrChk(objectX: Int, sprOfs: Int, enemyCode: Int)
         }
     }
     //> ExEGHandler: rts
+//> lda EnemyGraphicsTable+1,x
+//> lda EnemyGraphicsTable,x    ;load two tiles of enemy graphics
+//> DrawEnemyObjRow:
 }
 
 /**
@@ -929,5 +950,10 @@ private fun System.moveESprColOffscreen(objectX: Int, colOffset: Int) {
     ram.sprites[sprOfs].y = 0xf8.toUByte()
     ram.sprites[sprOfs + 2].y = 0xf8.toUByte()
     //> sta Sprite_Data+16,y        ;move third row sprite in column offscreen
+    //> ;$05 - relative X position
+    //> ;$04 - attributes
+    //> ;$03 - horizontal flip flag (not used here)
+    //> ;$02 - relative Y position
+    //> ;$00-$01 - tile numbers
     ram.sprites[sprOfs + 4].y = 0xf8.toUByte()
 }

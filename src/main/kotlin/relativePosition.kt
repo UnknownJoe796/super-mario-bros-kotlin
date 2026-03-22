@@ -22,6 +22,7 @@ fun System.getObjRelativePosition(sprObjOffset: Int, condensedOffset: Int) {
     //> sec                         ;subtract left edge coordinate
     //> sbc ScreenLeft_X_Pos
     //> sta SprObject_Rel_XPos,y    ;store result here
+    //> ;$00 - used as temp variable to hold offscreen bits
     ram.relXPos[condensedOffset] = (ram.sprObjXPos[sprObjOffset] - ram.screenLeftXPos).toByte()
     //> rts
 }
@@ -60,6 +61,7 @@ fun System.relativeFireballPosition() {
     //> ldy #$00                    ;set for fireball offsets
     //> jsr GetProperObjOffset      ;modify X to get proper fireball offset
     //> ldy #$02
+    //> RelWOfs: jsr GetObjRelativePosition  ;get the coordinates
     //> (falls into RelWOfs)
     val sprObjOffset = ram.objectOffset.toInt() + objOffsetData[0]
     getObjRelativePosition(sprObjOffset, condensedOffset = 2)
@@ -108,6 +110,8 @@ fun System.relativeBlockPosition() {
     //> inx
     //> lda #$09
     //> iny                          ;adjust other and get coordinates for other one
+    //> jsr GetObjRelativePosition
+    //> VariableObjOfsRelPos:
     //> (falls through to VariableObjOfsRelPos)
     getObjRelativePosition(sprObjOffset = 9 + objectOfs + 2, condensedOffset = 5)
 }

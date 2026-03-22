@@ -190,6 +190,7 @@ private fun System.setupFloateyNumberLocal(pointsControl: Int) {
  * Handles floor landing, side collision, special enemy types (hammer bro, paratroopa, spiny).
  */
 fun System.enemyToBGCollisionDet() {
+    //> ;$06-$07 - address from block buffer routine
     //> EnemyToBGCollisionDet:
     val x = ram.objectOffset.toInt() and 0xFF
 
@@ -250,6 +251,7 @@ fun System.enemyToBGCollisionDet() {
     if (underResult.metatile == 0.toByte()) {
         //> NoEToBGCollision:
         //> jmp ChkForRedKoopa   ;otherwise skip and do something else
+        //> ;$02 - vertical coordinate from block buffer routine
         chkForRedKoopa(x)
         return
     }
@@ -446,6 +448,8 @@ private fun System.chkToStunEnemiesLocal(x: Int) {
         ram.enemyMovingDirs[x] = dir.toByte()
     }
     //> NoCDirF: dey
+    //> ;$04 - low nybble of vertical coordinate from block buffer routine
+    //> ExEBGChk: rts
     //> lda EnemyBGCXSpdData,y; sta Enemy_X_Speed,x
     ram.sprObjXSpeed[x + 1] = enemyBGCXSpdData2[dir - 1]
 }
@@ -523,6 +527,7 @@ private fun System.landEnemyProperly(x: Int) {
         timer = 0x00
     }
     //> SetForStn: sta EnemyIntervalTimer,x
+    //> ExSteChk:  rts                       ;then leave
     ram.timers[0x16 + x] = timer.toByte()
     //> lda #$03; sta Enemy_State,x
     ram.enemyState[x] = 0x03
@@ -642,6 +647,8 @@ private fun System.chkForRedKoopa(x: Int) {
             state
         }
         //> SetD6Ste: sta Enemy_State,x
+        //> ;$eb - used in DoEnemySideCheck as counter and to compare moving directions
+        //> ;$00 - used to store bitmask (not used but initialized here)
         ram.enemyState[x] = newState.toByte()
     }
 
@@ -682,6 +689,7 @@ internal fun System.doEnemySideCheck(x: Int) {
             }
         }
         //> NextSdeC: dec $eb; iny; cpy #$18; bcc SdeCLoop
+        //> ExESdeC:  rts
         checkDir--
         adderY++
         if (adderY >= 0x18) break
@@ -717,6 +725,7 @@ private fun System.chkForBumpHammerBroJ(x: Int) {
     }
 
     //> InvEnemyDir: jmp RXSpd
+    //> ;$00 - used to hold horizontal difference between player and enemy
     // by Claude - fix: InvEnemyDir jumps directly to RXSpd, bypassing the
     // ID checks in EnemyTurnAround. All enemy types (including PowerUpObject)
     // get their speed reversed when hitting a wall from the side check.
@@ -916,6 +925,7 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
     ram.blockOrigYPos[x] = result.vertOffset.toByte()
 
     //> tay
+    //> TopEx: rts                     ;leave!
     //> lda $06; sta Block_BBuf_Low,x
     ram.blockBBufLow[x] = bbLow.toByte()
 
@@ -962,6 +972,7 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
     }
 
     //> PutMTileB: sta Block_Metatile,x
+    //> SmallBP:   iny                      ;increment for small or big and crouching
     ram.blockMetatile[x] = metatileForBlock.toByte()
 
     //> jsr InitBlock_XY_Pos
@@ -983,6 +994,7 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
     val sizeOffset = if (ram.crouchingFlag != 0.toByte() || ram.playerSize == PlayerSize.Small) 1 else 0
 
     //> BigBP: lda Player_Y_Position; clc; adc BlockYPosAdderData,y
+    //> jmp InvOBit              ;skip subroutine to do last part of code here
     //> and #$f0; sta Block_Y_Position,x
     val playerY = ram.playerYPosition.toInt() and 0xFF
     val adder = blockYPosAdderData2[sizeOffset].toInt() and 0xFF
@@ -1030,6 +1042,8 @@ private fun System.initBlockXYPos(x: Int) {
 
 private fun blockBumpedChk(metatile: Int): Pair<Boolean, Int> {
     //> BlockBumpedChk:
+    //> MatchBump:   rts                         ;note carry is set if found match
+    //> BumpChkLoop: cmp BrickQBlockMetatiles,y  ;check to see if current metatile matches
     //> ldy #$0d; BumpChkLoop: cmp BrickQBlockMetatiles,y
     //> beq MatchBump; dey; bpl BumpChkLoop; clc; MatchBump: rts
     val mt = (metatile and 0xFF).toByte()
@@ -1058,6 +1072,7 @@ private fun System.bumpBlock(x: Int, originalMT: Int) {
 
     //> lda $05; jsr BlockBumpedChk; bcc ExitBlockChk
     val (found, bumpIdx) = blockBumpedChk(originalMT)
+    //> ExitBlockChk:
     if (!found) return
 
     //> tya; cmp #$09; bcc BlockCode; sbc #$05
@@ -1095,6 +1110,8 @@ private fun System.starBlock(x: Int) {
 
 private fun System.extraLifeMushBlock(x: Int) {
     //> ExtraLifeMushBlock: lda #$03
+    //> jmp SetupPowerUp
+    //> sta $39          ;store correct power-up type
     ram.powerUpType = 0x03
     setupPowerUp(x)
 }
@@ -1104,6 +1121,7 @@ private fun System.vineBlock(x: Int) {
     //> ldx #$05                ;load last slot for enemy object buffer
     //> ldy SprDataOffset_Ctrl  ;get control bit
     //> jsr Setup_Vine          ;set up vine object
+    //> ExitBlockChk:
     setupVine(enemySlot = 5, blockSlot = x)
 }
 
@@ -1153,8 +1171,14 @@ private fun System.jCoinC(miscSlot: Int, x: Int) {
 
 private fun System.findEmptyMiscSlot(): Int {
     //> FindEmptyMiscSlot:
+    //> ldy #$08                ;start at end of misc object buffer
+    //> FMiscLoop: lda Misc_State,y        ;get misc object state
+    //> beq UseMiscS            ;branch if none found to use current offset
+    //> dey; cpy #$06
+    //> bne FMiscLoop           ;do this until all slots are checked
     for (slot in 8 downTo 6) {
         if (ram.miscStates[slot] == 0.toByte()) {
+            //> UseMiscS:  sty JumpCoinMiscOffset  ;store offset of misc object buffer here (residual)
             ram.jumpCoinMiscOffset = slot.toByte()
             return slot
         }
@@ -1195,6 +1219,7 @@ private fun System.checkTopOfBlock(x: Int) {
     // Assembly reads $02 (zero-page temp) and $06 (buffer ptr), which correspond to
     // blockOrigYPos[x] and blockBBufLow[x] since they were just written in playerHeadCollision.
     val vertOffset = ram.blockOrigYPos[x].toInt() and 0xFF
+    //> TopEx: rts                     ;leave!
     if (vertOffset == 0) return
 
     //> tya; sec; sbc #$10; sta $02; tay
@@ -1268,6 +1293,8 @@ private fun System.spawnBrickChunks(x: Int) {
  */
 fun System.handleWarpZone(warpOfs: Int) {
     //> GetWNum: ldy WarpZoneNumbers,x
+    //> ;$06-$07 - address from block buffer routine
+    //> ExEBG: rts            ;leave
     val warpNum = warpZoneNumbers[warpOfs.coerceIn(0, warpZoneNumbers.size - 1)].toInt() and 0xFF
     //> dey; sty WorldNumber
     val worldNum = (warpNum - 1) and 0xFF
@@ -1290,6 +1317,13 @@ fun System.handleWarpZone(warpOfs: Int) {
     ram.fetchNewGameTimerFlag = true
 }
 
+//> ;$00 - used in WhirlpoolActivate to store whirlpool length / 2, page location of center of whirlpool
+//> ;and also to store movement force exerted on player
+//> ;$01 - used in ProcessWhirlpools to store page location of right extent of whirlpool
+//> ;and in WhirlpoolActivate to store center of whirlpool
+//> ;$02 - used in ProcessWhirlpools to store right extent of whirlpool and in
+//> ;WhirlpoolActivate to store maximum vertical speed
+
 // =====================================================================
 // WarpZoneObject
 // =====================================================================
@@ -1300,6 +1334,12 @@ fun System.handleWarpZone(warpOfs: Int) {
  */
 fun System.warpZoneObject() {
     //> WarpZoneObject:
+    //> ;WhirlpoolActivate to store maximum vertical speed
+    //> ;$02 - used in ProcessWhirlpools to store right extent of whirlpool and in
+    //> ;and in WhirlpoolActivate to store center of whirlpool
+    //> ;$01 - used in ProcessWhirlpools to store page location of right extent of whirlpool
+    //> ;and also to store movement force exerted on player
+    //> ;$00 - used in WhirlpoolActivate to store whirlpool length / 2, page location of center of whirlpool
     val x = ram.objectOffset.toInt() and 0xFF
 
     //> lda ScrollLock; beq ExGTimer

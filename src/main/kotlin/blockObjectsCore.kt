@@ -119,6 +119,7 @@ private fun System.bouncingBlockHandler(x: Int, sprObjOfs: Int, lowNybble: Int) 
         ram.blockRepFlags[x] = 1
         //> KillBlock: lda #$00
         //> UpdSte: sta Block_State,x
+        //> ;$02 - used to store offset to block buffer
         ram.blockStates[x] = 0
     }
 }

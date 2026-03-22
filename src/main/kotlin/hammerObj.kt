@@ -43,6 +43,9 @@ fun System.spawnHammerObj(): Boolean {
     if (ram.miscStates[y] != 0.toByte()) {
         //> NoHammer: ldx ObjectOffset         ;get original enemy object offset
         //> clc                      ;return with carry clear
+        //> ;$02 - used to set maximum speed
+        //> ;$01 - used to set upward force (residual)
+        //> ;$00 - used to set downward force
         return false
     }
     //> ldx HammerEnemyOfsData,y ;get offset of enemy slot to check using Y as offset
@@ -206,6 +209,13 @@ private fun System.runHammerSubs() {
 }
 
 //> ;-------------------------------------------------------------------------------------
+//> ;$05 - used as X coordinate for floatey number
+//> ;$04 - attribute byte for floatey number
+//> ;$03 - residual byte used for flip (but value set here affects nothing)
+//> ;$02 - used to hold Y coordinate for floatey number
+//> ;$00-$01 - used to hold tile numbers ($01 addressed in draw floatey number part)
+//> ;$06 - used to store low byte of block buffer address
+//> ;$02 - used to store vertical high nybble offset from block buffer routine
 //> ;data for the hammer dynamic sprite rendering
 
 //> FirstSprXPos:

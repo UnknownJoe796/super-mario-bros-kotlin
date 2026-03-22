@@ -136,6 +136,7 @@ private fun System.initChangeSize() {
     //> sta PlayerSize
     ram.playerSize = if (ram.playerSize == PlayerSize.Big) PlayerSize.Small else PlayerSize.Big
     //> ExitBoth: rts                       ;leave
+//> ;$00 - used in CyclePlayerPalette to store current palette to cycle
 }
 
 /**

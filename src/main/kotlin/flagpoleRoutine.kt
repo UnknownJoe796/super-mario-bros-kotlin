@@ -75,6 +75,7 @@ fun System.flagpoleRoutine() {
     //> lda FlagpoleFNum_YMFDummy
     //> sec                       ;subtract movement amount from dummy variable
     //> sbc #$ff
+    //> sta FlagpoleFNum_YMFDummy ;save dummy variable
     val fnumDummyResult = (ram.flagpoleFNumYMFDummy.toInt() and 0xFF) - 0xFF
     val fnumBorrow = if (fnumDummyResult < 0) 1 else 0
     ram.flagpoleFNumYMFDummy = fnumDummyResult.toByte()

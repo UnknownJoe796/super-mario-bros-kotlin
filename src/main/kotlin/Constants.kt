@@ -184,3 +184,26 @@ enum class GameEngineRoutine {
             entries.getOrElse(b.toInt() and 0xFF) { entries.first() }
     }
 }
+
+enum class ScreenRoutineTask {
+    InitScreen,             // 0x00
+    SetupIntermediate,      // 0x01
+    WriteTopStatusLine,     // 0x02
+    WriteBottomStatusLine,  // 0x03
+    DisplayTimeUp,          // 0x04
+    ResetSpritesAndScreenTimer1, // 0x05
+    DisplayIntermediate,    // 0x06
+    ResetSpritesAndScreenTimer2, // 0x07
+    AreaParserTaskControl,  // 0x08
+    GetAreaPalette,         // 0x09
+    GetBackgroundColor,     // 0x0A
+    GetAlternatePalette1,   // 0x0B
+    DrawTitleScreen,        // 0x0C
+    ClearBuffersDrawIcon,   // 0x0D
+    WriteTopScore,          // 0x0E
+    ;
+    fun next() = entries[ordinal + 1]
+    companion object {
+        fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { entries.last() }
+    }
+}

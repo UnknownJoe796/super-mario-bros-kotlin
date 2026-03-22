@@ -331,6 +331,8 @@ private fun System.checkLeftScreenBBox(bbOffset: Int) {
     ram.boundBoxCoords[bbOffset + 0] = 0x00
 
     //> NoOfs2: ldx ObjectOffset; rts
+//> ;$07 - counter
+//> ;$06 - second object's offset
 }
 
 // ---------------------------------------------------------------------------
@@ -627,6 +629,9 @@ fun System.getEnemyBoundBoxOfsArg(enemyIndex: Int): Pair<Int, Boolean> {
     val isFullyOffscreen = (offBits == 0x0F)
 
     //> rts
+    //> ;$eb - used to hold block buffer adder
+    //> ;$04 - holds lower nybble of vertical coordinate from block buffer routine
+    //> ;$00-$01 - used to hold many values, essentially temp variables
     return Pair(bbOffset, isFullyOffscreen)
 }
 

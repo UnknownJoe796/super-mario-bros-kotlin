@@ -16,36 +16,35 @@ fun System.screenRoutines() {
     //> jsr JumpEngine
     when (ram.screenRoutineTask) {
         //> .dw InitScreen
-        0x00.toByte() -> initScreen()
+        ScreenRoutineTask.InitScreen -> initScreen()
         //> .dw SetupIntermediate
-        0x01.toByte() -> setupIntermediate()
+        ScreenRoutineTask.SetupIntermediate -> setupIntermediate()
         //> .dw WriteTopStatusLine
-        0x02.toByte() -> writeTopStatusLine()
+        ScreenRoutineTask.WriteTopStatusLine -> writeTopStatusLine()
         //> .dw WriteBottomStatusLine
-        0x03.toByte() -> writeBottomStatusLine()
+        ScreenRoutineTask.WriteBottomStatusLine -> writeBottomStatusLine()
         //> .dw DisplayTimeUp
-        0x04.toByte() -> displayTimeUp()
+        ScreenRoutineTask.DisplayTimeUp -> displayTimeUp()
         //> .dw ResetSpritesAndScreenTimer
-        0x05.toByte() -> resetSpritesAndScreenTimer()
+        ScreenRoutineTask.ResetSpritesAndScreenTimer1 -> resetSpritesAndScreenTimer()
         //> .dw DisplayIntermediate
-        0x06.toByte() -> displayIntermediate()
+        ScreenRoutineTask.DisplayIntermediate -> displayIntermediate()
         //> .dw ResetSpritesAndScreenTimer
-        0x07.toByte() -> resetSpritesAndScreenTimer()
+        ScreenRoutineTask.ResetSpritesAndScreenTimer2 -> resetSpritesAndScreenTimer()
         //> .dw AreaParserTaskControl
-        0x08.toByte() -> areaParserTaskControl()
+        ScreenRoutineTask.AreaParserTaskControl -> areaParserTaskControl()
         //> .dw GetAreaPalette
-        0x09.toByte() -> getAreaPalette()
+        ScreenRoutineTask.GetAreaPalette -> getAreaPalette()
         //> .dw GetBackgroundColor
-        0x0A.toByte() -> getBackgroundColor()
+        ScreenRoutineTask.GetBackgroundColor -> getBackgroundColor()
         //> .dw GetAlternatePalette1
-        0x0B.toByte() -> getAlternatePalette1()
+        ScreenRoutineTask.GetAlternatePalette1 -> getAlternatePalette1()
         //> .dw DrawTitleScreen
-        0x0C.toByte() -> drawTitleScreen()
+        ScreenRoutineTask.DrawTitleScreen -> drawTitleScreen()
         //> .dw ClearBuffersDrawIcon
-        0x0D.toByte() -> clearBuffersDrawIcon()
+        ScreenRoutineTask.ClearBuffersDrawIcon -> clearBuffersDrawIcon()
         //> .dw WriteTopScore
-        0x0E.toByte() -> writeTopScore()
-        else -> Unit
+        ScreenRoutineTask.WriteTopScore -> writeTopScore()
     }
 }
 
@@ -181,7 +180,7 @@ private fun System.displayTimeUp() {
         return
     }
     //> NoTimeUp: inc ScreenRoutineTask     ;increment control task 2 tasks forward
-    ram.screenRoutineTask++
+    ram.screenRoutineTask = ram.screenRoutineTask.next()
     //> jmp IncSubtask
     incSubtask()
 }
@@ -243,7 +242,7 @@ private fun System.gameOverInter() {
 private fun System.noInter() {
     //> NoInter:       lda #$08                     ;set for specific task and leave
     //> sta ScreenRoutineTask
-    ram.screenRoutineTask = 0x08.toByte()
+    ram.screenRoutineTask = ScreenRoutineTask.AreaParserTaskControl
     //> rts
     return
 }
@@ -264,7 +263,7 @@ private fun System.areaParserTaskControl() {
     //> bpl OutputCol
     if (--ram.columnSets < 0) {
         //> inc ScreenRoutineTask     ;if not, move on to the next task
-        ram.screenRoutineTask++
+        ram.screenRoutineTask = ram.screenRoutineTask.next()
     }
     //> OutputCol: lda #$06                  ;set vram buffer to output rendered column set
     //> sta VRAM_Buffer_AddrCtrl  ;on next NMI
@@ -375,7 +374,7 @@ private fun System.writeTopScore(): Unit {
 
 private fun System.incSubtask() {
     //> IncSubtask:  inc ScreenRoutineTask      ;move onto next task
-    ram.screenRoutineTask++
+    ram.screenRoutineTask = ram.screenRoutineTask.next()
 }
 
 //> NextSubtask:   jmp IncSubtask           ;move onto next task
@@ -440,7 +439,7 @@ private fun System.resetScreenTimer() {
     //> sta ScreenTimer
     ram.screenTimer = 0x07.toByte()
     //> inc ScreenRoutineTask       ;move onto next task
-    ram.screenRoutineTask++
+    ram.screenRoutineTask = ram.screenRoutineTask.next()
     //> NoReset: rts
 }
 

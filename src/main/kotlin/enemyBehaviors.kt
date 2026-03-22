@@ -464,6 +464,7 @@ private fun System.delayToAreaEnd(x: Int) {
         ram.starFlagTaskControl = (ram.starFlagTaskControl + 1).toByte()
     }
     //> StarFlagExit2: rts
+//> ;$00 - used to store horizontal difference between player and piranha plant
 }
 
 // ---- Jumpspring Handler ----
@@ -500,6 +501,7 @@ fun System.jumpspringHandler() {
     if ((y and 0x02) == 0) {
         //> inc Player_Y_Position
         //> inc Player_Y_Position       ;move player's vertical position down two pixels
+        //> jmp PosJSpr                 ;skip to next part
         ram.playerYPosition = ((ram.playerYPosition.toInt() + 2) and 0xFF).toUByte()
     } else {
         //> DownJSpr:
@@ -688,6 +690,7 @@ fun System.enemiesCollision() {
 
                 //> ldx ObjectOffset            ;use first enemy offset for X
                 //> ldy $01                     ;use second enemy offset for Y
+                //> bcc NoEnemyCollision        ;if carry clear, no collision, branch ahead of this
                 if (collision) {
                     //> lda Enemy_State,x
                     //> ora Enemy_State,y           ;check both enemy states for d7 set
@@ -892,4 +895,6 @@ fun System.drawExplosionFireworks(gfxCounter: Int, sprDataOffset: Int) {
     //> lda #$c2; sta Sprite_Attributes+12,y  ;both flips for fourth sprite
     ram.sprites[y + 3].attributes = SpriteFlags(0xc2.toByte())
     //> rts
+//> ;$01 - used to hold enemy offset for second enemy
+//> ExSFN: rts
 }

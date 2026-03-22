@@ -134,6 +134,7 @@ private fun System.whirlpoolActivate(y: Int) {
             ram.playerXPosition = (newX and 0xFF).toUByte()
             //> lda Player_PageLoc
             //> sbc #$00                    ;subtract borrow
+            //> jmp SetPWh                  ;jump to set player's new page location
             //> SetPWh: sta Player_PageLoc
             val newPage = (ram.sprObjPageLoc[0].toInt() and 0xFF) - (if (newX < 0) 1 else 0)
             ram.sprObjPageLoc[0] = newPage.toByte()

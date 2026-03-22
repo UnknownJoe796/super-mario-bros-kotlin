@@ -321,6 +321,9 @@ fun System.blockObjMTUpdater() {
         ram.blockRepFlags[x] = 0
         //> NextBUpd:   dex                       ;decrement block object offset
         //> bpl UpdateLoop            ;do this until both block objects are dealt with
+    //> ;$02 - used to store adder to page location
+    //> ;$01 - used to store low nybble of horizontal speed
+    //> ;$00 - used to store high nybble of horizontal speed as adder
     }
     //> rts
 }

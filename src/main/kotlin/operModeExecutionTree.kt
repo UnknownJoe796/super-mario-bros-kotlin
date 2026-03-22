@@ -53,7 +53,7 @@ private fun System.gameOverSetup(): Unit {
     //> SetupGameOver:
     //> lda #$00                  ;reset screen routine task control for title screen, game,
     //> sta ScreenRoutineTask     ;and game over modes
-    ram.screenRoutineTask = 0
+    ram.screenRoutineTask = ScreenRoutineTask.InitScreen
     //> sta Sprite0HitDetectFlag  ;disable sprite 0 check
     ram.sprite0HitDetectFlag = false
     //> lda #GameOverMusic

@@ -368,6 +368,7 @@ private fun System.platformSideCollisions(bbOffset: Int) {
     //> bcs NoSideC                ;and instead branch to leave (no collision)
     if (rightDiff >= 0x09) return
     //> SideC: jsr ImpedePlayerMove       ;deal with horizontal collision
+    //> NoSideC: ldx ObjectOffset           ;return with enemy object buffer offset
     impedePlayerMove(side)
 }
 
@@ -728,6 +729,11 @@ fun System.balancePlatform() {
     } else {
         //> ColFlg: cmp ObjectOffset            ;if collision flag matches
         //> beq PlatDn                  ;current enemy object offset, branch
+        //> PlatDn: jsr MovePlatformDown        ;do a sub to move downwards
+        //> jmp DoOtherPlatform         ;jump ahead to remaining code
+        //> PlatSt: jsr StopPlatforms           ;do a sub to stop movement
+        //> jmp DoOtherPlatform         ;jump ahead to remaining code
+        //> PlatUp: jsr MovePlatformUp          ;do a sub to move upwards
         if ((collisionFlag.toInt() and 0xFF) == x) {
             movePlatformDown(x)
         } else {
@@ -739,6 +745,7 @@ fun System.balancePlatform() {
     //> ldy Enemy_State,x           ;get offset of other platform
     //> pla                         ;get old vertical coordinate from stack
     //> sec
+    //> SixSpriteStacker:
     //> sbc Enemy_Y_Position,x      ;get difference of old vs. new coordinate
     val oldY = savedY.toInt() and 0xFF
     val newY = ram.sprObjYPos[x + 1].toInt() and 0xFF
@@ -1052,6 +1059,7 @@ private fun System.xMoveCntrPlatform(x: Int, maxSecondary: Int) {
             ram.sprObjYSpeed[x + 1] = ((primaryCtr + 1) and 0xFF).toByte()
         } else {
             //> inc XMoveSecondaryCounter,x ;increment secondary counter and leave
+            //> NoIncXM: rts
             ram.sprObjXSpeed[x + 1] = ((secondaryCtr + 1) and 0xFF).toByte()
         }
     }
@@ -1130,6 +1138,7 @@ fun System.dropPlatform() {
 private fun System.moveDropPlatform() {
     //> MoveDropPlatform:
     //> ldy #$7f      ;set movement amount for drop platform
+    //> bne SetMdMax  ;skip ahead of other value set here
     //> SetMdMax: lda #$02         ;set maximum speed in A
     //> SetXMoveAmt: sty $00; inx; jsr ImposeGravitySprObj
     val x = ram.objectOffset.toInt() and 0xFF
@@ -1284,6 +1293,7 @@ fun System.movePlatformUp(enemyOfs: Int = ram.objectOffset.toInt() and 0xFF) {
  */
 fun System.movePlatformDown(enemyOfs: Int = ram.objectOffset.toInt() and 0xFF) {
     //> MovePlatformDown:
+    //> .db $2c     ;part as BIT instruction)
     //> lda #$00    ;save value to stack (direction = down)
     //> .db $2c     ;BIT instruction - skip next lda
     //> (falls into MovePlatformUp path with Y=0)
@@ -1427,6 +1437,11 @@ fun System.drawLargePlatform() {
     if (bits and 0x80 != 0) {
         ram.sprites[sprOfs + 5].y = 0xF8.toUByte()
     }
+
+    //> SLChk:  lda Enemy_OffscreenBits     ;check d7 of offscreen bits
+    //> bcc ExDLPl
+    //> jsr MoveSixSpritesOffscreen ;otherwise branch to move all sprites offscreen
+    //> ExDLPl: rts
 }
 
 // =====================================================================
@@ -1501,10 +1516,13 @@ fun System.drawSmallPlatform() {
     for (i in 3..5) ram.sprites[sprOfs + i].y = botY.toUByte()
 
     //> lda Enemy_OffscreenBits     ;get offscreen bits
+    //> sta Sprite_Data+8,y
+    //> DumpThreeSpr:
     val offBits = ram.enemyOffscreenBits.toInt() and 0xFF
 
     //> and #%00001000              ;check d3
     //> beq SOfs
+    //> SOfs:  pla                         ;move out and back into stack
     if (offBits and 0x08 != 0) {
         //> lda #$f8; sta Sprite_Y_Position,y; sta Sprite_Y_Position+12,y
         ram.sprites[sprOfs].y = 0xF8.toUByte()
@@ -1513,6 +1531,7 @@ fun System.drawSmallPlatform() {
 
     //> and #%00000100              ;check d2
     //> beq SOfs2
+    //> SOfs2: pla                         ;get from stack
     if (offBits and 0x04 != 0) {
         //> lda #$f8; sta Sprite_Y_Position+4,y; sta Sprite_Y_Position+16,y
         ram.sprites[sprOfs + 1].y = 0xF8.toUByte()

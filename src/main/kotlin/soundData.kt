@@ -61,7 +61,13 @@ object SoundData {
     //>
     //> .db GroundLevelLeadInHdr-MHD   ;ground level music layout
     //> .db GroundLevelPart1Hdr-MHD, GroundLevelPart1Hdr-MHD
-    //> .db GroundLevelPart2AHdr-MHD, GroundLevelPart2BHdr-MHD, ...
+    //> .db GroundLevelPart2AHdr-MHD, GroundLevelPart2BHdr-MHD, GroundLevelPart2AHdr-MHD, GroundLevelPart2CHdr-MHD
+    //> .db GroundLevelPart2AHdr-MHD, GroundLevelPart2BHdr-MHD, GroundLevelPart2AHdr-MHD, GroundLevelPart2CHdr-MHD
+    //> .db GroundLevelPart3AHdr-MHD, GroundLevelPart3BHdr-MHD, GroundLevelPart3AHdr-MHD, GroundLevelLeadInHdr-MHD
+    //> .db GroundLevelPart4AHdr-MHD, GroundLevelPart4BHdr-MHD, GroundLevelPart4AHdr-MHD, GroundLevelPart4CHdr-MHD
+    //> .db GroundLevelPart4AHdr-MHD, GroundLevelPart4BHdr-MHD, GroundLevelPart4AHdr-MHD, GroundLevelPart4CHdr-MHD
+    //> .db GroundLevelPart3AHdr-MHD, GroundLevelPart3BHdr-MHD, GroundLevelPart3AHdr-MHD, GroundLevelLeadInHdr-MHD
+    //> .db GroundLevelPart4AHdr-MHD, GroundLevelPart4BHdr-MHD, GroundLevelPart4AHdr-MHD, GroundLevelPart4CHdr-MHD
     private val musicHeaderOffsetData = intArrayOf(
         0xa5, 0x59, 0x54, 0x64, 0x59, 0x3c, 0x31, 0x4b,
         0x69, 0x5e, 0x46, 0x4f, 0x36, 0x8d, 0x36, 0x4b,
@@ -129,6 +135,12 @@ object SoundData {
         //> DeathMusHdr: .db $18, <DeathMusData, >DeathMusData, $1e, $0f, $2d
         0xa5 to MusicHeader(0x18, 0x72, 0xFB, 0x1E, 0x0F, 0x2D),
     )
+    //> ;header format is as follows:
+    //> ;1 byte - length byte offset
+    //> ;2 bytes -  music data address
+    //> ;1 byte - triangle data offset
+    //> ;1 byte - square 1 data offset
+    //> ;1 byte - noise data offset (not used by secondary music)
 
     /** Look up a music header by index into the offset table. */
     fun getMusicHeader(index: Int): MusicHeader {
@@ -144,7 +156,32 @@ object SoundData {
 
     private const val MUSIC_DATA_BASE = 0xF9B8
 
+    //> ;MUSIC DATA
+    //> ;square 2/triangle format
+    //> ;d7 - length byte flag (0-note, 1-length)
+    //> ;if d7 is set to 0 and d6-d0 is nonzero:
+    //> ;d6-d0 - note offset in frequency look-up table (must be even)
+    //> ;if d7 is set to 1:
+    //> ;d6-d3 - unused
+    //> ;d2-d0 - length offset in length look-up table
+    //> ;value of $00 in square 2 data is used as null terminator, affects all sound channels
+    //> ;value of $00 in triangle data causes routine to skip note
+    //>
+    //> ;square 1 format
+    //> ;d7-d6, d0 - length offset in length look-up table (bit order is d0,d7,d6)
+    //> ;d5-d1 - note offset in frequency look-up table
+    //> ;value of $00 in square 1 data is flag alternate control reg data to be loaded
+    //>
+    //> ;noise format
+    //> ;d7-d6, d0 - length offset in length look-up table (bit order is d0,d7,d6)
+    //> ;d5-d4 - beat type (0 - rest, 1 - short, 2 - strong, 3 - long)
+    //> ;d3-d1 - unused
+    //> ;value of $00 in noise data is used as null terminator, affects only noise
+    //>
+    //> ;all music data is organized into sections (unless otherwise stated):
+    //> ;square 2, square 1, triangle, noise
     private val musicDataBytes = byteArrayOf(
+        //> Star_CloudMData:
         //> Star_CloudMData ($F9B8):
         0x84.toByte(), 0x2C.toByte(), 0x2C.toByte(), 0x2C.toByte(), 0x82.toByte(), 0x04.toByte(), 0x2C.toByte(), 0x04.toByte(),
         0x85.toByte(), 0x2C.toByte(), 0x84.toByte(), 0x2C.toByte(), 0x2C.toByte(), 0x2A.toByte(), 0x2A.toByte(), 0x2A.toByte(),
@@ -192,6 +229,7 @@ object SoundData {
         0x85.toByte(), 0x14.toByte(), 0x22.toByte(), 0x84.toByte(), 0x2C.toByte(), 0x85.toByte(), 0x1E.toByte(),
         0x82.toByte(), 0x2C.toByte(), 0x84.toByte(), 0x2C.toByte(), 0x1E.toByte(),
 
+        //> GroundM_P2BData:
         //> GroundM_P2BData ($FA75):
         0x84.toByte(), 0x04.toByte(), 0x82.toByte(), 0x3A.toByte(), 0x38.toByte(), 0x36.toByte(), 0x32.toByte(), 0x04.toByte(),
         0x34.toByte(), 0x04.toByte(), 0x64.toByte(), 0x04.toByte(), 0x64.toByte(), 0x86.toByte(), 0x64.toByte(), 0x00.toByte(),
@@ -202,6 +240,7 @@ object SoundData {
         0x85.toByte(), 0x14.toByte(), 0x1C.toByte(), 0x82.toByte(), 0x22.toByte(), 0x84.toByte(), 0x2C.toByte(),
         0x4E.toByte(), 0x82.toByte(), 0x4E.toByte(), 0x84.toByte(), 0x4E.toByte(), 0x22.toByte(),
 
+        //> GroundM_P2CData:
         //> GroundM_P2CData ($FA9D):
         0x84.toByte(), 0x04.toByte(), 0x85.toByte(), 0x32.toByte(), 0x85.toByte(), 0x30.toByte(), 0x86.toByte(), 0x2C.toByte(),
         0x04.toByte(), 0x00.toByte(),
@@ -214,6 +253,7 @@ object SoundData {
         0x21.toByte(), 0xD0.toByte(), 0xC4.toByte(), 0xD0.toByte(), 0x31.toByte(), 0xD0.toByte(), 0xC4.toByte(), 0xD0.toByte(),
         0x00.toByte(),
 
+        //> GroundM_P3AData:
         //> GroundM_P3AData ($FAC2):
         0x82.toByte(), 0x2C.toByte(), 0x84.toByte(), 0x2C.toByte(), 0x2C.toByte(), 0x82.toByte(), 0x2C.toByte(), 0x30.toByte(),
         0x04.toByte(), 0x34.toByte(), 0x2C.toByte(), 0x04.toByte(), 0x26.toByte(), 0x86.toByte(), 0x22.toByte(), 0x00.toByte(),
@@ -221,15 +261,18 @@ object SoundData {
         0xA4.toByte(), 0x25.toByte(), 0x25.toByte(), 0xA4.toByte(), 0x29.toByte(), 0xA2.toByte(), 0x1D.toByte(), 0x9C.toByte(),
         0x95.toByte(),
 
+        //> GroundM_P3BData:
         //> GroundM_P3BData ($FADB):
         0x82.toByte(), 0x2C.toByte(), 0x2C.toByte(), 0x04.toByte(), 0x2C.toByte(), 0x04.toByte(), 0x2C.toByte(), 0x30.toByte(),
         0x85.toByte(), 0x34.toByte(), 0x04.toByte(), 0x04.toByte(), 0x00.toByte(),
         // sq1
         0xA4.toByte(), 0x25.toByte(), 0x25.toByte(), 0xA4.toByte(), 0xA8.toByte(), 0x63.toByte(), 0x04.toByte(),
+        //> ;triangle data used by both sections of third part
         // tri (shared by P3A and P3B)
         0x85.toByte(), 0x0E.toByte(), 0x1A.toByte(), 0x84.toByte(), 0x24.toByte(), 0x85.toByte(), 0x22.toByte(), 0x14.toByte(),
         0x84.toByte(), 0x0C.toByte(),
 
+        //> GroundMLdInData:
         //> GroundMLdInData ($FAF9):
         0x82.toByte(), 0x34.toByte(), 0x84.toByte(), 0x34.toByte(), 0x34.toByte(), 0x82.toByte(), 0x2C.toByte(), 0x84.toByte(),
         0x34.toByte(), 0x86.toByte(), 0x3A.toByte(), 0x04.toByte(), 0x00.toByte(),
@@ -238,10 +281,12 @@ object SoundData {
         // tri
         0x82.toByte(), 0x18.toByte(), 0x84.toByte(), 0x18.toByte(), 0x18.toByte(), 0x82.toByte(), 0x18.toByte(), 0x18.toByte(),
         0x04.toByte(), 0x86.toByte(), 0x3A.toByte(), 0x22.toByte(),
+        //> ;noise data used by lead-in and third part sections
         // noise (shared by lead-in and P3)
         0x31.toByte(), 0x90.toByte(), 0x31.toByte(), 0x90.toByte(), 0x31.toByte(), 0x71.toByte(), 0x31.toByte(), 0x90.toByte(),
         0x90.toByte(), 0x90.toByte(), 0x00.toByte(),
 
+        //> GroundM_P4AData:
         //> GroundM_P4AData ($FB25):
         0x82.toByte(), 0x34.toByte(), 0x84.toByte(), 0x2C.toByte(), 0x85.toByte(), 0x22.toByte(), 0x84.toByte(), 0x24.toByte(),
         0x82.toByte(), 0x26.toByte(), 0x36.toByte(), 0x04.toByte(), 0x36.toByte(), 0x86.toByte(), 0x26.toByte(), 0x00.toByte(),
@@ -251,6 +296,7 @@ object SoundData {
         0x85.toByte(), 0x14.toByte(), 0x82.toByte(), 0x20.toByte(), 0x84.toByte(), 0x22.toByte(), 0x2C.toByte(),
         0x1E.toByte(), 0x1E.toByte(), 0x82.toByte(), 0x2C.toByte(), 0x2C.toByte(), 0x1E.toByte(), 0x04.toByte(),
 
+        //> GroundM_P4BData:
         //> GroundM_P4BData ($FB4B):
         0x87.toByte(), 0x2A.toByte(), 0x40.toByte(), 0x40.toByte(), 0x40.toByte(), 0x3A.toByte(), 0x36.toByte(),
         0x82.toByte(), 0x34.toByte(), 0x2C.toByte(), 0x04.toByte(), 0x26.toByte(), 0x86.toByte(), 0x22.toByte(), 0x00.toByte(),
@@ -261,9 +307,12 @@ object SoundData {
         0x85.toByte(), 0x18.toByte(), 0x82.toByte(), 0x1E.toByte(), 0x84.toByte(), 0x22.toByte(), 0x2A.toByte(),
         0x22.toByte(), 0x22.toByte(), 0x82.toByte(), 0x2C.toByte(), 0x2C.toByte(), 0x22.toByte(), 0x04.toByte(),
 
+        //> DeathMusData:
         //> DeathMusData ($FB72):
+        //> .db $86, $04 ;death music share data with fourth part c of ground level music
         0x86.toByte(), 0x04.toByte(),
 
+        //> GroundM_P4CData:
         //> GroundM_P4CData ($FB74):
         0x82.toByte(), 0x2A.toByte(), 0x36.toByte(), 0x04.toByte(), 0x36.toByte(), 0x87.toByte(), 0x36.toByte(), 0x34.toByte(),
         0x30.toByte(), 0x86.toByte(), 0x2C.toByte(), 0x04.toByte(), 0x00.toByte(),
@@ -272,14 +321,17 @@ object SoundData {
         // sq1 for P4C/death
         0xA2.toByte(), 0x31.toByte(), 0xB0.toByte(), 0xF1.toByte(), 0xED.toByte(), 0xEB.toByte(), 0xA2.toByte(), 0x1D.toByte(),
         0x9C.toByte(), 0x95.toByte(),
+        //> .db $86, $04 ;death music only
         // death music tri preamble
         0x86.toByte(), 0x04.toByte(),
         // tri for P4C/death
         0x85.toByte(), 0x22.toByte(), 0x82.toByte(), 0x22.toByte(), 0x87.toByte(), 0x22.toByte(), 0x26.toByte(), 0x2A.toByte(),
         0x84.toByte(), 0x2C.toByte(), 0x22.toByte(), 0x86.toByte(), 0x14.toByte(),
+        //> ;noise data used by fourth part sections
         // noise (shared by P4 sections)
         0x51.toByte(), 0x90.toByte(), 0x31.toByte(), 0x11.toByte(), 0x00.toByte(),
 
+        //> CastleMusData:
         //> CastleMusData ($FBA4):
         0x80.toByte(), 0x22.toByte(), 0x28.toByte(), 0x22.toByte(), 0x26.toByte(), 0x22.toByte(), 0x24.toByte(), 0x22.toByte(),
         0x26.toByte(), 0x22.toByte(), 0x28.toByte(), 0x22.toByte(), 0x2A.toByte(), 0x22.toByte(), 0x28.toByte(), 0x22.toByte(),
@@ -306,6 +358,7 @@ object SoundData {
         0x84.toByte(), 0x1A.toByte(), 0x83.toByte(), 0x18.toByte(), 0x20.toByte(), 0x84.toByte(), 0x1E.toByte(), 0x83.toByte(),
         0x1C.toByte(), 0x28.toByte(), 0x26.toByte(), 0x1C.toByte(), 0x1A.toByte(), 0x1C.toByte(),
 
+        //> GameOverMusData:
         //> GameOverMusData ($FC45):
         0x82.toByte(), 0x2C.toByte(), 0x04.toByte(), 0x04.toByte(), 0x22.toByte(), 0x04.toByte(), 0x04.toByte(), 0x84.toByte(),
         0x1C.toByte(), 0x87.toByte(), 0x26.toByte(), 0x2A.toByte(), 0x26.toByte(), 0x84.toByte(), 0x24.toByte(), 0x28.toByte(),
@@ -317,6 +370,7 @@ object SoundData {
         0x82.toByte(), 0x22.toByte(), 0x04.toByte(), 0x04.toByte(), 0x1C.toByte(), 0x04.toByte(), 0x04.toByte(), 0x84.toByte(),
         0x14.toByte(), 0x86.toByte(), 0x1E.toByte(), 0x80.toByte(), 0x16.toByte(), 0x80.toByte(), 0x14.toByte(),
 
+        //> TimeRunOutMusData:
         //> TimeRunOutMusData ($FC72):
         0x81.toByte(), 0x1C.toByte(), 0x30.toByte(), 0x04.toByte(), 0x30.toByte(), 0x30.toByte(), 0x04.toByte(), 0x1E.toByte(),
         0x32.toByte(), 0x04.toByte(), 0x32.toByte(), 0x32.toByte(), 0x04.toByte(), 0x20.toByte(), 0x34.toByte(), 0x04.toByte(),
@@ -329,6 +383,7 @@ object SoundData {
         0x64.toByte(), 0x04.toByte(), 0x64.toByte(), 0x64.toByte(), 0x04.toByte(), 0x2E.toByte(), 0x46.toByte(), 0x04.toByte(),
         0x46.toByte(), 0x46.toByte(), 0x04.toByte(), 0x22.toByte(), 0x04.toByte(), 0x84.toByte(), 0x22.toByte(),
 
+        //> WinLevelMusData:
         //> WinLevelMusData ($FCB0):
         0x87.toByte(), 0x04.toByte(), 0x06.toByte(), 0x0C.toByte(), 0x14.toByte(), 0x1C.toByte(), 0x22.toByte(), 0x86.toByte(),
         0x2C.toByte(), 0x22.toByte(), 0x87.toByte(), 0x04.toByte(), 0x60.toByte(), 0x0E.toByte(), 0x14.toByte(), 0x1A.toByte(),
@@ -348,6 +403,8 @@ object SoundData {
         0x87.toByte(), 0x18.toByte(), 0x1E.toByte(), 0x28.toByte(), 0x86.toByte(), 0x36.toByte(), 0x87.toByte(), 0x30.toByte(),
         0x30.toByte(), 0x30.toByte(), 0x80.toByte(), 0x2C.toByte(),
 
+        //> ;square 2 and triangle use the same data, square 1 is unused
+        //> UndergroundMusData:
         //> UndergroundMusData ($FD11):
         0x82.toByte(), 0x14.toByte(), 0x2C.toByte(), 0x62.toByte(), 0x26.toByte(), 0x10.toByte(), 0x28.toByte(), 0x80.toByte(),
         0x04.toByte(), 0x82.toByte(), 0x14.toByte(), 0x2C.toByte(), 0x62.toByte(), 0x26.toByte(), 0x10.toByte(), 0x28.toByte(),
@@ -359,6 +416,8 @@ object SoundData {
         0x1A.toByte(), 0x12.toByte(), 0x10.toByte(), 0x62.toByte(), 0x0E.toByte(), 0x80.toByte(), 0x04.toByte(), 0x04.toByte(),
         0x00.toByte(),
 
+        //> WaterMusData:
+        //> ;noise data directly follows square 2 here unlike in other songs
         //> WaterMusData ($FD52):
         // noise data directly follows sq2 here
         0x82.toByte(), 0x18.toByte(), 0x1C.toByte(), 0x20.toByte(), 0x22.toByte(), 0x26.toByte(), 0x28.toByte(),
@@ -398,6 +457,7 @@ object SoundData {
         0x36.toByte(), 0x5C.toByte(), 0x22.toByte(), 0x34.toByte(), 0x0C.toByte(), 0x22.toByte(), 0x22.toByte(), 0x81.toByte(),
         0x1E.toByte(), 0x1E.toByte(), 0x85.toByte(), 0x1E.toByte(), 0x81.toByte(), 0x12.toByte(), 0x86.toByte(), 0x14.toByte(),
 
+        //> EndOfCastleMusData:
         //> EndOfCastleMusData ($FE51):
         0x81.toByte(), 0x2C.toByte(), 0x22.toByte(), 0x1C.toByte(), 0x2C.toByte(), 0x22.toByte(), 0x1C.toByte(), 0x85.toByte(),
         0x2C.toByte(), 0x04.toByte(), 0x81.toByte(), 0x2E.toByte(), 0x24.toByte(), 0x1E.toByte(), 0x2E.toByte(), 0x24.toByte(),
@@ -420,6 +480,7 @@ object SoundData {
         0x80.toByte(), 0x28.toByte(), 0x28.toByte(), 0x81.toByte(), 0x28.toByte(), 0x87.toByte(), 0x2C.toByte(), 0x2C.toByte(),
         0x2C.toByte(), 0x84.toByte(), 0x30.toByte(),
 
+        //> VictoryMusData:
         //> VictoryMusData ($FEC8):
         0x83.toByte(), 0x04.toByte(), 0x84.toByte(), 0x0C.toByte(), 0x83.toByte(), 0x62.toByte(), 0x10.toByte(), 0x84.toByte(),
         0x12.toByte(), 0x83.toByte(), 0x1C.toByte(), 0x22.toByte(), 0x1E.toByte(), 0x22.toByte(), 0x26.toByte(), 0x18.toByte(),
@@ -432,6 +493,7 @@ object SoundData {
         0x83.toByte(), 0x12.toByte(), 0x14.toByte(), 0x04.toByte(), 0x18.toByte(), 0x1A.toByte(), 0x1C.toByte(), 0x14.toByte(),
         0x26.toByte(), 0x22.toByte(), 0x1E.toByte(), 0x1C.toByte(), 0x18.toByte(), 0x1E.toByte(), 0x22.toByte(), 0x0C.toByte(),
         0x14.toByte(),
+        //> ;unused space
         // unused
         0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()
     )
@@ -526,6 +588,8 @@ object SoundData {
     )
 
     //> BrickShatterEnvData:
+    //> .dw $fff0  ;unused
+    //> ;INTERRUPT VECTORS
     val brickShatterEnvData = intArrayOf(
         0x15, 0x16, 0x16, 0x17, 0x17, 0x18, 0x19, 0x19,
         0x1A, 0x1A, 0x1C, 0x1D, 0x1D, 0x1E, 0x1E, 0x1F
@@ -550,7 +614,7 @@ object SoundData {
     //> ExtraLifeFreqData:
     val extraLifeFreqData = intArrayOf(0x58, 0x02, 0x54, 0x56, 0x4E, 0x44)
 
-    //> PowerUpGrabFreqData (including residual):
+    //> PowerUpGrabFreqData:
     val powerUpGrabFreqData = intArrayOf(
         0x4C, 0x52, 0x4C, 0x48, 0x3E, 0x36, 0x3E, 0x36, 0x30,
         0x28, 0x4A, 0x50, 0x4A, 0x64, 0x3C, 0x32, 0x3C, 0x32,
@@ -566,4 +630,7 @@ object SoundData {
         0x1C, 0x04, 0x2A, 0x2C, 0x1E, 0x04, 0x2C, 0x2E,  // used by vinegrow only
         0x20, 0x04, 0x2E, 0x30, 0x22, 0x04, 0x30, 0x32
     )
+
+    //> ;INTERRUPT VECTORS
+    //> .dw $fff0  ;unused
 }

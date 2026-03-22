@@ -53,6 +53,12 @@ private fun dividePDiff(pixelDiff: Int, preset: Int, adder: Int, side: Int, curr
         offset += adder
     }
     //> SetOscrO: tax
+    //> ;$05 - X coordinate
+    //> ;$04 - sprite attributes
+    //> ;$03 - flip control
+    //> ;$02 - Y coordinate
+    //> ;$00-$01 - tile numbers
+    //> ExDivPD:  rts           ;leave
     return offset
 }
 
@@ -169,6 +175,11 @@ fun System.getOffScreenBitsSet(sprObjOffset: Int, condensedOffset: Int) {
     //> sta $00
     val xLowNybble = (xBits shr 4) and 0x0F
     //> jmp GetYOffscreenBits
+    //> ;$07 - used to store difference between coordinates of object and screen edges
+    //> ;$06 - used to store preset value used to compare to pixel difference in $07
+    //> ;$05 - used as adder in DividePDiff
+    //> ;$04 - used to store proper offset
+    //> ;(these apply to these three subsections)
     val yBits = getYOffscreenBits(sprObjOffset)
     //> (back in GetOffScreenBitsSet)
     //> asl; asl; asl; asl          ;move low nybble to high
@@ -205,6 +216,8 @@ fun System.getBubbleOffscreenBits() {
 
 fun System.getMiscOffscreenBits() {
     //> GetMiscOffscreenBits:
+    //> adc ObjOffsetData,y  ;add amount of bytes to offset depending on setting in Y
+    //> GetProperObjOffset:
     //> ldy #$02; jsr GetProperObjOffset  ;X += 13
     //> ldy #$06; jmp GetOffScreenBitsSet
     getOffScreenBitsSet(sprObjOffset = ram.objectOffset.toInt() + 13, condensedOffset = 6)
@@ -218,6 +231,7 @@ fun System.getEnemyOffscreenBits() {
 
 fun System.getBlockOffscreenBits() {
     //> GetBlockOffscreenBits:
+    //> SetOffscrBitsOffset:
     //> lda #$09; ldy #$04  ;X = 9 + ObjectOffset
     //> (falls into SetOffscrBitsOffset then GetOffScreenBitsSet)
     getOffScreenBitsSet(sprObjOffset = 9 + ram.objectOffset.toInt(), condensedOffset = 4)

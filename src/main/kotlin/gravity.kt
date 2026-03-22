@@ -89,6 +89,7 @@ fun System.imposeGravity(
 
     //> --- Step 5: Optional upward deceleration ---
     //> ChkUpM: pla                  ;get direction flag
+    //> eor #%11111111               ;otherwise get two's compliment of maximum speed
     //> beq ExVMove                  ;if 0 (down only), done
     if (!bidirectional) return
 
@@ -173,6 +174,10 @@ fun System.moveD_EnemyVertically() {
     }
     //> ContVMove: jmp SetHiMax
     //> SetHiMax: lda #$03; sty $00; inx; jsr ImposeGravitySprObj
+    //> .db $06, $08
+    //> MaxSpdBlockData:
+    //> ResidualGravityCode:
+    //> .db $2c        ;no code branches or jumps to it...
     imposeGravitySprObj(sprObjOffset = x + 1, downForce = downForce, maxSpeed = 0x03)
 }
 

@@ -446,6 +446,8 @@ private fun System.processBowserHalf(): Boolean {
     //> jsr GetEnemyBoundBox      ;get bounding box coordinates
     getEnemyBoundBox()
     //> jmp PlayerEnemyCollision  ;do player-to-enemy collision detection
+    //> ;$01 - used to hold sprite attribute data
+    //> ;$00 - used to hold movement force and tile number
     playerEnemyCollision()
     return true
 }
@@ -469,6 +471,7 @@ internal fun System.setFlameTimer(): Int {
     //> sta BowserFlameTimerCtrl
     ram.bowserFlameTimerCtrl = (((ram.bowserFlameTimerCtrl + 1).toInt()) and 0x07).toByte()
     //> lda FlameTimerData,y      ;load value to be used then leave
+    //> ExFl: rts
     return FlameTimerData[y].toInt() and 0xFF
 }
 
@@ -582,6 +585,7 @@ fun System.procBowserFlame() {
         //> clc
         //> adc #$08
         //> sta Enemy_Rel_XPos         ;then add eight to it and store
+        //> bcc DrawFlameLoop
         relX = (relX + 0x08) and 0xFF
         ram.enemyRelXPos = relX.toByte()
     }
@@ -596,6 +600,7 @@ fun System.procBowserFlame() {
 
     //> lsr                        ;move d0 to carry
     //> bcc M3FOfs                 ;branch if carry not set
+    //> M3FOfs:  pla                        ;get bits from stack
     if (offscreenBits and 0x01 != 0) {
         //> lda #$f8                   ;otherwise move sprite offscreen
         //> sta Sprite_Y_Position+12,y ;residual since flame is only three sprites
@@ -607,6 +612,7 @@ fun System.procBowserFlame() {
     if (offscreenBits and 0x02 != 0) {
         //> lda #$f8                   ;otherwise move third sprite offscreen
         //> sta Sprite_Y_Position+8,y
+        //> M2FOfs:  pla                        ;get bits from stack again
         ram.sprites[sprDataOffset + 2].y = 0xF8u
     }
 
@@ -615,6 +621,7 @@ fun System.procBowserFlame() {
     if (offscreenBits and 0x04 != 0) {
         //> lda #$f8                   ;otherwise move second sprite offscreen
         //> sta Sprite_Y_Position+4,y
+        //> M1FOfs:  pla                        ;get bits from stack one last time
         ram.sprites[sprDataOffset + 1].y = 0xF8u
     }
 

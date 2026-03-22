@@ -26,6 +26,7 @@ private val blooberBitmasks = intArrayOf(0x3F, 0x03)
 
 //> SwimCCXMoveData:
 //> .db $40, $80
+//> .db $04, $04 ;residual data, not used
 private val swimCCXMoveData = intArrayOf(0x40, 0x80)
 
 //> PRandomSubtracter:
@@ -69,6 +70,7 @@ fun System.procHammerBro() {
     //> ProcHammerBro:
     //> lda Enemy_State,x    ;check enemy state for d5 set
     //> and #%00100000
+    //> jmp MoveJ_EnemyVertically  ;otherwise jump to move defeated bullet bill downwards
     //> beq ChkJH                  ;if not set, go ahead with code
     if ((state and 0x20) != 0) {
         //> jmp MoveDefeatedEnemy      ;otherwise jump to something else
@@ -95,6 +97,7 @@ fun System.procHammerBro() {
 
         //> lda HammerThrowingTimer,x  ;check hammer throwing timer
         //> bne DecHT                  ;if not expired, skip ahead, do not throw hammer
+        //> bcc DecHT                  ;if carry clear, hammer not spawned, skip to decrement timer
         val throwTimer = ram.hammerThrowingTimers[x].toInt() and 0xFF // by Claude - indexed with x
         if (throwTimer == 0) {
             //> ldy SecondaryHardMode
@@ -300,17 +303,21 @@ fun System.moveBloober() {
             val (_, highDiff) = playerEnemyDiff()
             //> bpl SBMDir                 ;if enemy to the right of player, keep left
             if ((highDiff and 0x80) != 0) dir = 1
+            //> SBMDir: sty Enemy_MovingDir,x  ;set moving direction of bloober
             ram.enemyMovingDirs[x] = dir.toByte()
         }
     }
 
     //> BlooberSwim:
+    //> jsr ProcSwimmingB        ;execute sub to make bloober swim characteristically
     procSwimmingB(x)
 
     //> Vertical position update
     val yPos = ram.sprObjYPos[1 + x].toInt() and 0xFF
     val yForce = ram.sprObjYMoveForce[1 + x].toInt() and 0xFF
+    //> sbc Enemy_Y_MoveForce,x  ;subtract movement force
     val newY = yPos - yForce
+    //> bcc SwimX                ;if so, don't do it
     if ((newY and 0xFF) >= 0x20) {
         ram.sprObjYPos[1 + x] = (newY and 0xFF).toByte()
     }
@@ -319,13 +326,17 @@ fun System.moveBloober() {
     val moveDir = ram.enemyMovingDirs[x].toInt() and 0xFF
     // by Claude - BlooperMoveSpeed,x is indexed (same RAM as Enemy_X_Speed at $58)
     val moveSpd = ram.sprObjXSpeed[1 + x].toInt() and 0xFF
+    //> bne LeftSwim             ;if moving to the left, branch to second part
     if (moveDir == 1) {
         // moving right
+        //> adc BlooperMoveSpeed,x
         val newX = (ram.sprObjXPos[1 + x].toInt() and 0xFF) + moveSpd
         ram.sprObjXPos[1 + x] = (newX and 0xFF).toByte()
         ram.sprObjPageLoc[1 + x] = ((ram.sprObjPageLoc[1 + x].toInt() and 0xFF) + (if (newX > 0xFF) 1 else 0)).toByte()
     } else {
+        //> LeftSwim:
         // moving left
+        //> sbc BlooperMoveSpeed,x
         val newX = (ram.sprObjXPos[1 + x].toInt() and 0xFF) - moveSpd
         ram.sprObjXPos[1 + x] = (newX and 0xFF).toByte()
         ram.sprObjPageLoc[1 + x] = ((ram.sprObjPageLoc[1 + x].toInt() and 0xFF) - (if (newX < 0) 1 else 0)).toByte()
@@ -345,21 +356,27 @@ private fun System.procSwimmingB(x: Int) {
     if ((moveCounter and 0x02) != 0) {
         //> ChkForFloatdown: floating down phase
         val intTimer = ram.timers[0x16 + x].toInt() and 0xFF
+        //> beq ChkNearPlayer        ;branch if expired
         if (intTimer != 0) {
             //> Floatdown: slow descent while timer active
+            //> bcs NoFD                ;branch to leave on every other frame
             if ((ram.frameCounter.toInt() and 0x01) == 0) {
                 ram.sprObjYPos[1 + x] = ((ram.sprObjYPos[1 + x].toInt() and 0xFF) + 1).toByte()
             }
+            //> NoFD: rts  ;leave
             return
         }
         //> ChkNearPlayer: check if above player
         val bloobY = (ram.sprObjYPos[1 + x].toInt() and 0xFF) + 0x10
         val playerY = ram.sprObjYPos[0].toInt() and 0xFF
+        //> cmp Player_Y_Position     ;compare result with player's vertical coordinate
+        //> bcc Floatdown             ;if modified vertical less than player's, branch
         if ((bloobY and 0xFF) < playerY) {
             if ((ram.frameCounter.toInt() and 0x01) == 0) {
                 ram.sprObjYPos[1 + x] = ((ram.sprObjYPos[1 + x].toInt() and 0xFF) + 1).toByte()
             }
         } else {
+            //> sta BlooperMoveCounter,x  ;otherwise nullify movement counter
             //> Reset to fast swim phase
             ram.sprObjYSpeed[1 + x] = 0  // by Claude - BlooperMoveCounter,x = $a0+x
         }
@@ -369,23 +386,30 @@ private fun System.procSwimmingB(x: Int) {
     //> Swimming upward phases
     val fc3 = ram.frameCounter.toInt() and 0x07
     if ((moveCounter and 0x01) != 0) {
+        //> bcs SlowSwim              ;branch if set
         //> SlowSwim: slow upward phase
+        //> bne NoSSw                ;branch to leave, execute code only every eighth frame
+        //> NoSSw: rts  ;leave
         if (fc3 != 0) return
         val force = (ram.sprObjYMoveForce[1 + x].toInt() and 0xFF) - 1
         ram.sprObjYMoveForce[1 + x] = (force and 0xFF).toByte()
         ram.sprObjXSpeed[1 + x] = (force and 0xFF).toByte()  // by Claude - BlooperMoveSpeed,x = $58+x
         if ((force and 0xFF) == 0) {
+            //> inc BlooperMoveCounter,x  ;otherwise increment movement counter
             //> Transition to float-down phase
             ram.sprObjYSpeed[1 + x] = ((moveCounter + 1) and 0xFF).toByte()  // by Claude - BlooperMoveCounter,x
             ram.timers[0x16 + x] = 0x02
         }
     } else {
         //> Fast swim: fast upward phase
+        //> bne BSwimE                ;branch to leave, execute code only every eighth frame
+        //> BSwimE: rts
         if (fc3 != 0) return
         val force = (ram.sprObjYMoveForce[1 + x].toInt() and 0xFF) + 1
         ram.sprObjYMoveForce[1 + x] = (force and 0xFF).toByte()
         ram.sprObjXSpeed[1 + x] = (force and 0xFF).toByte()  // by Claude - BlooperMoveSpeed,x = $58+x
         if ((force and 0xFF) == 0x02) {
+            //> inc BlooperMoveCounter,x  ;otherwise increment movement counter
             //> Transition to slow swim phase
             ram.sprObjYSpeed[1 + x] = ((moveCounter + 1) and 0xFF).toByte()  // by Claude - BlooperMoveCounter,x
         }
@@ -408,6 +432,8 @@ fun System.moveBulletBill() {
     }
 
     //> NotDefB: lda #$e8; sta Enemy_X_Speed,x; jmp MoveEnemyHorizontally
+    //> ;$03 - used to hold enemy state
+    //> ;$02 - used to hold preset values
     ram.sprObjXSpeed[1 + x] = 0xe8.toByte()
     moveEnemyHorizontally()
 }
@@ -422,7 +448,8 @@ fun System.moveSwimmingCheepCheep() {
     val state = ram.enemyState[x].toInt() and 0xFF
 
     //> MoveSwimmingCheepCheep:
-    //> lda Enemy_State,x; and #%00100000; bne MoveDefeatedCCheep
+    //> lda Enemy_State,x; and #%00100000
+    //> beq CCSwim                ;if not set, continue with movement code
     if ((state and 0x20) != 0) {
         //> MoveDefeatedCCheep: jmp MoveEnemySlowVert
         moveEnemySlowVert()
@@ -430,6 +457,7 @@ fun System.moveSwimmingCheepCheep() {
     }
 
     //> CCSwim: horizontal movement
+    //> lda SwimCCXMoveData,y     ;load value here
     val enemyId = ram.enemyID[x].toInt() and 0xFF
     val ccIdx = (enemyId - 0x0A).coerceIn(0, swimCCXMoveData.size - 1)
     val subVal = swimCCXMoveData[ccIdx]
@@ -447,10 +475,13 @@ fun System.moveSwimmingCheepCheep() {
     //> cpx #$02; bcc ExSwCC
     if (x < 2) return
 
+    //> lda CheepCheepMoveMFlag,x ;check movement flag
     // by Claude - CheepCheepMoveMFlag aliases Enemy_X_Speed ($58+x) = sprObjXSpeed[1+x]
     val moveFlag = ram.sprObjXSpeed[1 + x].toInt() and 0xFF
+    //> bcc CCSwimUpwards         ;branch to move upwards
     if (moveFlag < 0x10) {
         //> CCSwimUpwards: fractional upward movement
+        //> sbc $03                   ;subtract borrow to it plus enemy state to slowly move it upwards
         val dummy = (ram.sprObjYMFDummy[1 + x].toInt() and 0xFF) - 0x20
         ram.sprObjYMFDummy[1 + x] = (dummy and 0xFF).toByte()
         val borrow = if (dummy < 0) 1 else 0
@@ -459,15 +490,18 @@ fun System.moveSwimmingCheepCheep() {
         ram.sprObjYHighPos[1 + x] = ((ram.sprObjYHighPos[1 + x].toInt() and 0xFF) - (if (yPos < 0) 1 else 0)).toByte()
     } else {
         //> CCSwimDownwards: fractional downward movement
+        //> adc $03                   ;add carry to it plus enemy state to slowly move it downwards
         val dummy = (ram.sprObjYMFDummy[1 + x].toInt() and 0xFF) + 0x20
         ram.sprObjYMFDummy[1 + x] = (dummy and 0xFF).toByte()
         val carry = if (dummy > 0xFF) 1 else 0
         val yPos = (ram.sprObjYPos[1 + x].toInt() and 0xFF) + carry
         ram.sprObjYPos[1 + x] = (yPos and 0xFF).toByte()
         ram.sprObjYHighPos[1 + x] = ((ram.sprObjYHighPos[1 + x].toInt() and 0xFF) + (if (yPos > 0xFF) 1 else 0)).toByte()
+        //> jmp ChkSwimYPos           ;jump to end of movement code
     }
 
     //> ChkSwimYPos: check if direction needs to reverse
+    //> sbc CheepCheepOrigYPos,x  ;subtract original coordinate from current
     // by Claude - CheepCheepOrigYPos aliases Enemy_Y_MoveForce ($0434+x) = sprObjYMoveForce[1+x]
     val curY = ram.sprObjYPos[1 + x].toInt() and 0xFF
     val origY = ram.sprObjYMoveForce[1 + x].toInt() and 0xFF
@@ -475,17 +509,21 @@ fun System.moveSwimmingCheepCheep() {
     // Assembly: BPL branches if result is positive (bit 7 clear).
     val rawDiff = (curY - origY) and 0xFF
     val isNegative = (rawDiff and 0x80) != 0
+    //> bpl YPDiff                ;if result positive, skip to next part
     val newFlag = if (isNegative) 0x10 else 0x00
     val absDiff = if (isNegative) ((rawDiff xor 0xFF) + 1) and 0xFF else rawDiff
+    //> YPDiff: cmp #$0f                  ;if difference between original vs. current vertical
     if (absDiff >= 0x0F) {
         ram.sprObjXSpeed[1 + x] = newFlag.toByte()
     }
+    //> ExSwCC: rts                       ;leave
 }
 
 /**
  * Moves Piranha Plant in and out of pipes.
  * Checks player proximity - won't emerge if player is too close.
  */
+//> ;$04-$05 - used to store name table address in little endian order
 fun System.movePiranhaPlant() {
     val x = ram.objectOffset.toInt()
 
@@ -519,6 +557,8 @@ fun System.movePiranhaPlant() {
     //> Check player distance - don't emerge if too close
     //> jsr PlayerEnemyDiff
     val (lowDiff, highDiff) = playerEnemyDiff()
+    //> bpl ChkPlayerNearPipe       ;piranha plant, and branch if enemy to right of player
+    //> ChkPlayerNearPipe:
     var absDiff = lowDiff
     if ((highDiff and 0x80) != 0) {
         absDiff = ((lowDiff xor 0xFF) + 1) and 0xFF
@@ -555,13 +595,17 @@ private fun System.setupToMovePPlant(x: Int) {
     val ySpeed = ram.sprObjXSpeed[1 + x].toInt().toByte().toInt()  // PiranhaPlant_Y_Speed,x ($58+x)
 
     //> Determine target Y based on direction
+    //> lda PiranhaPlantDownYPos,x  ;get original vertical coordinate (lowest point)
+    //> bpl RiseFallPiranhaPlant    ;branch if moving downwards
     val targetY = if (ySpeed >= 0) {
         ram.sprObjYMoveForce[1 + x].toInt() and 0xFF  // PiranhaPlantDownYPos,x ($434+x)
     } else {
+        //> lda PiranhaPlantUpYPos,x    ;otherwise get other vertical coordinate (highest point)
         ram.sprObjYMFDummy[1 + x].toInt() and 0xFF  // PiranhaPlantUpYPos,x ($417+x)
     }
 
     //> RiseFallPiranhaPlant:
+    //> adc PiranhaPlant_Y_Speed,x  ;add vertical speed to move up or down
     //> lda FrameCounter; and #%00000001; beq PutinPipe
     if ((ram.frameCounter.toInt() and 0x01) == 0) {
         ram.sprAttrib[1 + x] = 0x20 // by Claude - indexed by x
@@ -629,9 +673,11 @@ fun System.procMoveRedPTroopa() {
     //> bcc MovPTDwn                ;if current < central, jump to move downwards
     if (curY < centerY) {
         //> MovPTDwn: jmp MoveRedPTroopaDown      ;move downwards
+        //> MoveRedPTroopaDown:
         moveRedPTroopa(x, 0)
     } else {
         //> jmp MoveRedPTroopaUp        ;otherwise jump to move upwards
+        //> MoveRedPTroopaUp:
         moveRedPTroopa(x, 1)
     }
 }
@@ -698,6 +744,7 @@ fun System.moveFlyGreenPTroopa() {
 private fun System.xMoveCntr_Platform(x: Int, maxVal: Int) {
     //> XMoveCntr_Platform:
     //> lda FrameCounter; and #%00000011; bne NoXMoveP
+    //> NoIncXM: rts
     if ((ram.frameCounter.toInt() and 0x03) != 0) return
 
     // XMoveSecondaryCounter,x at $58+x = sprObjXSpeed[1+x]
@@ -764,14 +811,17 @@ fun System.moveLakitu() {
     val state = ram.enemyState[x].toInt() and 0xFF
 
     //> MoveLakitu:
-    //> lda Enemy_State,x; and #%00100000; bne KillLakitu
+    //> lda Enemy_State,x; and #%00100000
+    //> beq ChkLS                  ;if not set, continue with code
     if ((state and 0x20) != 0) {
         //> KillLakitu: defeated, fall with gravity
+        //> jmp MoveD_EnemyVertically  ;otherwise jump to move defeated lakitu downwards
         moveD_EnemyVertically()
         return
     }
 
-    //> lda Enemy_State,x; bne Fr12S (non-zero state = injured, no frenzy)
+    //> ChkLS:   lda Enemy_State,x  ;if lakitu's enemy state not set at all
+    //> beq Fr12S                    ;go ahead and continue with code
     if (state != 0) {
         //> Clear movement/frenzy state: sta LakituMoveDirection,x; sta EnemyFrenzyBuffer
         ram.sprObjYSpeed[1 + x] = 0  // LakituMoveDirection,x ($A0+x)
@@ -788,6 +838,7 @@ fun System.moveLakitu() {
     //> lda LakituMoveDirection,x; and #$01
     val moveDir = ram.sprObjYSpeed[1 + x].toInt() and 0x01  // LakituMoveDirection,x
     var dir = 1
+    //> bne SetLMov                ;if set, branch to the end to use moving direction
     if (moveDir == 0) {
         //> Negate speed for leftward movement: eor #$ff; clc; adc #$01; sta LakituMoveSpeed,x
         val speed = ram.sprObjXSpeed[1 + x].toInt() and 0xFF  // LakituMoveSpeed,x
@@ -795,7 +846,7 @@ fun System.moveLakitu() {
         ram.sprObjXSpeed[1 + x] = negSpeed.toByte()  // LakituMoveSpeed,x
         dir = 2
     }
-    //> sty Enemy_MovingDir,x
+    //> SetLMov: sty Enemy_MovingDir,x      ;store moving direction
     ram.enemyMovingDirs[x] = dir.toByte()
     //> jmp MoveEnemyHorizontally
     moveEnemyHorizontally()
@@ -807,6 +858,8 @@ fun System.moveLakitu() {
  * by Claude - fixed: indexed LakituMoveSpeed/Direction, distance guard, ChkEmySpd logic, loop count
  */
 internal fun System.playerLakituDiff(x: Int) {
+    //> ;$00 - used to hold horizontal difference
+    //> ;$01-$03 - used to hold difference adjusters
     //> PlayerLakituDiff:
     var dirY = 0
     val (lowDiff, highDiff) = playerEnemyDiff()
@@ -844,6 +897,7 @@ internal fun System.playerLakituDiff(x: Int) {
     }
 
     //> ChkPSpeed: calculate speed adjustment based on player scroll speed
+    //> and #%00111100             ;mask out all but four bits in the middle
     val maskedDiff = (absDiff and 0x3C) ushr 2
     var adjIdx = 0
     val playerXSpd = ram.sprObjXSpeed[0].toInt() and 0xFF
@@ -858,9 +912,10 @@ internal fun System.playerLakituDiff(x: Int) {
         adjIdx = 0
     }
 
-    //> ChkSpinyO / ChkEmySpd logic (only reached when playerXSpd != 0 && scrollAmount != 0)
+    //> ChkSpinyO: lda Enemy_ID,x             ;check for spiny object
     if (adjIdx > 0) {
         val isSpiny = ram.enemyID[x] == EnemyId.Spiny.byte
+        //> bne ChkEmySpd              ;branch if not found
         if (isSpiny) {
             //> Spiny AND player moving: bne SubDifAdj (playerXSpd guaranteed nonzero here)
             //> Skip ChkEmySpd, use current adjIdx
@@ -873,9 +928,12 @@ internal fun System.playerLakituDiff(x: Int) {
         }
     }
 
+    //> LdLDa:   lda LakituDiffAdj,y        ;load values
+    //> sta $0001,y                ;store in zero page
+    //> bpl LdLDa                  ;do this until all values are stored
     //> SubDifAdj: lda $0001,y — load diff adj value
     var result = lakituDiffAdj[adjIdx.coerceIn(0, 2)]
-    //> ldy $00; SPixelLak: sec; sbc #$01; dey; bpl SPixelLak
+    //> SPixelLak: sec                        ;subtract one for each pixel of horizontal difference
     //> Loop runs maskedDiff+1 times (Y counts down from maskedDiff to -1, bpl exits when Y<0)
     var countdown = maskedDiff
     do {
@@ -884,6 +942,7 @@ internal fun System.playerLakituDiff(x: Int) {
     } while (countdown >= 0)
     //> Result in A, returned to caller which stores at SetLSpd: sta LakituMoveSpeed,x
     ram.sprObjXSpeed[1 + x] = result.toByte()  // LakituMoveSpeed,x
+    //> ExMoveLak: rts                        ;leave!!!
 }
 
 /**
@@ -898,6 +957,7 @@ fun System.moveFlyingCheepCheep() {
     if ((ram.enemyState[x].toInt() and 0x20) != 0) {
         //> Defeated: clear sprite attrib and fall
         ram.sprAttrib[1 + x] = 0
+        //> jmp MoveJ_EnemyVertically  ;and jump to move defeated cheep-cheep downwards
         moveJ_EnemyVertically()
         return
     }
@@ -912,8 +972,12 @@ fun System.moveFlyingCheepCheep() {
     val force = ram.sprObjYMoveForce[1 + x].toInt() and 0xFF
     val forceIdx = (force ushr 4) and 0x0F // by Claude - removed coerceIn; table extended to 16 entries
     val yPos = ram.sprObjYPos[1 + x].toInt() and 0xFF
+    //> sbc PRandomSubtracter,y
     var yDiff = yPos - pRandomSubtracter[forceIdx]
+    //> bpl AddCCF                  ;if result within top half of screen, skip this part
     if (yDiff < 0) yDiff = -yDiff
+    //> AddCCF: cmp #$08            ;if result or two's compliment greater than eight
+    //> bcs BPGet  ;skip to the end without changing movement force
     if (yDiff < 8) {
         ram.sprObjYMoveForce[1 + x] = ((force + 0x10) and 0xFF).toByte()
     }
@@ -962,6 +1026,16 @@ private val firebarYPos = intArrayOf(0x0c, 0x18)
  * Short firebars have 5 parts, long firebars have 11.
  */
 fun System.procFirebar() {
+    //> ;$00 - used as counter for firebar parts
+    //> ;$01 - used for oscillated high byte of spin state or to hold horizontal adder
+    //> ;$02 - used for oscillated high byte of spin state or to hold vertical adder
+    //> ;$03 - used for mirror data
+    //> ;$04 - used to store player's sprite 1 X coordinate
+    //> ;$05 - used to evaluate mirror data
+    //> ;$06 - used to store either screen X coordinate or sprite data offset
+    //> ;$07 - used to store screen Y coordinate
+    //> ;$ed - used to hold maximum length of firebar
+    //> ;$ef - used to hold high byte of spinstate
     val x = ram.objectOffset.toInt()
 
     //> ProcFirebar:
@@ -1067,6 +1141,8 @@ fun System.procFirebar() {
 
         //> NextFbar: inc $00                     ;move onto the next firebar part
         partCounter++
+        //> cmp $ed                     ;if we end up at the maximum part, go on and leave
+        //> bcc DrawFbar                ;otherwise go back and do another
     }
     //> SkipFBar: rts
 }
@@ -1079,6 +1155,7 @@ fun System.procFirebar() {
  * @return the new high byte of spinstate (A register value at return)
  */
 private fun System.firebarSpin(spinSpeed: Int, x: Int): Int {
+    //> ;$07 - spinning speed
     //> FirebarSpin:
     //> sta $07                     ;save spinning speed here
     //> lda FirebarSpinDirection,x  ;check spinning direction
@@ -1205,6 +1282,7 @@ private fun System.drawFirebarCollision(pos: FirebarPosResult, currentOamOfs: In
     ram.sprites[sprOfs].x = sprX.toUByte()
 
     //> cmp Enemy_Rel_XPos         ;compare X coordinate of sprite to original X of firebar
+    //> bcs SubtR1               ;if sprite coordinate => original coordinate, branch
     val enemyRelX = ram.enemyRelXPos.toInt() and 0xFF
     val xDiff: Int
     if (sprX >= enemyRelX) {
@@ -1214,6 +1292,7 @@ private fun System.drawFirebarCollision(pos: FirebarPosResult, currentOamOfs: In
         //> lda Enemy_Rel_XPos; sec; sbc $06
         xDiff = enemyRelX - sprX
     }
+    //> jmp ChkFOfs
 
     //> ChkFOfs: cmp #$59         ;if difference of coordinates within a certain range
     //> bcc VAHandl                ;continue by handling vertical adder
@@ -1317,6 +1396,7 @@ private fun System.firebarCollision(sprOfs: Int, oamOfs: Int, screenY: Int): Int
         vDiff = vDiff and 0xFF
 
         //> ChkVFBD: cmp #$08    ;if difference >= 8 pixels, skip ahead
+        //> bcs Chk2Ofs
         if (vDiff < 0x08) {
             //> lda $06           ;if firebar on far right, skip
             //> cmp #$f0
@@ -1335,6 +1415,7 @@ private fun System.firebarCollision(sprOfs: Int, oamOfs: Int, screenY: Int): Int
                 hDiff = hDiff and 0xFF
 
                 //> ChkFBCl: cmp #$08      ;if difference < 8 pixels, collision!
+                //> bcc ChgSDir              ;to process
                 if (hDiff < 0x08) {
                     //> ChgSDir:
                     //> ldx #$01            ;set movement direction by default
@@ -1366,6 +1447,7 @@ private fun System.firebarCollision(sprOfs: Int, oamOfs: Int, screenY: Int): Int
         checkY = ((ram.playerYPosition.toInt() and 0xFF) + fbYOfs) and 0xFF
         //> inc $05               ;increment phase and loop back
         collisionPhase++
+        //> jmp FBCLoop
     }
 
     //> NoColFB: pla; clc; adc #$04; sta $06
