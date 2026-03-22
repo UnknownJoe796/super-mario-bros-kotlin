@@ -112,7 +112,7 @@ fun System.nonMaskableInterrupt() {
     //> lsr
     //> bcs PauseSkip
     // Timers only run if we're not paused.
-    if ((ram.gamePauseStatus.toInt() and 0x01) == 0) {
+    if (!ram.isPaused) {
         //> lda TimerControl          ;if master timer control not set, decrement
         //> beq DecTimers             ;all frame and interval timers
         if (ram.timerControl != 0x0.toByte()) {
@@ -168,7 +168,7 @@ fun System.nonMaskableInterrupt() {
         //> lda GamePauseStatus       ;if in pause mode, do not bother with sprites at all
         //> lsr
         //> bcs Sprite0Hit
-        if((ram.gamePauseStatus.toInt() and 0x01) == 0) {
+        if(!ram.isPaused) {
             //> jsr MoveSpritesOffscreen
             moveSpritesOffscreen()
             //> jsr SpriteShuffler
@@ -200,7 +200,7 @@ fun System.nonMaskableInterrupt() {
     //> lda GamePauseStatus       ;if in pause mode, do not perform operation mode stuff
     //> lsr
     //> bcs SkipMainOper
-    if ((ram.gamePauseStatus.toInt() and 0x01) == 0) {
+    if (!ram.isPaused) {
         //> jsr OperModeExecutionTree ;otherwise do one of many, many possible subroutines
         try {
             val pending = pendingNmiAction
@@ -266,7 +266,7 @@ fun System.pauseRoutine(): Unit {
     //> lda OperMode           ;are we in victory mode?
     //> cmp #VictoryModeValue  ;if so, go ahead
     //> beq ChkPauseTimer
-    // wtf is this logic?
+    // Pause is only allowed in victory mode, or in game mode when running the game engine (task 3)
     if(ram.operMode != OperMode.Victory) {
         //> cmp #GameModeValue     ;are we in game mode?
         //> bne ExitPause          ;if not, leave
