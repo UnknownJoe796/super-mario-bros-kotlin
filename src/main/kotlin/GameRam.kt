@@ -95,7 +95,7 @@ class GameRam {
     @RamLocation(0x779) var mirrorPPUCTRLREG2: PpuMask = PpuMask(0)
     @RamLocation(0x770) var operMode: OperMode = OperMode.TitleScreen
     @RamLocation(0x772) var operModeTask: Byte = 0
-    @RamLocation(0x73c) var screenRoutineTask: Byte = 0
+    @RamLocation(0x73c) var screenRoutineTask: ScreenRoutineTask = ScreenRoutineTask.InitScreen
     @RamLocation(0x776) var gamePauseStatus: Byte = 0
     @RamLocation(0x777) var gamePauseTimer: Byte = 0
     @RamLocation(0x717) var demoAction: Byte = 0

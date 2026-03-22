@@ -49,7 +49,7 @@ class VisualVerificationTest {
             val nt1 = countNtTiles(system, 1)
 
             // Log every frame during area parser phase (srt=8) and nearby
-            if (srt.toInt() in 6..13 || i <= 10 || i % 30 == 0) {
+            if (srt.ordinal in 6..13 || i <= 10 || i % 30 == 0) {
                 log.appendLine("F$i: srt=$srt nt0=$nt0 nt1=$nt1 ctrl=$ctrlBefore " +
                     "buf1=${buf1Before.size} buf2=${buf2Before.size} " +
                     "colSets=${r.columnSets} aptNum=${r.areaParserTaskNum} " +
