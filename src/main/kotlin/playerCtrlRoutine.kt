@@ -148,7 +148,7 @@ fun System.playerCtrlRoutine() {
         if (ram.upDownButtons.toInt() and 0b00000100 != 0) {
             //> lda Player_State            ;check player's state
             //> bne SizeChk                 ;if not on the ground, branch
-            if (ram.playerState == 0x00.toByte()) {
+            if (ram.playerState == PlayerState.OnGround) {
                 //> ldy Left_Right_Buttons      ;check left and right
                 //> beq SizeChk                 ;if neither pressed, branch
                 if (ram.leftRightButtons != 0x00.toByte()) {
@@ -322,7 +322,7 @@ private fun System.playerMovementSubs() {
     if (ram.playerSize == 0x00.toByte()) {
         //> lda Player_State          ;check state of player
         //> bne ProcMove              ;if not on the ground, branch
-        if (ram.playerState == 0x00.toByte()) {
+        if (ram.playerState == PlayerState.OnGround) {
             //> lda Up_Down_Buttons       ;load controller bits for up and down
             //> and #%00000100            ;single out bit for down button
             crouchVal = ram.upDownButtons and 0b00000100
@@ -341,7 +341,7 @@ private fun System.playerMovementSubs() {
     //> lda Player_State
     //> cmp #$03                  ;get player state
     //> beq MoveSubs              ;if climbing, branch ahead, leave timer unset
-    if (ram.playerState != 0x03.toByte()) {
+    if (ram.playerState != PlayerState.Climbing) {
         //> ldy #$18
         //> sty ClimbSideTimer        ;otherwise reset timer now
         ram.climbSideTimer = 0x18
@@ -352,11 +352,11 @@ private fun System.playerMovementSubs() {
     //> .dw JumpSwimSub
     //> .dw FallingSub
     //> .dw ClimbingSub
-    when (ram.playerState.toInt() and 0xFF) {
-        0 -> onGroundStateSub()
-        1 -> jumpSwimSub()
-        2 -> fallingSub()
-        3 -> climbingSub()
+    when (ram.playerState) {
+        PlayerState.OnGround -> onGroundStateSub()
+        PlayerState.Falling -> jumpSwimSub()
+        PlayerState.FallingAlt -> fallingSub()
+        PlayerState.Climbing -> climbingSub()
     }
     //> NoMoveSub: rts
 }
@@ -575,7 +575,7 @@ private fun System.playerPhysicsSub() {
     //> lda Player_State          ;check player state
     //> cmp #$03
     //> bne CheckForJumping       ;if not climbing, branch
-    if (ram.playerState == 0x03.toByte()) {
+    if (ram.playerState == PlayerState.Climbing) {
         //> ldy #$00
         //> lda Up_Down_Buttons       ;get controller bits for up/down
         //> and Player_CollisionBits  ;check against player's collision detection bits
@@ -642,7 +642,7 @@ private fun System.checkForJumping() {
     //> ProcJumping:
     //> lda Player_State           ;check player state
     //> beq InitJS                 ;if on the ground, branch
-    if (ram.playerState != 0x00.toByte()) {
+    if (ram.playerState != PlayerState.OnGround) {
         //> lda SwimmingFlag           ;if swimming flag not set, jump to do something else
         //> beq NoJump                 ;to prevent midair jumping, otherwise continue
         if (!ram.swimmingFlag) {
@@ -679,7 +679,7 @@ private fun System.checkForJumping() {
     ram.jumpOriginYPosition = ram.playerYPosition.toByte()
     //> lda #$01                   ;set player state to jumping/swimming
     //> sta Player_State
-    ram.playerState = 0x01
+    ram.playerState = PlayerState.Falling
 
     //> lda Player_XSpeedAbsolute  ;check value related to walking/running speed
     //> cmp #$09
@@ -780,7 +780,7 @@ private fun System.xPhysics() {
 
     //> lda Player_State           ;if mario is on the ground, branch
     //> beq ProcPRun
-    if (ram.playerState != 0x00.toByte()) {
+    if (ram.playerState != PlayerState.OnGround) {
         //> lda Player_XSpeedAbsolute  ;check something that seems to be related
         //> cmp #$19                   ;to mario's speed
         //> bcs GetXPhy                ;if =>$19 branch here

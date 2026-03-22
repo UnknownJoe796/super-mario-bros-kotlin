@@ -127,7 +127,7 @@ private fun System.vineEntr() {
     if (playerY >= 0x99) {
         //> lda #$03
         //> sta Player_State          ;otherwise set player state to climbing
-        ram.playerState = 0x03
+        ram.playerState = PlayerState.Climbing
         //> iny                       ;increment value in Y
         disableCollision = 1
         //> lda #$08                  ;set block in block buffer to cover hole, then
@@ -303,7 +303,7 @@ fun System.vineAutoClimb() {
         ram.joypadOverride = 0x08
         //> ldy #$03               ;set player state to climbing
         //> sty Player_State
-        ram.playerState = 0x03
+        ram.playerState = PlayerState.Climbing
         //> jmp AutoControlPlayer
         autoControlPlayer(0x08)
         return

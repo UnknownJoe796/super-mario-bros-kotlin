@@ -140,7 +140,7 @@ fun System.entranceGameTimerSetup() {
 
     //> lda #$00                    ;set player state to on the ground by default
     //> sta Player_State
-    ram.playerState = 0x00
+    ram.playerState = PlayerState.OnGround
 
     //> dec Player_CollisionBits    ;initialize player's collision bits
     ram.playerCollisionBits--
@@ -208,7 +208,7 @@ fun System.entranceGameTimerSetup() {
     if (ram.joypadOverride != 0x0.toByte()) {
         //> lda #$03                    ;set player state to climbing
         //> sta Player_State
-        ram.playerState = 0x03
+        ram.playerState = PlayerState.Climbing
         //> ldx #$00                    ;set offset for first slot, for block object
         //> jsr InitBlock_XY_Pos
         initBlockXYPos(0x00)

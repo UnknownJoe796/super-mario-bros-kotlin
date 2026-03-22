@@ -125,3 +125,10 @@ enum class AreaType(val byte: Byte) {
         fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { Water }
     }
 }
+
+enum class PlayerState(val byte: Byte) {
+    OnGround(0), Falling(1), FallingAlt(2), Climbing(3);
+    companion object {
+        fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { OnGround }
+    }
+}

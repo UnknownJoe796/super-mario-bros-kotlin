@@ -272,7 +272,7 @@ private fun System.procLoopCommand() {
                 //> lda Player_State          ;check to see if the player is
                 //> cmp #$00                  ;on solid ground (i.e. not jumping or falling)
                 //> bne WrongChk              ;if not, player fails to pass loop, and loopback
-                val onGround = ram.playerState == 0.toByte()
+                val onGround = ram.playerState == PlayerState.OnGround
 
                 if (correctY && onGround) {
                     //> lda WorldNumber           ;are we in world 7?

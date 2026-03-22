@@ -141,7 +141,7 @@ fun System.playerGfxHandler() {
     //> lda Player_State
     //> cmp #$00                    ;if player status normal,
     //> beq FindPlayerAction        ;branch and do not return
-    if (ram.playerState == 0.toByte()) {
+    if (ram.playerState == PlayerState.OnGround) {
         findPlayerAction()
         return
     }
@@ -336,20 +336,18 @@ private fun System.renderPlayerSub(rowCount: Int) {
 private fun System.processPlayerAction(): Int {
     //> ProcessPlayerAction:
     //> lda Player_State      ;get player's state
-    val state = ram.playerState.toInt() and 0xFF
-
     when {
         //> cmp #$03
         //> beq ActionClimbing    ;if climbing, branch here
-        state == 0x03 -> return actionClimbing()
+        ram.playerState == PlayerState.Climbing -> return actionClimbing()
 
         //> cmp #$02
         //> beq ActionFalling     ;if falling, branch here
-        state == 0x02 -> return actionFalling()
+        ram.playerState == PlayerState.FallingAlt -> return actionFalling()
 
         //> cmp #$01
         //> bne ProcOnGroundActs  ;if not jumping, branch here
-        state == 0x01 -> {
+        ram.playerState == PlayerState.Falling -> {
             //> lda SwimmingFlag
             //> bne ActionSwimming    ;if swimming flag set, branch elsewhere
             if (ram.swimmingFlag) return actionSwimming()

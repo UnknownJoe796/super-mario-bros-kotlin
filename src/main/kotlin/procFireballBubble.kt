@@ -93,7 +93,7 @@ private fun System.tryCreateFireball() {
     //> lda Player_State           ;if player's state = climbing, branch
     //> cmp #$03
     //> beq ProcFireballs
-    if (ram.playerState == 3.toByte()) return
+    if (ram.playerState == PlayerState.Climbing) return
 
     //> lda #Sfx_Fireball          ;play fireball sound effect
     //> sta Square1SoundQueue

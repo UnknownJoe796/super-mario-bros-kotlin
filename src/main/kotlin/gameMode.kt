@@ -349,7 +349,7 @@ fun System.forceInjury() {
         //> lda #$0b             ;set subroutine to run on next frame
         //> bne SetKRout         ;branch to set player's state and other things
         ram.gameEngineSubroutine = 0x0b
-        ram.playerState = 1
+        ram.playerState = PlayerState.Falling
         ram.timerControl = 0xFF.toByte()
         ram.scrollAmount = 0
         return
@@ -373,7 +373,7 @@ fun System.forceInjury() {
     //> sta GameEngineSubroutine  ;load new value to run subroutine on next frame
     ram.gameEngineSubroutine = 0x0a
     //> sty Player_State          ;store new player state
-    ram.playerState = 1
+    ram.playerState = PlayerState.Falling
     //> ldy #$ff
     //> sty TimerControl          ;set master timer control flag to halt timers
     ram.timerControl = 0xFF.toByte()

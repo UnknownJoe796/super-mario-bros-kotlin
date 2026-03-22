@@ -267,6 +267,11 @@ object GameRamMapper {
             { r -> r.areaType.ordinal.toByte() },
             { r, b -> r.areaType = AreaType.fromByte(b) }))
 
+        // PlayerState enum
+        all.add(ValueByteField(0x1d,
+            { r -> r.playerState.byte },
+            { r, b -> r.playerState = PlayerState.fromByte(b) }))
+
         // Deduplicate: scalar aliases that delegate to arrays share the same start address.
         // Group by start address and keep the largest descriptor.
         val byStartAddress = mutableMapOf<Int, FieldDescriptor>()
