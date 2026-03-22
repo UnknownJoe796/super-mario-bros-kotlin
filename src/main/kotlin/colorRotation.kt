@@ -47,9 +47,16 @@ fun System.colorRotation() {
     //> ldx VRAM_Buffer1_Offset  ;check vram buffer offset
     //> cpx #$31
     //> bcs ExitColorRot         ;if offset over 48 bytes, branch to leave
-    // Fun thing: we actually CAN'T really do this well.
-    // We're high level in that PPU emulation.
-    // We can come back and make this possible if we have to.
+    // Estimate raw NES byte count of current vRAMBuffer1 contents.
+    // Each entry: 3-byte header (addr_hi, addr_lo, length) + data bytes.
+    val estimatedOffset = ram.vRAMBuffer1.sumOf { entry ->
+        when (entry) {
+            is BufferedPpuUpdate.BackgroundPatternString -> 3 + entry.patterns.size
+            is BufferedPpuUpdate.BackgroundSetPalette -> 7
+            else -> 8 // conservative estimate for other types
+        }
+    }
+    if (estimatedOffset >= 0x31) return
 
     //> tay                      ;otherwise use frame counter's 3 LSB as offset here
     //> GetBlankPal:  lda BlankPalette,y       ;get blank palette for palette 3
