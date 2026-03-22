@@ -2,7 +2,7 @@
 
 A complete, accurate translation of Super Mario Bros from 6502 assembly into readable, modifiable Kotlin. Every line of the original disassembly is preserved as comments alongside its Kotlin equivalent.
 
-The game is fully playable and **verified frame-perfect** against the original ROM via TAS replay (36,165 frames, zero divergences).
+The game is fully playable and verified against the original ROM via TAS replay across 103,000+ frames (zero divergences on two TAS scenarios; 12 remaining on the full warpless playthrough — see [Known Inaccuracies](#known-inaccuracies)).
 
 ## Running
 
@@ -69,7 +69,11 @@ The translation was validated at multiple levels:
 | Tier 1 | 29 leaf subroutines compared against interpreter | All passing |
 | Tier 2 | 17 composite subroutines | All passing |
 | Tier 3 | 12 frame-level scenarios | Zero diffs |
-| TAS Replay | happylee-warps (17,858 frames) + full playthrough (18,307 frames) | **0 divergent frames** |
+| TAS: happylee-warps | 17,859 frames, warp route to W8-4 victory | **0 divergent frames** |
+| TAS: happylee-warpless | 67,108 frames, full W1-1 through W8-4 | **12 divergent frames** (0.018%) |
+| TAS: smb-0-full-playthrough | 18,307 frames | **0 divergent frames** |
+
+Each TAS frame starts from FCEUX-synced state, so divergences are independent per-frame issues — they do not cascade.
 
 The `GameRamMapper` provides bidirectional mapping between Kotlin properties and flat NES RAM for automated comparison testing. A `ShadowValidator` can run alongside gameplay to catch divergences in real time.
 
@@ -99,6 +103,16 @@ The `GameRamMapper` provides bidirectional mapping between Kotlin properties and
 - **SMB1+2J Flow** - Run through both games without interruption
 - **Procedural levels** - Generate new levels using techniques impossible on the NES
 - **Speedrun multiplayer** - Players race through levels; fall behind and you lose
+
+## Known Inaccuracies
+
+The 12 remaining warpless divergences fall into two categories:
+
+**NES timing artifacts (7 frames):** The NES CPU has limited cycles per frame. When the NMI handler runs long (e.g. uploading a large VRAM buffer), the game logic may not execute at all — a "partial lag frame" where only the NMI preamble runs. Kotlin has no cycle budget and always runs game logic. These frames produce correct game logic output; the NES simply skipped it. Confirmed by running the same input state through the 6502 interpreter, which matches Kotlin's output.
+
+**Cycle-level edge cases (5 frames):** A handful of single-frame divergences in enemy positions, collision bits, or palette offsets where the NES behavior depends on cycle-level timing that cannot be reproduced without a cycle-accurate CPU emulator. These affect individual bytes for one frame each and self-correct on the next frame.
+
+None of these inaccuracies affect gameplay — they involve rendering timing (area parser task scheduling), cosmetic state (color rotation offset), or transient enemy state that resets within a frame.
 
 ## Design Decisions
 
