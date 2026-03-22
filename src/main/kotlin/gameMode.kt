@@ -220,7 +220,9 @@ fun System.updScrollVar() {
         //> lda ScrollThirtyTwo        ;get horizontal scroll in 0-31 or $00-$20 range
         //> cmp #$20                   ;check to see if exceeded $21
         //> bmi ExitEng                ;branch to leave if not
-        if ((ram.scrollThirtyTwo.toInt() and 0xFF) < 0x20) return
+        // NES bmi checks N flag after cmp: branches when (A-$20) has bit 7 set.
+        // This is a SIGNED comparison, not unsigned: branches for 0x00-0x1F AND 0xA0-0xFF.
+        if (ram.scrollThirtyTwo < 0x20.toByte()) return
 
         //> lda ScrollThirtyTwo
         //> sbc #$20                   ;otherwise subtract $20 to set appropriately

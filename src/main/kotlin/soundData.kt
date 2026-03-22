@@ -565,7 +565,8 @@ object SoundData {
     // -----------------------------------------------------------------------
 
     //> EndOfCastleMusicEnvData:
-    val endOfCastleMusicEnvData = intArrayOf(0x98, 0x99, 0x9A, 0x9B)
+    // Extended: indices 4-7 overflow into AreaMusicEnvData on NES ROM
+    val endOfCastleMusicEnvData = intArrayOf(0x98, 0x99, 0x9A, 0x9B, 0x90, 0x94, 0x94, 0x95)
 
     //> AreaMusicEnvData:
     val areaMusicEnvData = intArrayOf(0x90, 0x94, 0x94, 0x95, 0x95, 0x96, 0x97, 0x98)
