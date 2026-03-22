@@ -4,7 +4,9 @@ package com.ivieleague.smbtranslation
 
 //> FireballXSpdData:
 //> .db $40, $c0
-private val fireballXSpdData = intArrayOf(0x40, 0xC0)
+// Extended: index 2 overflows into ROM byte at $B689=$86.
+// This occurs when PlayerFacingDir=Both(3), giving facingIdx=2.
+private val fireballXSpdData = intArrayOf(0x40, 0xC0, 0x86)
 
 //> Bubble_MForceData:
 //> .db $ff, $50
@@ -79,6 +81,7 @@ private fun System.tryCreateFireball() {
 
     //> lda Fireball_State,x       ;load fireball state
     //> bne ProcFireballs          ;if not inactive, branch
+    if (debugEnemyTrace) println("[tryCreateFB] idx=$fbIdx state=${ram.fireballStates[fbIdx]} yHigh=${ram.sprObjYHighPos[0].toInt() and 0xFF} crouch=${ram.crouchingFlag} pState=${ram.playerState} facingDir=${ram.playerFacingDir} (byte=${ram.playerFacingDir.byte})")
     if (ram.fireballStates[fbIdx] != 0.toByte()) return
 
     //> ldy Player_Y_HighPos       ;if player too high or too low, branch
@@ -94,6 +97,7 @@ private fun System.tryCreateFireball() {
     //> cmp #$03
     //> beq ProcFireballs
     if (ram.playerState == PlayerState.Climbing) return
+    if (debugEnemyTrace) println("[tryCreateFB] CREATING fireball $fbIdx")
 
     //> lda #Sfx_Fireball          ;play fireball sound effect
     //> sta Square1SoundQueue
@@ -206,11 +210,13 @@ private fun System.fireballObjCore(fbIdx: Int) {
     val fbOffBits = ram.offscrBits[2].toInt() and 0xFF  // fireball is condensed offset 2
     if ((fbOffBits and 0xCC) != 0) {
         //> EraseFB: lda #$00; sta Fireball_State,x
+        if (debugEnemyTrace) println("[FBCore] ERASE fb$fbIdx offBits=${fbOffBits.toString(16)} x=${ram.sprObjXPos[sprObjOfs].toInt() and 0xFF} y=${ram.sprObjYPos[sprObjOfs].toInt() and 0xFF}")
         ram.fireballStates[fbIdx] = 0
         return
     }
 
     //> jsr FireballEnemyCollision   ;do fireball to enemy collision detection
+    if (debugEnemyTrace) println("[FBCore] fb$fbIdx alive: spd=${ram.sprObjXSpeed[sprObjOfs].toInt() and 0xFF} x=${ram.sprObjXPos[sprObjOfs].toInt() and 0xFF} mf=${ram.sprObjXMoveForce[sprObjOfs].toInt() and 0xFF}")
     fireballEnemyCollision()
     //> jmp DrawFireball             ;draw fireball and leave
     drawFireball()
