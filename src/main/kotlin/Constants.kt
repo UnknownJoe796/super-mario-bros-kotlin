@@ -117,7 +117,7 @@ enum class PlayerStatus(val byte: Byte) {
 }
 
 enum class Direction(val byte: Byte) {
-    None(0), Left(1), Right(2);
+    None(0), Left(1), Right(2), Both(3);
     companion object {
         fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { None }
     }
@@ -125,8 +125,10 @@ enum class Direction(val byte: Byte) {
 
 enum class EnemyId(val byte: Byte) {
     GreenKoopa(0x00),
+    RedKoopaShell(0x01),
     BuzzyBeetle(0x02),
     RedKoopa(0x03),
+    GreenKoopaVar(0x04),
     HammerBro(0x05),
     Goomba(0x06),
     Bloober(0x07),
@@ -141,6 +143,7 @@ enum class EnemyId(val byte: Byte) {
     GreenParatroopaFly(0x10),
     Lakitu(0x11),
     Spiny(0x12),
+    DummyEnemy(0x13),
     FlyingCheepCheep(0x14),
     BowserFlame(0x15),
     Fireworks(0x16),
@@ -154,6 +157,8 @@ enum class EnemyId(val byte: Byte) {
     JumpspringObject(0x32),
     BulletBillCannonVar(0x33),
     RetainerObject(0x35);
+
+    val id: Int get() = byte.toInt() and 0xFF
 
     companion object {
         /** Alias: FlyCheepCheepFrenzy and FlyingCheepCheep share the same byte value */
@@ -183,6 +188,18 @@ enum class GameEngineRoutine {
         fun fromByte(b: Byte): GameEngineRoutine =
             entries.getOrElse(b.toInt() and 0xFF) { entries.first() }
     }
+}
+
+/** Named constants for the altEntranceControl field values. */
+object AltEntrance {
+    /** Normal area entrance (no alternate). */
+    const val NONE: Byte = 0
+    /** Halfway point entrance (after reaching midpoint checkpoint). */
+    const val HALFWAY: Byte = 1
+    /** Pipe or door entrance (standard alternate entry). */
+    const val PIPE_DOOR: Byte = 2
+    /** Cloud/vine exit entrance (set via increment after PIPE_DOOR). */
+    const val CLOUD_EXIT: Byte = 3
 }
 
 enum class ScreenRoutineTask {

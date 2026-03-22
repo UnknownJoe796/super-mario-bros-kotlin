@@ -13,7 +13,7 @@ fun System.processWhirlpools() {
     //> bne ExitWh                  ;branch to leave if not found
     if (ram.areaType != AreaType.Water) return
     //> sta Whirlpool_Flag          ;otherwise initialize whirlpool flag
-    ram.whirlpoolFlag = 0
+    ram.whirlpoolFlag = false
     //> lda TimerControl            ;if master timer control set,
     //> bne ExitWh                  ;branch to leave
     if (ram.timerControl != 0.toByte()) return
@@ -146,7 +146,7 @@ private fun System.whirlpoolActivate(y: Int) {
     //> sta $00                     ;set vertical movement force
     //> lda #$01
     //> sta Whirlpool_Flag          ;set whirlpool flag to be used later
-    ram.whirlpoolFlag = 1
+    ram.whirlpoolFlag = true
     //> sta $02                     ;also set maximum vertical speed
     //> lsr
     //> tax                         ;set X for player offset (X=0)

@@ -177,7 +177,7 @@ fun System.runEnemyObjectsCore() {
     //> bcc JmpEO
     //> tya               ;otherwise subtract $14 from the value and use
     //> sbc #$14          ;as value for jump engine
-    val jumpIndex = if (enemyId < 0x15) 0 else enemyId - 0x14
+    val jumpIndex = if (enemyId < EnemyId.BowserFlame.id) 0 else enemyId - 0x14
 
     //> JmpEO: jsr JumpEngine
     when (jumpIndex) {
@@ -661,12 +661,12 @@ private fun System.processEnemyData() {
     var finalEnemyId = enemyType
     //> cmp #Goomba          ;if below $37, check for goomba
     //> bne StrID            ;value ($3f or more always fails)
-    if (finalEnemyId == (EnemyId.Goomba.byte.toInt() and 0xFF)) {
+    if (finalEnemyId == (EnemyId.Goomba.id)) {
         //> ldy PrimaryHardMode  ;check if primary hard mode flag is set
         //> beq StrID            ;and if so, change goomba to buzzy beetle
         if (ram.primaryHardMode) {
             //> lda #BuzzyBeetle
-            finalEnemyId = EnemyId.BuzzyBeetle.byte.toInt() and 0xFF  // BuzzyBeetle = $02
+            finalEnemyId = EnemyId.BuzzyBeetle.id  // BuzzyBeetle = $02
         }
     }
 
@@ -838,7 +838,7 @@ fun System.checkpointEnemyID() {
 
     //> cmp #$15                     ;check enemy object identifier for $15 or greater
     //> bcs InitEnemyRoutines        ;and branch straight to the jump engine if found
-    if (enemyId < 0x15) {
+    if (enemyId < EnemyId.BowserFlame.id) {
         //> tay                          ;save identifier in Y register for now
         //> lda Enemy_Y_Position,x
         //> adc #$08                     ;add eight pixels to what will eventually be the
@@ -859,49 +859,49 @@ fun System.checkpointEnemyID() {
     setupVineBlockY = enemyId * 2 + 2
     when (enemyId) {
         //> .dw InitNormalEnemy  ;for objects $00-$02
-        0x00 -> initNormalEnemy()
-        0x01 -> initNormalEnemy()
-        0x02 -> initNormalEnemy()
+        EnemyId.GreenKoopa.id -> initNormalEnemy()
+        EnemyId.RedKoopaShell.id -> initNormalEnemy()
+        EnemyId.BuzzyBeetle.id -> initNormalEnemy()
         //> .dw InitRedKoopa     ;for object $03
-        0x03 -> initRedKoopa()
+        EnemyId.RedKoopa.id -> initRedKoopa()
         //> .dw NoInitCode        ;for object $04
-        0x04 -> {} // NoInitCode
+        EnemyId.GreenKoopaVar.id -> {} // NoInitCode
         //> .dw InitHammerBro     ;for object $05
-        0x05 -> initHammerBro()
+        EnemyId.HammerBro.id -> initHammerBro()
         //> .dw InitGoomba        ;for object $06
-        0x06 -> initGoomba()
+        EnemyId.Goomba.id -> initGoomba()
         //> .dw InitBloober       ;for object $07
-        0x07 -> initBloober()
+        EnemyId.Bloober.id -> initBloober()
         //> .dw InitBulletBill    ;for object $08
-        0x08 -> initBulletBill()
+        EnemyId.BulletBillFrenzyVar.id -> initBulletBill()
         //> .dw NoInitCode        ;for object $09
-        0x09 -> {} // NoInitCode
+        EnemyId.TallEnemy.id -> {} // NoInitCode
         //> .dw InitCheepCheep    ;for objects $0a-$0b
-        0x0A -> initCheepCheep()
-        0x0B -> initCheepCheep()
+        EnemyId.GreyCheepCheep.id -> initCheepCheep()
+        EnemyId.RedCheepCheep.id -> initCheepCheep()
         //> .dw InitPodoboo       ;for object $0c
-        0x0C -> initPodoboo()
+        EnemyId.Podoboo.id -> initPodoboo()
         //> .dw InitPiranhaPlant  ;for object $0d
-        0x0D -> initPiranhaPlant()
+        EnemyId.PiranhaPlant.id -> initPiranhaPlant()
         //> .dw InitJumpGPTroopa  ;for object $0e
-        0x0E -> initJumpGPTroopa()
+        EnemyId.GreenParatroopaJump.id -> initJumpGPTroopa()
         //> .dw InitRedPTroopa    ;for object $0f
-        0x0F -> initRedPTroopa()
+        EnemyId.RedParatroopa.id -> initRedPTroopa()
         //> .dw InitHorizFlySwimEnemy ;for object $10
-        0x10 -> initHorizFlySwimEnemy()
+        EnemyId.GreenParatroopaFly.id -> initHorizFlySwimEnemy()
         //> .dw InitLakitu        ;for object $11
-        0x11 -> initLakitu()
+        EnemyId.Lakitu.id -> initLakitu()
         //> .dw InitEnemyFrenzy   ;for object $12
-        0x12 -> initEnemyFrenzy()
+        EnemyId.Spiny.id -> initEnemyFrenzy()
         //> .dw NoInitCode        ;for object $13
-        0x13 -> {} // NoInitCode
+        EnemyId.DummyEnemy.id -> {} // NoInitCode
         //> .dw InitEnemyFrenzy   ;for objects $14-$17
-        0x14 -> initEnemyFrenzy()
-        0x15 -> initEnemyFrenzy()
-        0x16 -> initEnemyFrenzy()
-        0x17 -> initEnemyFrenzy()
+        EnemyId.FlyingCheepCheep.id -> initEnemyFrenzy()
+        EnemyId.BowserFlame.id -> initEnemyFrenzy()
+        EnemyId.Fireworks.id -> initEnemyFrenzy()
+        EnemyId.BBillCCheepFrenzy.id -> initEnemyFrenzy()
         //> .dw EndFrenzy         ;for object $18
-        0x18 -> endFrenzy()
+        EnemyId.StopFrenzy.id -> endFrenzy()
         //> .dw NoInitCode        ;for objects $19-$1a
         0x19 -> {} // NoInitCode
         0x1A -> {} // NoInitCode
@@ -936,19 +936,19 @@ fun System.checkpointEnemyID() {
         //> .dw PlatLiftDown      ;for object $2c
         0x2C -> platLiftDown()
         //> .dw InitBowser        ;for object $2d
-        0x2D -> initBowser()
+        EnemyId.Bowser.id -> initBowser()
         //> .dw PwrUpJmp          ;for object $2e (possibly dummy value)
-        0x2E -> pwrUpJmp()
+        EnemyId.PowerUpObject.id -> pwrUpJmp()
         //> .dw Setup_Vine        ;for object $2f
-        0x2F -> setupVine()
+        EnemyId.VineObject.id -> setupVine()
         //> .dw NoInitCode        ;for objects $30-$34
-        0x30 -> {} // NoInitCode
-        0x31 -> {} // NoInitCode
-        0x32 -> {} // NoInitCode
-        0x33 -> {} // NoInitCode
+        EnemyId.FlagpoleFlagObject.id -> {} // NoInitCode
+        EnemyId.StarFlagObject.id -> {} // NoInitCode
+        EnemyId.JumpspringObject.id -> {} // NoInitCode
+        EnemyId.BulletBillCannonVar.id -> {} // NoInitCode
         0x34 -> {} // NoInitCode
         //> .dw InitRetainerObj   ;for object $35
-        0x35 -> initRetainerObj()
+        EnemyId.RetainerObject.id -> initRetainerObj()
         //> .dw EndOfEnemyInitCode ;for object $36
         0x36 -> endOfEnemyInitCode()
     }
@@ -2393,9 +2393,9 @@ private fun System.handleGroupEnemies(groupType: Int) {
         //> ldy #BuzzyBeetle          ;for buzzy beetle
         //> PullID: pla               ;get second copy from stack
         enemyIdForGroup = if (ram.primaryHardMode) {
-            EnemyId.BuzzyBeetle.byte.toInt() and 0xFF
+            EnemyId.BuzzyBeetle.id
         } else {
-            EnemyId.Goomba.byte.toInt() and 0xFF
+            EnemyId.Goomba.id
         }
     } else {
         //> SnglID: sty $01           ;save enemy id here (Y=0 = green koopa troopa)

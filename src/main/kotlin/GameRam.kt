@@ -225,7 +225,7 @@ class GameRam {
     // Placeholder bookkeeping for score updates triggered by floatey numbers
     var lastScoreDigitIndex: Byte = 0
     var lastScoreDigitAdd: Byte = 0
-    @RamLocation(0x109) var verticalFlipFlag: Byte = 0
+    @RamLocation(0x109) var verticalFlipFlag: Boolean = false
     @RamLocation(0x110, size = 7) val floateyNumControl: ByteArray = ByteArray(ComboInfo.list.size)
     @RamLocation(0x117, size = 7) var floateyNumXPos: UByteArray = UByteArray(ComboInfo.list.size)
     @RamLocation(0x11e, size = 7) var floateyNumYPos: UByteArray = UByteArray(ComboInfo.list.size)
@@ -525,9 +525,9 @@ class GameRam {
     var whirlpoolOffset: Byte // alias for cannonOffset (same NES address $46A)
         get() = cannonOffset
         set(v) { cannonOffset = v }
-    var whirlpoolFlag: Byte // alias for cannonTimer (same NES address $47D)
-        get() = cannonTimer
-        set(v) { cannonTimer = v }
+    var whirlpoolFlag: Boolean // alias for cannonTimer (same NES address $47D)
+        get() = cannonTimer != 0.toByte()
+        set(v) { cannonTimer = if (v) 1 else 0 }
     @RamLocation(0x398) var vineFlagOffset: Byte = 0
     @RamLocation(0x399) var vineHeight: Byte = 0
     var vineObjOffset: Byte // alias for vineObjOffsets[0] (same NES address $39A)

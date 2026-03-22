@@ -105,27 +105,27 @@ fun System.enemyMovementSubs() {
     //> lda Enemy_ID,x
     //> jsr JumpEngine
     when (ram.enemyID[x].toInt() and 0xFF) {
-        0x00 -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;GreenKoopa
-        0x01 -> moveNormalEnemy()   //> .dw MoveNormalEnemy
-        0x02 -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;BuzzyBeetle
-        0x03 -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;RedKoopa
-        0x04 -> moveNormalEnemy()   //> .dw MoveNormalEnemy
-        0x05 -> procHammerBro()     //> .dw ProcHammerBro        ;HammerBro
-        0x06 -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;Goomba
-        0x07 -> moveBloober()       //> .dw MoveBloober          ;Bloober
-        0x08 -> moveBulletBill()    //> .dw MoveBulletBill       ;BulletBill_FrenzyVar
-        0x09 -> noMoveCode()        //> .dw NoMoveCode           ;TallEnemy (unused)
-        0x0A -> moveSwimmingCheepCheep()  //> .dw MoveSwimmingCheepCheep ;GreyCheepCheep
-        0x0B -> moveSwimmingCheepCheep()  //> .dw MoveSwimmingCheepCheep ;RedCheepCheep
-        0x0C -> movePodoboo()       //> .dw MovePodoboo          ;Podoboo
-        0x0D -> movePiranhaPlant()  //> .dw MovePiranhaPlant     ;PiranhaPlant
-        0x0E -> moveJumpingEnemy()  //> .dw MoveJumpingEnemy     ;GreenParatroopaJump
-        0x0F -> procMoveRedPTroopa()  //> .dw ProcMoveRedPTroopa ;RedParatroopa
-        0x10 -> moveFlyGreenPTroopa() //> .dw MoveFlyGreenPTroopa ;GreenParatroopaFly
-        0x11 -> moveLakitu()        //> .dw MoveLakitu           ;Lakitu
-        0x12 -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;Spiny
-        0x13 -> noMoveCode()        //> .dw NoMoveCode           ;dummy
-        0x14 -> moveFlyingCheepCheep()  //> .dw MoveFlyingCheepCheep ;FlyingCheepCheep
+        EnemyId.GreenKoopa.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;GreenKoopa
+        EnemyId.RedKoopaShell.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy
+        EnemyId.BuzzyBeetle.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;BuzzyBeetle
+        EnemyId.RedKoopa.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;RedKoopa
+        EnemyId.GreenKoopaVar.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy
+        EnemyId.HammerBro.id -> procHammerBro()     //> .dw ProcHammerBro        ;HammerBro
+        EnemyId.Goomba.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;Goomba
+        EnemyId.Bloober.id -> moveBloober()       //> .dw MoveBloober          ;Bloober
+        EnemyId.BulletBillFrenzyVar.id -> moveBulletBill()    //> .dw MoveBulletBill       ;BulletBill_FrenzyVar
+        EnemyId.TallEnemy.id -> noMoveCode()        //> .dw NoMoveCode           ;TallEnemy (unused)
+        EnemyId.GreyCheepCheep.id -> moveSwimmingCheepCheep()  //> .dw MoveSwimmingCheepCheep ;GreyCheepCheep
+        EnemyId.RedCheepCheep.id -> moveSwimmingCheepCheep()  //> .dw MoveSwimmingCheepCheep ;RedCheepCheep
+        EnemyId.Podoboo.id -> movePodoboo()       //> .dw MovePodoboo          ;Podoboo
+        EnemyId.PiranhaPlant.id -> movePiranhaPlant()  //> .dw MovePiranhaPlant     ;PiranhaPlant
+        EnemyId.GreenParatroopaJump.id -> moveJumpingEnemy()  //> .dw MoveJumpingEnemy     ;GreenParatroopaJump
+        EnemyId.RedParatroopa.id -> procMoveRedPTroopa()  //> .dw ProcMoveRedPTroopa ;RedParatroopa
+        EnemyId.GreenParatroopaFly.id -> moveFlyGreenPTroopa() //> .dw MoveFlyGreenPTroopa ;GreenParatroopaFly
+        EnemyId.Lakitu.id -> moveLakitu()        //> .dw MoveLakitu           ;Lakitu
+        EnemyId.Spiny.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;Spiny
+        EnemyId.DummyEnemy.id -> noMoveCode()        //> .dw NoMoveCode           ;dummy
+        EnemyId.FlyingCheepCheep.id -> moveFlyingCheepCheep()  //> .dw MoveFlyingCheepCheep ;FlyingCheepCheep
     }
 }
 
@@ -642,13 +642,13 @@ fun System.enemiesCollision() {
     val enemyId = ram.enemyID[x].toInt() and 0xFF
     //> cmp #$15                    ;if enemy object => $15, branch to leave
     //> bcs ExitECRoutine
-    if (enemyId >= 0x15) return
+    if (enemyId >= EnemyId.BowserFlame.id) return
     //> cmp #Lakitu                 ;if lakitu, branch to leave
     //> beq ExitECRoutine
-    if (enemyId == EnemyId.Lakitu.byte.toInt() and 0xFF) return
+    if (enemyId == EnemyId.Lakitu.id) return
     //> cmp #PiranhaPlant           ;if piranha plant, branch to leave
     //> beq ExitECRoutine
-    if (enemyId == EnemyId.PiranhaPlant.byte.toInt() and 0xFF) return
+    if (enemyId == EnemyId.PiranhaPlant.id) return
     //> lda EnemyOffscrBitsMasked,x ;if masked offscreen bits nonzero, branch to leave
     //> bne ExitECRoutine
     if (ram.enemyOffscrBitsMaskeds[x] != 0.toByte()) return
@@ -674,11 +674,11 @@ fun System.enemiesCollision() {
             val secondEnemyId = ram.enemyID[secondIdx].toInt() and 0xFF
             //> cmp #$15                    ;check for enemy object => $15
             //> bcs ReadyNextEnemy
-            if (secondEnemyId < 0x15 &&
+            if (secondEnemyId < EnemyId.BowserFlame.id &&
                 //> cmp #Lakitu; beq ReadyNextEnemy
-                secondEnemyId != EnemyId.Lakitu.byte.toInt() and 0xFF &&
+                secondEnemyId != EnemyId.Lakitu.id &&
                 //> cmp #PiranhaPlant; beq ReadyNextEnemy
-                secondEnemyId != EnemyId.PiranhaPlant.byte.toInt() and 0xFF &&
+                secondEnemyId != EnemyId.PiranhaPlant.id &&
                 //> lda EnemyOffscrBitsMasked,x; bne ReadyNextEnemy
                 ram.enemyOffscrBitsMaskeds[secondIdx] == 0.toByte()
             ) {
@@ -766,7 +766,7 @@ private fun System.procEnemyCollisions(firstIdx: Int, secondIdx: Int) {
         val firstEnemyId = ram.enemyID[firstIdx].toInt() and 0xFF
         //> cmp #HammerBro           ;if hammer bro found in alt state, branch to leave
         //> beq ExitProcessEColl
-        if (firstEnemyId == EnemyId.HammerBro.byte.toInt() and 0xFF) return
+        if (firstEnemyId == EnemyId.HammerBro.id) return
 
         //> lda Enemy_State,y        ;check first enemy state for d7 set
         //> asl; bcc ShellCollisions ;branch if d7 is clear
@@ -806,7 +806,7 @@ private fun System.procEnemyCollisions(firstIdx: Int, secondIdx: Int) {
             //> lda Enemy_ID,y           ;check first enemy identifier for hammer bro
             val secondEnemyId = ram.enemyID[secondIdx].toInt() and 0xFF
             //> cmp #HammerBro; beq ExitProcessEColl
-            if (secondEnemyId == EnemyId.HammerBro.byte.toInt() and 0xFF) return
+            if (secondEnemyId == EnemyId.HammerBro.id) return
 
             //> jsr ShellOrBlockDefeat   ;kill first enemy (using X = ObjectOffset)
             shellOrBlockDefeat(firstIdx)

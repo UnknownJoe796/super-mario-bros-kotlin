@@ -155,7 +155,7 @@ fun System.enemyGfxHandler() {
     val sprDataOfs = (ram.enemySprDataOffset[objectX].toInt() and 0xFF) shr 2
     //> lda #$00
     //> sta VerticalFlipFlag        ;initialize vertical flip flag by default
-    ram.verticalFlipFlag = 0
+    ram.verticalFlipFlag = false
     //> lda Enemy_MovingDir,x
     //> sta $03                     ;get enemy object moving direction
     var flipCtrl = ram.enemyMovingDirs[objectX]
@@ -167,7 +167,7 @@ fun System.enemyGfxHandler() {
 
     //> cmp #PiranhaPlant           ;is enemy object piranha plant?
     //> bne CheckForRetainerObj     ;if not, branch
-    if (enemyId == EnemyId.PiranhaPlant.byte.toInt() and 0xFF) {
+    if (enemyId == EnemyId.PiranhaPlant.id) {
         //> ldy PiranhaPlant_Y_Speed,x
         //> bmi CheckForRetainerObj     ;if piranha plant moving upwards, branch
         val ppYSpeed = ram.sprObjYSpeed[1 + objectX]
@@ -195,7 +195,7 @@ fun System.enemyGfxHandler() {
     //> bne CheckForBulletBillCV    ;if not found, branch
     var enemyCode = enemyId  // $ef: enemy code used throughout the handler
 
-    if (enemyId == EnemyId.RetainerObject.byte.toInt() and 0xFF) {
+    if (enemyId == EnemyId.RetainerObject.id) {
         //> ldy #$00                    ;if found, nullify saved state in Y
         altState = 0
         //> lda #$01                    ;set value that will not be used
@@ -207,7 +207,7 @@ fun System.enemyGfxHandler() {
 
     //> CheckForBulletBillCV:
     //> bne CheckForJumpspring      ;if not found, branch again
-    if (enemyCode == EnemyId.BulletBillCannonVar.byte.toInt() and 0xFF) {
+    if (enemyCode == EnemyId.BulletBillCannonVar.id) {
         //> dec $02                     ;decrement saved vertical position
         yCoord = (yCoord - 1).toByte()
         //> lda #$03
@@ -230,7 +230,7 @@ fun System.enemyGfxHandler() {
     //> CheckForJumpspring:
     //> bne CheckForPodoboo
     //> cmp #JumpspringObject        ;check for jumpspring object
-    if (enemyCode == EnemyId.JumpspringObject.byte.toInt() and 0xFF) {
+    if (enemyCode == EnemyId.JumpspringObject.id) {
         //> ldy #$03                     ;set enemy state -2 MSB here for jumpspring object
         altState = 0x03
         //> ldx JumpspringAnimCtrl       ;get current frame number for jumpspring object
@@ -252,7 +252,7 @@ fun System.enemyGfxHandler() {
         //> bmi CheckBowserGfxFlag
         if (ram.sprObjYSpeed[1 + x].toInt() >= 0) {
             //> inc VerticalFlipFlag    ;otherwise, set flag for vertical flip
-            ram.verticalFlipFlag = 1
+            ram.verticalFlipFlag = true
         }
     }
 
@@ -272,7 +272,7 @@ fun System.enemyGfxHandler() {
     //> CheckForGoomba:
     var gfxTableOfs: Int  // X in the assembly, offset into EnemyGraphicsTable
 
-    if (enemyCode == EnemyId.Goomba.byte.toInt() and 0xFF) {
+    if (enemyCode == EnemyId.Goomba.id) {
         //> lda Enemy_State,x
         //> cmp #$02              ;check for defeated state
         //> bcc GmbaAnim          ;if not defeated, go ahead and animate
@@ -329,7 +329,7 @@ fun System.enemyGfxHandler() {
                 //> stx VerticalFlipFlag  ;set vertical flip flag to nonzero
                 //> jmp DrawEnemyObject   ;draw bowser's graphics now
                 //> DrawBowser:
-                ram.verticalFlipFlag = gfxTableOfs.toByte()  // nonzero
+                ram.verticalFlipFlag = true  // nonzero
             }
         } else {
             //> CheckBowserRear:
@@ -349,7 +349,7 @@ fun System.enemyGfxHandler() {
                 //> sta $02
                 yCoord = (yCoord.toInt() - 0x10).toByte()
                 //> jmp FlipBowserOver      ;jump to set vertical flip flag
-                ram.verticalFlipFlag = gfxTableOfs.toByte()  // nonzero
+                ram.verticalFlipFlag = true  // nonzero
             }
         }
         //> DrawBowser: jmp DrawEnemyObject
@@ -404,7 +404,7 @@ fun System.enemyGfxHandler() {
                 //> ldy $ef
                 //> cpy #BuzzyBeetle           ;check for buzzy beetle object
                 //> bne CheckRightSideUpShell
-                if (enemyCode == EnemyId.BuzzyBeetle.byte.toInt() and 0xFF) {
+                if (enemyCode == EnemyId.BuzzyBeetle.id) {
                     //> ldx #$7e                   ;set for upside-down buzzy beetle shell if found
                     gfxTableOfs = 0x7e
                     //> inc $02                    ;increment vertical position by one pixel
@@ -421,7 +421,7 @@ fun System.enemyGfxHandler() {
                 gfxTableOfs = 0x72
                 //> inc $02                ;increment saved vertical position by one pixel
                 yCoord = (yCoord + 1).toByte()
-                if (enemyCode == EnemyId.BuzzyBeetle.byte.toInt() and 0xFF) {
+                if (enemyCode == EnemyId.BuzzyBeetle.id) {
                     //> beq CheckForDefdGoomba ;branch if found
                     // (use buzzy beetle shell, don't change further)
                 } else {
@@ -431,7 +431,7 @@ fun System.enemyGfxHandler() {
                     yCoord = (yCoord + 1).toByte()
                 }
                 //> CheckForDefdGoomba:
-                if (enemyCode == EnemyId.Goomba.byte.toInt() and 0xFF) {
+                if (enemyCode == EnemyId.Goomba.id) {
                     //> ldx #$54               ;load for regular goomba
                     gfxTableOfs = 0x54
                     //> lda $ed                ;note that this only gets performed if enemy state => $02
@@ -449,7 +449,7 @@ fun System.enemyGfxHandler() {
         //> CheckForHammerBro:
         //> bne CheckForBloober      ;branch if not found
         x = ram.objectOffset.toInt()
-        if (enemyCode == EnemyId.HammerBro.byte.toInt() and 0xFF) {
+        if (enemyCode == EnemyId.HammerBro.id) {
             //> lda $ed
             //> beq CheckToAnimateEnemy  ;branch if not in normal enemy state
             if (savedEnemyState.isActive) {
@@ -497,9 +497,9 @@ fun System.enemyGfxHandler() {
                     // Not bloober or cheep-cheep
                     //> CheckToAnimateEnemy:
                     val shouldCheckAnim = when {
-                        enemyCode == EnemyId.Goomba.byte.toInt() and 0xFF -> false
+                        enemyCode == EnemyId.Goomba.id -> false
                         enemyCode == 0x08 -> false  // bullet bill
-                        enemyCode == EnemyId.Podoboo.byte.toInt() and 0xFF -> false
+                        enemyCode == EnemyId.Podoboo.id -> false
                         enemyCode >= 0x18 -> false
                         else -> true
                     }
@@ -555,7 +555,7 @@ fun System.enemyGfxHandler() {
             if (enemyCode >= 0x04) {
                 //> ldy #$01
                 //> sty VerticalFlipFlag  ;set vertical flip flag
-                ram.verticalFlipFlag = 1
+                ram.verticalFlipFlag = true
                 //> dey
                 //> sty $ec               ;init saved value here
                 savedAltState = 0
@@ -614,7 +614,7 @@ fun System.enemyGfxHandler() {
     //> CheckForVerticalFlip:
     //> lda VerticalFlipFlag       ;check if vertical flip flag is set here
     //> beq CheckForESymmetry      ;branch if not
-    if (ram.verticalFlipFlag != 0.toByte()) {
+    if (ram.verticalFlipFlag) {
         //> lda Sprite_Attributes,y    ;get attributes of first sprite we dealt with
         //> ora #%10000000             ;set bit for vertical flip
         val vFlipAttr = (ram.sprites[y].attributes.byte.toInt() or 0x80).toByte()
@@ -636,8 +636,8 @@ fun System.enemyGfxHandler() {
         //> beq FlipEnemyVertically    ;branch for hammer bro or lakitu
         //> cmp #$15
         //> bcs FlipEnemyVertically    ;also branch if enemy object => $15
-        val isSpecialFlip = (enemyCode == EnemyId.HammerBro.byte.toInt() and 0xFF) ||
-                (enemyCode == EnemyId.Lakitu.byte.toInt() and 0xFF) ||
+        val isSpecialFlip = (enemyCode == EnemyId.HammerBro.id) ||
+                (enemyCode == EnemyId.Lakitu.id) ||
                 (enemyCode >= 0x15)
         if (!isSpecialFlip) {
             //> txa
@@ -692,9 +692,9 @@ fun System.enemyGfxHandler() {
     //> beq MirrorEnemyGfx
     //> cmp #Podoboo                ;check for podoboo object
     //> beq MirrorEnemyGfx          ;branch if either of three are found
-    val shouldMirror = (enemyCode == EnemyId.Bloober.byte.toInt() and 0xFF) ||
-            (enemyCode == EnemyId.PiranhaPlant.byte.toInt() and 0xFF) ||
-            (enemyCode == EnemyId.Podoboo.byte.toInt() and 0xFF)
+    val shouldMirror = (enemyCode == EnemyId.Bloober.id) ||
+            (enemyCode == EnemyId.PiranhaPlant.id) ||
+            (enemyCode == EnemyId.Podoboo.id)
 
     val skipToMirrorLakitu: Boolean
 
@@ -704,7 +704,7 @@ fun System.enemyGfxHandler() {
     } else {
         //> cmp #Spiny                  ;check for spiny object
         //> bne ESRtnr                  ;branch closer if not found
-        if (enemyCode == EnemyId.Spiny.byte.toInt() and 0xFF) {
+        if (enemyCode == EnemyId.Spiny.id) {
             //> cpx #$05                    ;check spiny's state
             //> bne CheckToMirrorLakitu     ;branch if not an egg, otherwise
             if (savedAltState == 0x05) {
@@ -734,10 +734,10 @@ fun System.enemyGfxHandler() {
 
     //> CheckToMirrorLakitu:
     //> bne CheckToMirrorJSpring    ;branch if not found
-    if (enemyCode == EnemyId.Lakitu.byte.toInt() and 0xFF) {
+    if (enemyCode == EnemyId.Lakitu.id) {
         //> lda VerticalFlipFlag
         //> bne NVFLak                  ;branch if vertical flip flag not set
-        if (ram.verticalFlipFlag == 0.toByte()) {
+        if (!ram.verticalFlipFlag) {
             //> lda Sprite_Attributes+16,y  ;save vertical flip and palette bits
             //> and #%10000001              ;in third row left sprite
             //> sta Sprite_Attributes+16,y
@@ -903,7 +903,7 @@ private fun System.sprObjectOffscrChk(objectX: Int, sprOfs: Int, enemyCode: Int)
         //> cmp #Podoboo              ;check enemy identifier for podoboo
         //> beq ExEGHandler           ;skip this part if found, we do not want to erase podoboo!
         val eid = ram.enemyID[objectX].toInt() and 0xFF
-        if (eid != EnemyId.Podoboo.byte.toInt() and 0xFF) {
+        if (eid != EnemyId.Podoboo.id) {
             //> lda Enemy_Y_HighPos,x     ;check high byte of vertical position
             //> cmp #$02                  ;if not yet past the bottom of the screen, branch
             //> bne ExEGHandler

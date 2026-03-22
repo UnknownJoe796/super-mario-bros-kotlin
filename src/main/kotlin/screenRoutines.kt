@@ -207,7 +207,7 @@ private fun System.displayIntermediate() {
     if (ram.operMode == OperMode.GameOver) return gameOverInter()
     //> lda AltEntranceControl       ;otherwise check for mode of alternate entry
     //> bne NoInter                  ;and branch if found
-    if ((ram.altEntranceControl) != 0.toByte()) return noInter()
+    if (ram.altEntranceControl != AltEntrance.NONE) return noInter()
     //> ldy AreaType                 ;check if we are on castle level
     //> cpy #$03                     ;and if so, branch (possibly residual)
     //> beq PlayerInter

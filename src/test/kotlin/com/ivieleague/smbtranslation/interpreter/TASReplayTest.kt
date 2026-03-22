@@ -106,6 +106,7 @@ class TASReplayTest {
         /** Available TAS scenarios: (display name, fm2 file, ram dump file). */
         val TAS_SCENARIOS: List<Triple<String, String, String>> = listOf(
             Triple("happylee-warps", "happylee-warps.fm2", "data/tas/fceux-full-ram.bin"),
+            Triple("happylee-warpless", "happylee-warpless.fm2", "data/tas/happylee-warpless-ram.bin"),
             Triple("smb-0-full-playthrough", "smb-0.fm2", "data/tas/smb-0-ram.bin"),
         )
     }

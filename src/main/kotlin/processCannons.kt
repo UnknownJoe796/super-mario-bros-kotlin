@@ -259,7 +259,7 @@ fun System.offscreenBoundsCheck() {
     } else {
         // For non-matching enemies: carry from last cpy #PiranhaPlant
         // enemyId < PiranhaPlant → carry CLEAR (bne branches, so we reach ExtendLB)
-        carry = if ((enemyId.toInt() and 0xFF) >= (EnemyId.PiranhaPlant.byte.toInt() and 0xFF)) 1 else 0
+        carry = if ((enemyId.toInt() and 0xFF) >= (EnemyId.PiranhaPlant.id)) 1 else 0
     }
     //> ExtendLB: sbc #$48      ;subtract 72 pixels regardless
     // SBC with carry: result = A - operand - (1 - carry)

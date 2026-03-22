@@ -438,7 +438,7 @@ fun System.initializeArea() {
     //> ldy AltEntranceControl   ;if AltEntranceControl not set, use halfway page, if any found
     //> beq StartPage
     //> lda EntrancePage         ;otherwise use saved entry page number here
-    val startPage: Byte = if (ram.altEntranceControl == 0.toByte()) ram.halfwayPage else ram.entrancePage
+    val startPage: Byte = if (ram.altEntranceControl == AltEntrance.NONE) ram.halfwayPage else ram.entrancePage
 
     //> StartPage:     sta ScreenLeft_PageLoc   ;set as value here
     //> sta CurrentPageLoc       ;also set as current page

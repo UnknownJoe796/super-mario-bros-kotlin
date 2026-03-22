@@ -82,7 +82,7 @@ fun System.getAreaMusic() {
     //> cmp #$02               ;if found, branch without checking starting position
     //> beq ChkAreaType        ;from area object data header
     var indexY: Byte = 0
-    if (ram.altEntranceControl != 0x02.toByte()) {
+    if (ram.altEntranceControl != AltEntrance.PIPE_DOOR) {
         //> ldy #$05               ;select music for pipe intro scene by default
         indexY = 0x05
         //> lda PlayerEntranceCtrl ;check value from level header for certain values
@@ -162,7 +162,7 @@ fun System.entranceGameTimerSetup() {
     //> beq SetStPos
     //> cpy #$01
     //> beq SetStPos
-    if (ram.altEntranceControl != 0x00.toByte() && ram.altEntranceControl != 0x01.toByte()) {
+    if (ram.altEntranceControl != AltEntrance.NONE && ram.altEntranceControl != AltEntrance.HALFWAY) {
         //> ldx AltYPosOffset-2,y       ;if not 0 or 1, override $0710 with new offset in X
         playerEntranceCtrl = AltYPosOffset[ram.altEntranceControl - 2]
     }

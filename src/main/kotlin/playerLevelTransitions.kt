@@ -34,7 +34,7 @@ fun System.playerEntrance() {
     //> lda AltEntranceControl    ;check for mode of alternate entry
     //> cmp #$02
     //> beq EntrMode2             ;if found, branch to enter from pipe or with vine
-    if (ram.altEntranceControl == 0x02.toByte()) {
+    if (ram.altEntranceControl == AltEntrance.PIPE_DOOR) {
         entrMode2()
         return
     }
@@ -162,7 +162,7 @@ private fun System.playerRdy() {
     ram.playerFacingDir = Direction.Left
     //> lsr                       ;init A (1 >> 1 = 0)
     //> sta AltEntranceControl    ;init mode of entry
-    ram.altEntranceControl = 0x00
+    ram.altEntranceControl = AltEntrance.NONE
     //> sta DisableCollisionDet   ;init collision detection disable flag
     ram.disableCollisionDet = false
     //> sta JoypadOverride        ;nullify controller override bits
@@ -311,7 +311,7 @@ fun System.vineAutoClimb() {
     }
     //> SetEntr:   lda #$02               ;set starting position to override
     //> sta AltEntranceControl
-    ram.altEntranceControl = 0x02
+    ram.altEntranceControl = AltEntrance.PIPE_DOOR
     //> jmp ChgAreaMode        ;set modes
     chgAreaMode()
 }

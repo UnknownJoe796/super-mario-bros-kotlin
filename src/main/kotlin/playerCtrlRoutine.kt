@@ -300,7 +300,7 @@ fun System.playerCtrlRoutine() {
 private fun System.setEntr() {
     //> SetEntr: lda #$02               ;set starting position to override
     //> sta AltEntranceControl
-    ram.altEntranceControl = 0x02
+    ram.altEntranceControl = AltEntrance.PIPE_DOOR
     //> jmp ChgAreaMode        ;set modes
     chgAreaMode()
 }
@@ -318,18 +318,20 @@ private fun System.playerMovementSubs() {
     //> lda #$00                  ;set A to init crouch flag by default
     //> ldy PlayerSize            ;is player small?
     //> bne SetCrouch             ;if so, branch
-    var crouchVal = false
-    if (ram.playerSize == PlayerSize.Big) {
+    if (ram.playerSize == PlayerSize.Small) {
+        //> SetCrouch: sta CrouchingFlag         ;store value in crouch flag
+        ram.crouchingFlag = false
+    } else {
         //> lda Player_State          ;check state of player
         //> bne ProcMove              ;if not on the ground, branch
         if (ram.playerState == PlayerState.OnGround) {
             //> lda Up_Down_Buttons       ;load controller bits for up and down
             //> and #%00000100            ;single out bit for down button
-            crouchVal = (ram.upDownButtons.toInt() and 0b00000100) != 0
+            //> SetCrouch: sta CrouchingFlag         ;store value in crouch flag
+            ram.crouchingFlag = (ram.upDownButtons.toInt() and 0b00000100) != 0
         }
+        // Big player not on ground: CrouchingFlag retains previous value (ProcMove skips store)
     }
-    //> SetCrouch: sta CrouchingFlag         ;store value in crouch flag
-    ram.crouchingFlag = crouchVal
 
     //> ProcMove: jsr PlayerPhysicsSub      ;run sub related to jumping and swimming
     playerPhysicsSub()
@@ -713,7 +715,7 @@ private fun System.checkForJumping() {
         jumpY = 5
         //> lda Whirlpool_Flag         ;if whirlpool flag not set, branch
         //> beq GetYPhy
-        if (ram.whirlpoolFlag != 0x00.toByte()) {
+        if (ram.whirlpoolFlag) {
             //> iny                        ;otherwise increment to 6
             jumpY = 6
         }
