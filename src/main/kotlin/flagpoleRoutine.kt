@@ -29,7 +29,7 @@ fun System.flagpoleRoutine() {
     //> lda GameEngineSubroutine
     //> cmp #$04                  ;if flagpole slide routine not running,
     //> bne SkipScore             ;branch to near the end of code
-    if (ram.gameEngineSubroutine != 4.toByte()) {
+    if (ram.gameEngineSubroutine != GameEngineRoutine.FlagpoleSlide) {
         flagpoleGfx(x)
         return
     }
@@ -102,7 +102,7 @@ private fun System.giveFlagpoleScore(x: Int) {
     addToScore()
     //> lda #$05
     //> sta GameEngineSubroutine  ;set to run end-of-level subroutine on next frame
-    ram.gameEngineSubroutine = 0x05
+    ram.gameEngineSubroutine = GameEngineRoutine.PlayerEndLevel
 
     //> FPGfx:
     flagpoleGfx(x)

@@ -111,7 +111,7 @@ fun System.continueGame() {
     //> sta PlayerStatus
     ram.playerStatus = 0x00.toByte()
     //> sta GameEngineSubroutine  ;reset task for game core
-    ram.gameEngineSubroutine = 0x00.toByte()
+    ram.gameEngineSubroutine = GameEngineRoutine.EntranceGameTimerSetup
     //> sta OperMode_Task         ;set modes and leave
     ram.operModeTask = 0x00.toByte()
     //> lda #$01                  ;if in game over mode, switch back to

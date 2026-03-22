@@ -107,7 +107,7 @@ fun System.playerCtrlRoutine() {
     //> lda GameEngineSubroutine    ;check task here
     //> cmp #$0b                    ;if certain value is set, branch to skip controller bit loading
     //> beq SizeChk
-    if (ram.gameEngineSubroutine != 0x0b.toByte()) {
+    if (ram.gameEngineSubroutine != GameEngineRoutine.PlayerDeath) {
         //> lda AreaType                ;are we in a water type area?
         //> bne SaveJoyp                ;if not, branch
         if (ram.areaType == 0x00.toByte()) {
@@ -214,8 +214,8 @@ fun System.playerCtrlRoutine() {
         //> beq PlayerHole
         //> cmp #$04                    ;if running routines $00-$03, branch ahead
         //> bcc PlayerHole
-        val ges = ram.gameEngineSubroutine.toInt() and 0xFF
-        if (ges != 0x05 && ges != 0x07 && ges >= 0x04) {
+        val ges = ram.gameEngineSubroutine
+        if (ges != GameEngineRoutine.PlayerEndLevel && ges != GameEngineRoutine.PlayerEntrance && ges.ordinal >= GameEngineRoutine.FlagpoleSlide.ordinal) {
             //> lda Player_SprAttrib
             //> and #%11011111              ;otherwise nullify player's
             //> sta Player_SprAttrib        ;background priority flag
@@ -250,7 +250,7 @@ fun System.playerCtrlRoutine() {
         //> ldy GameEngineSubroutine
         //> cpy #$0b                    ;check for some other routine running
         //> beq ChkHoleX                ;if so, branch ahead
-        if (ram.gameEngineSubroutine != 0x0b.toByte()) {
+        if (ram.gameEngineSubroutine != GameEngineRoutine.PlayerDeath) {
             //> ldy DeathMusicLoaded        ;check value here
             //> bne HoleBottom              ;if already set, branch to next part
             if (ram.deathMusicLoaded == 0x00.toByte()) {
@@ -291,7 +291,7 @@ fun System.playerCtrlRoutine() {
 
     //> lda #$06                    ;otherwise set to run lose life routine
     //> sta GameEngineSubroutine    ;on next frame
-    ram.gameEngineSubroutine = 0x06
+    ram.gameEngineSubroutine = GameEngineRoutine.PlayerLoseLife
     //> ExitCtrl: rts
 }
 
@@ -468,7 +468,7 @@ private fun System.lrAir() {
     //> lda GameEngineSubroutine
     //> cmp #$0b                   ;check for specific routine selected
     //> bne ExitMov1               ;branch if not set to run
-    if (ram.gameEngineSubroutine == 0x0b.toByte()) {
+    if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerDeath) {
         //> lda #$28
         //> sta VerticalForce          ;otherwise set fractional
         ram.verticalForce = 0x28
@@ -880,7 +880,7 @@ private fun System.xPhysics() {
     //> cmp #$07                   ;(player entrance)
     //> bne GetXPhy2               ;if not running, skip and use old value of Y
     var rightY = y
-    if (ram.gameEngineSubroutine == 0x07.toByte()) {
+    if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerEntrance) {
         //> ldy #$03                   ;otherwise set Y to 3
         rightY = 3
     }

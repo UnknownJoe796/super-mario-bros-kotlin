@@ -156,7 +156,7 @@ private fun System.vineEntr() {
 private fun System.playerRdy() {
     //> PlayerRdy:  lda #$08                  ;set routine to be executed by game engine next frame
     //> sta GameEngineSubroutine
-    ram.gameEngineSubroutine = 0x08
+    ram.gameEngineSubroutine = GameEngineRoutine.PlayerCtrlRoutine
     //> lda #$01                  ;set to face player to the right
     //> sta PlayerFacingDir
     ram.playerFacingDir = 0x01
@@ -184,7 +184,7 @@ fun System.flagpoleSlide() {
     //> bne NoFPObj              ;if not found, branch to something residual
     if (ram.enemyID[5] != Constants.FlagpoleFlagObject) {
         //> NoFPObj:     inc GameEngineSubroutine ;increment to next routine (this may
-        ram.gameEngineSubroutine++
+        ram.gameEngineSubroutine = ram.gameEngineSubroutine.next()
         //> rts                      ;be residual code)
         return
     }

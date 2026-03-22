@@ -1046,7 +1046,7 @@ fun System.playerEnemyCollision() {
     if (ram.enemyOffscrBitsMaskeds[x] != 0.toByte()) return
 
     //> lda GameEngineSubroutine; cmp #$08; bne NoPECol
-    if (ram.gameEngineSubroutine != 0x08.toByte()) return
+    if (ram.gameEngineSubroutine != GameEngineRoutine.PlayerCtrlRoutine) return
 
     //> lda Enemy_State,x; and #%00100000; bne NoPECol
     if ((ram.enemyState[x].toInt() and 0x20) != 0) return
@@ -1372,22 +1372,22 @@ private fun System.handlePowerUpCollision(x: Int) {
         //> UpToSuper: lda #$01; sta PlayerStatus
         ram.playerStatus = 1
         //> lda #$09 (subroutine value for super)
-        setPRout(0x09, 0x00)
+        setPRout(GameEngineRoutine.PlayerChangeSize, 0x00)
     } else if (playerStatus == 0x01) {
         //> lda #$02; sta PlayerStatus
         ram.playerStatus = 2
         //> jsr GetPlayerColors
         getPlayerColors()
         //> lda #$0c (subroutine value for fiery)
-        setPRout(0x0c, 0x00)
+        setPRout(GameEngineRoutine.PlayerFireFlower, 0x00)
     }
     // NoPUp: if playerStatus > 1, do nothing
 }
 
-private fun System.setPRout(engineSubroutine: Int, playerState: Int) {
+private fun System.setPRout(engineSubroutine: GameEngineRoutine, playerState: Int) {
     //> SetPRout:
     //> sta GameEngineSubroutine
-    ram.gameEngineSubroutine = engineSubroutine.toByte()
+    ram.gameEngineSubroutine = engineSubroutine
     //> sty Player_State
     ram.playerState = playerState.toByte()
     //> ldy #$ff; sty TimerControl
@@ -1412,10 +1412,9 @@ fun System.playerBGCollision() {
     //> lda DisableCollisionDet; bne ExPBGCol
     if (ram.disableCollisionDet != 0.toByte()) return
     //> lda GameEngineSubroutine; cmp #$0b; beq ExPBGCol
-    val geSubroutine = ram.gameEngineSubroutine.toInt() and 0xFF
-    if (geSubroutine == 0x0b) return
+    if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerDeath) return
     //> cmp #$04; bcc ExPBGCol
-    if (geSubroutine < 0x04) return
+    if (ram.gameEngineSubroutine.ordinal < GameEngineRoutine.FlagpoleSlide.ordinal) return
 
     //> lda #$01; ldy SwimmingFlag; bne SetPSte
     if (ram.swimmingFlag) {
@@ -1731,13 +1730,12 @@ private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult, sid
     }
 
     //> ChkGERtn: lda GameEngineSubroutine; cmp #$07; beq ExCSM
-    val geSub = ram.gameEngineSubroutine.toInt() and 0xFF
-    if (geSub == 0x07) return
+    if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerEntrance) return
     //> cmp #$08; bne ExCSM  — only set pipe entry when currently running PlayerCtrlRoutine
-    if (geSub != 0x08) return
+    if (ram.gameEngineSubroutine != GameEngineRoutine.PlayerCtrlRoutine) return
 
     //> lda #$02; sta GameEngineSubroutine
-    ram.gameEngineSubroutine = 0x02
+    ram.gameEngineSubroutine = GameEngineRoutine.SideExitPipeEntry
 }
 
 private fun System.stopPlayerMove(sideCounter: Int) {
@@ -1865,7 +1863,7 @@ private fun System.handleClimbing(metatile: Int, result: BlockBufferResult) {
         val playerY = ram.playerYPosition.toInt() and 0xFF
         if (playerY < 0x20) {
             //> lda #$01; sta GameEngineSubroutine
-            ram.gameEngineSubroutine = 0x01
+            ram.gameEngineSubroutine = GameEngineRoutine.VineAutoClimb
         }
         putPlayerOnVine(result)
     } else {
@@ -1875,8 +1873,7 @@ private fun System.handleClimbing(metatile: Int, result: BlockBufferResult) {
 
 private fun System.flagpoleCollision(metatile: Int) {
     //> FlagpoleCollision:
-    val geSub = ram.gameEngineSubroutine.toInt() and 0xFF
-    if (geSub == 0x05) {
+    if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerEndLevel) {
         // putPlayerOnVine path
         return
     }
@@ -1886,9 +1883,9 @@ private fun System.flagpoleCollision(metatile: Int) {
     //> inc ScrollLock
     ram.scrollLock = (ram.scrollLock + 1).toByte()
 
-    if (geSub == 0x04) {
+    if (ram.gameEngineSubroutine == GameEngineRoutine.FlagpoleSlide) {
         // already running flagpole slide
-        ram.gameEngineSubroutine = 0x04
+        ram.gameEngineSubroutine = GameEngineRoutine.FlagpoleSlide
         return
     }
 
@@ -1912,7 +1909,7 @@ private fun System.flagpoleCollision(metatile: Int) {
     //> MtchF: stx FlagpoleScore
     ram.flagpoleScore = scoreIdx.toByte()
     //> RunFR: lda #$04; sta GameEngineSubroutine
-    ram.gameEngineSubroutine = 0x04
+    ram.gameEngineSubroutine = GameEngineRoutine.FlagpoleSlide
 }
 
 private fun System.putPlayerOnVine(result: BlockBufferResult) {
@@ -1982,7 +1979,7 @@ private fun System.handlePipeEntry(rightFootMT: Int, leftFootMT: Int) {
     //> lda #$30; sta ChangeAreaTimer
     ram.changeAreaTimer = 0x30
     //> lda #$03; sta GameEngineSubroutine
-    ram.gameEngineSubroutine = 0x03
+    ram.gameEngineSubroutine = GameEngineRoutine.VerticalPipeEntry
     //> lda #Sfx_PipeDown_Injury; sta Square1SoundQueue
     ram.square1SoundQueue = Constants.Sfx_PipeDown_Injury
     //> lda #%00100000; sta Player_SprAttrib

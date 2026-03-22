@@ -40,33 +40,33 @@ fun System.gameRoutines() {
     //> GameRoutines:
     //> lda GameEngineSubroutine  ;run routine based on number
     //> jsr JumpEngine
-    when (ram.gameEngineSubroutine.toInt()) {
+    when (ram.gameEngineSubroutine) {
         //> .dw Entrance_GameTimerSetup
-        0 -> entranceGameTimerSetup()
+        GameEngineRoutine.EntranceGameTimerSetup -> entranceGameTimerSetup()
         //> .dw Vine_AutoClimb
-        1 -> vineAutoClimb()
+        GameEngineRoutine.VineAutoClimb -> vineAutoClimb()
         //> .dw SideExitPipeEntry
-        2 -> sideExitPipeEntry()
+        GameEngineRoutine.SideExitPipeEntry -> sideExitPipeEntry()
         //> .dw VerticalPipeEntry
-        3 -> verticalPipeEntry()
+        GameEngineRoutine.VerticalPipeEntry -> verticalPipeEntry()
         //> .dw FlagpoleSlide
-        4 -> flagpoleSlide()
+        GameEngineRoutine.FlagpoleSlide -> flagpoleSlide()
         //> .dw PlayerEndLevel
-        5 -> playerEndLevel()
+        GameEngineRoutine.PlayerEndLevel -> playerEndLevel()
         //> .dw PlayerLoseLife
-        6 -> playerLoseLife()
+        GameEngineRoutine.PlayerLoseLife -> playerLoseLife()
         //> .dw PlayerEntrance
-        7 -> playerEntrance()
+        GameEngineRoutine.PlayerEntrance -> playerEntrance()
         //> .dw PlayerCtrlRoutine
-        8 -> playerCtrlRoutine()
+        GameEngineRoutine.PlayerCtrlRoutine -> playerCtrlRoutine()
         //> .dw PlayerChangeSize
-        9 -> playerChangeSize()
+        GameEngineRoutine.PlayerChangeSize -> playerChangeSize()
         //> .dw PlayerInjuryBlink
-        10 -> playerInjuryBlink()
+        GameEngineRoutine.PlayerInjuryBlink -> playerInjuryBlink()
         //> .dw PlayerDeath
-        11 -> playerDeath()
+        GameEngineRoutine.PlayerDeath -> playerDeath()
         //> .dw PlayerFireFlower
-        12 -> playerFireFlower()
+        GameEngineRoutine.PlayerFireFlower -> playerFireFlower()
     }
 }
 
@@ -348,7 +348,7 @@ fun System.forceInjury() {
         ram.playerYSpeed = 0xFC.toByte()
         //> lda #$0b             ;set subroutine to run on next frame
         //> bne SetKRout         ;branch to set player's state and other things
-        ram.gameEngineSubroutine = 0x0b
+        ram.gameEngineSubroutine = GameEngineRoutine.PlayerDeath
         ram.playerState = 1
         ram.timerControl = 0xFF.toByte()
         ram.scrollAmount = 0
@@ -371,7 +371,7 @@ fun System.forceInjury() {
     //> ldy #$01                  ;set new player state
     //> SetPRout:
     //> sta GameEngineSubroutine  ;load new value to run subroutine on next frame
-    ram.gameEngineSubroutine = 0x0a
+    ram.gameEngineSubroutine = GameEngineRoutine.PlayerInjuryBlink
     //> sty Player_State          ;store new player state
     ram.playerState = 1
     //> ldy #$ff
@@ -396,10 +396,10 @@ fun System.runGameTimer() {
     //> lda GameEngineSubroutine
     //> cmp #$08                   ;if routine number less than eight running,
     //> bcc ExGTimer               ;branch to leave
-    if (ram.gameEngineSubroutine.toUByte() < 8u) return
+    if (ram.gameEngineSubroutine.ordinal < GameEngineRoutine.PlayerCtrlRoutine.ordinal) return
     //> cmp #$0b                   ;if running death routine,
     //> beq ExGTimer               ;branch to leave
-    if (ram.gameEngineSubroutine == 0x0b.toByte()) return
+    if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerDeath) return
     //> lda Player_Y_HighPos
     //> cmp #$02                   ;if player below the screen,
     //> bcs ExGTimer               ;branch to leave regardless of level type

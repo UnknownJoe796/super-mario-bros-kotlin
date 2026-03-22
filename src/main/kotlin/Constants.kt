@@ -118,3 +118,27 @@ object Constants {
 enum class OperMode {
     TitleScreen, Game, Victory, GameOver
 }
+
+/** Dispatch index into the GameRoutines jump table (RAM $0e). */
+enum class GameEngineRoutine {
+    EntranceGameTimerSetup,
+    VineAutoClimb,
+    SideExitPipeEntry,
+    VerticalPipeEntry,
+    FlagpoleSlide,
+    PlayerEndLevel,
+    PlayerLoseLife,
+    PlayerEntrance,
+    PlayerCtrlRoutine,
+    PlayerChangeSize,
+    PlayerInjuryBlink,
+    PlayerDeath,
+    PlayerFireFlower;
+
+    fun next(): GameEngineRoutine = entries[ordinal + 1]
+
+    companion object {
+        fun fromByte(b: Byte): GameEngineRoutine =
+            entries.getOrElse(b.toInt() and 0xFF) { entries.first() }
+    }
+}

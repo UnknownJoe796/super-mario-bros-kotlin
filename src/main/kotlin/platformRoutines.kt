@@ -487,7 +487,7 @@ fun System.positionPlayerOnVPlat(enemyOfs: Int = ram.objectOffset.toInt() and 0x
     //> ldy GameEngineSubroutine
     //> cpy #$0b                  ;if certain routine being executed on this frame,
     //> beq ExPlPos               ;skip all of this
-    if ((ram.gameEngineSubroutine.toInt() and 0xFF) == 0x0b) return
+    if (ram.gameEngineSubroutine == GameEngineRoutine.PlayerDeath) return
     //> ldy Enemy_Y_HighPos,x
     //> cpy #$01                  ;if vertical high byte offscreen, skip this
     //> bne ExPlPos

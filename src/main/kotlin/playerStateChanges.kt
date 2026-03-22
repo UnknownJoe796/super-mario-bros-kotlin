@@ -149,7 +149,7 @@ fun System.donePlayerTask() {
     ram.timerControl = 0
     //> lda #$08
     //> sta GameEngineSubroutine  ;set player control routine to run next frame
-    ram.gameEngineSubroutine = 0x08
+    ram.gameEngineSubroutine = GameEngineRoutine.PlayerCtrlRoutine
     //> rts                       ;leave
 }
 
