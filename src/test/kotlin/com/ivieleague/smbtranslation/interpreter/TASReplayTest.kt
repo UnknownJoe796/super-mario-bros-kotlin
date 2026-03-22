@@ -379,6 +379,9 @@ class TASReplayTest {
             // Enable enemy trace for specific frames (set to non-empty for debugging)
             val TRACE_FRAMES = emptySet<Int>()
             system.debugEnemyTrace = frame in TRACE_FRAMES
+            if (frame in TRACE_FRAMES && name == "happylee-warpless") {
+                println("[$name] FRAME $frame TRACE ENABLED")
+            }
 
             // Run full NMI (includes joypads, timers, PRNG, pause, AND operModeExecutionTree)
             var runError: Throwable? = null

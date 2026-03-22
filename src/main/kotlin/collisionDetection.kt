@@ -660,10 +660,6 @@ fun System.enemyTurnAround(x: Int) {
     //> sta Enemy_MovingDir,x
     val dir = ram.enemyMovingDirs[x].toInt() and 0xFF
     ram.enemyMovingDirs[x] = (dir xor 0x03).toByte()
-    if (debugEnemyTrace) {
-        println("[EnemyTurnAround-RXSpd] slot=$x speed=${speed.toInt() and 0xFF}->${ram.sprObjXSpeed[x+1].toInt() and 0xFF} dir=$dir->${dir xor 0x03}")
-        Thread.currentThread().stackTrace.take(8).drop(1).forEach { println("  at $it") }
-    }
 }
 
 // =====================================================================
