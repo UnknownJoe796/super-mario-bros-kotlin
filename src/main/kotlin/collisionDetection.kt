@@ -92,11 +92,15 @@ private val flagpoleYPosData = byteArrayOf(0x18, 0x22, 0x50, 0x68, 0x90.toByte()
 
 //> ClimbXPosAdder:
 //>       .db $f9, $07
-private val climbXPosAdder = byteArrayOf(0xf9.toByte(), 0x07)
+// NES accesses via ClimbXPosAdder-1,y (1-indexed by PlayerFacingDir).
+// Prepend the ROM underflow byte ($8A at $DE24) so facingDir=0 reads
+// the same byte the NES would. Index with [facingDir] directly.
+private val climbXPosAdder = byteArrayOf(0x8a.toByte(), 0xf9.toByte(), 0x07)
 
 //> ClimbPLocAdder:
 //>       .db $ff, $00
-private val climbPLocAdder = byteArrayOf(0xff.toByte(), 0x00)
+// Same pattern: prepend ROM underflow byte ($07 at $DE26).
+private val climbPLocAdder = byteArrayOf(0x07, 0xff.toByte(), 0x00)
 
 //> BlockBuffer_X_Adder:
 private val blockBufferXAdder = byteArrayOf(
@@ -825,7 +829,12 @@ fun System.fireballEnemyCollision() {
 private fun System.handleEnemyFBallCol(enemyIdx: Int) {
     //> HandleEnemyFBallCol:
     //> jsr RelativeEnemyPosition
+    // NES has X = enemy index here (loaded from $01 before the call).
+    // RelativeEnemyPosition reads objectOffset, so temporarily set it.
+    val savedOfs = ram.objectOffset
+    ram.objectOffset = enemyIdx.toByte()
     relativeEnemyPosition()
+    ram.objectOffset = savedOfs
 
     //> ldx $01  ;get current enemy object offset
     val x = enemyIdx
@@ -898,8 +907,11 @@ private fun System.hurtBowser(bowserIdx: Int, enemyIdx: Int) {
     ram.square2SoundQueue = Constants.Sfx_BowserFall
     //> ldx $01  ;get enemy offset
     //> lda #$09  ;award 5000 points
+    // NES loads X from $01 for SetupFloateyNumber but does NOT write to ObjectOffset.
+    val savedOfs = ram.objectOffset
     ram.objectOffset = enemyIdx.toByte()
     setupFloateyNumber(0x09)
+    ram.objectOffset = savedOfs
     //> EnemySmackScore: (falls through)
     ram.square1SoundQueue = Constants.Sfx_EnemySmack
 }
@@ -2016,8 +2028,7 @@ private fun System.putPlayerOnVine(result: BlockBufferResult) {
     // The assembly multiplies it by 16 and adds an adder based on facing direction.
     // This positions the player horizontally on the vine/flagpole.
     val shiftedBBLow = (bbLow shl 4) and 0xFF
-    // NES: ClimbXPosAdder-1,y — when Y=0, reads ROM $DE24=$8A (byte before table)
-    val xPosAdder = climbXPosAdder.getOrElse(facingDir - 1) { 0x8A.toByte() }.toInt()
+    val xPosAdder = climbXPosAdder[facingDir].toInt()
     //> clc; adc ClimbXPosAdder-1,y; sta Player_X_Position
     // by Claude - use named scalar, not flat array (coherence fix)
     ram.playerXPosition = ((shiftedBBLow + xPosAdder) and 0xFF).toUByte()
@@ -2028,8 +2039,7 @@ private fun System.putPlayerOnVine(result: BlockBufferResult) {
 
     //> lda ScreenRight_PageLoc; clc; adc ClimbPLocAdder-1,y; sta Player_PageLoc
     val pageLoc = ram.screenRightPageLoc.toInt() and 0xFF
-    // NES: ClimbPLocAdder-1,y — when Y=0 (facingDir=None), reads byte before table = $07 (last of ClimbXPosAdder)
-    val pageAdder = climbPLocAdder.getOrElse(facingDir - 1) { 0x07.toByte() }.toInt()
+    val pageAdder = climbPLocAdder[facingDir].toInt()
     ram.playerPageLoc = ((pageLoc + pageAdder) and 0xFF).toByte()
 }
 

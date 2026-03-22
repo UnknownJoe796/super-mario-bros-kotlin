@@ -564,21 +564,30 @@ object SoundData {
     // Envelope data tables (used by sound engine for volume/duty cycling)
     // -----------------------------------------------------------------------
 
-    //> EndOfCastleMusicEnvData:
-    // Extended: indices 4-7 overflow into AreaMusicEnvData on NES ROM
-    val endOfCastleMusicEnvData = intArrayOf(0x98, 0x99, 0x9A, 0x9B, 0x90, 0x94, 0x94, 0x95)
-
-    //> AreaMusicEnvData:
-    val areaMusicEnvData = intArrayOf(0x90, 0x94, 0x94, 0x95, 0x95, 0x96, 0x97, 0x98)
-
-    //> WaterEventMusEnvData:
-    val waterEventMusEnvData = intArrayOf(
+    // These three envelope tables are contiguous in ROM ($FF96).
+    // On the NES, overflow reads from one table bleed into the next.
+    // A single backing array ensures overflow reads produce correct ROM bytes.
+    private val musicEnvDataRom = intArrayOf(
+        //> EndOfCastleMusicEnvData: (offset 0)
+        0x98, 0x99, 0x9A, 0x9B,
+        //> AreaMusicEnvData: (offset 4)
+        0x90, 0x94, 0x94, 0x95, 0x95, 0x96, 0x97, 0x98,
+        //> WaterEventMusEnvData: (offset 12)
         0x90, 0x91, 0x92, 0x92, 0x93, 0x93, 0x93, 0x94,
         0x94, 0x94, 0x94, 0x94, 0x94, 0x95, 0x95, 0x95,
         0x95, 0x95, 0x95, 0x96, 0x96, 0x96, 0x96, 0x96,
         0x96, 0x96, 0x96, 0x96, 0x96, 0x96, 0x96, 0x96,
         0x96, 0x96, 0x96, 0x96, 0x95, 0x95, 0x94, 0x93
     )
+
+    //> EndOfCastleMusicEnvData:
+    val endOfCastleMusicEnvData = musicEnvDataRom  // overflow reads into AreaMusic/Water data
+
+    //> AreaMusicEnvData:
+    val areaMusicEnvData = IntArray(8) { musicEnvDataRom[4 + it] }
+
+    //> WaterEventMusEnvData:
+    val waterEventMusEnvData = IntArray(40) { musicEnvDataRom[12 + it] }
 
     //> BowserFlameEnvData:
     val bowserFlameEnvData = intArrayOf(
