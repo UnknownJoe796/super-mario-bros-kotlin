@@ -451,7 +451,7 @@ fun System.runGameTimer() {
     //> sta DigitModifier+5
     ram.digitModifier[5] = 0xFF.toByte()
     //> jsr DigitsMathRoutine      ;do sub to decrement game timer slowly
-    digitsMathRoutine()
+    digitsMathRoutine(ram.gameTimerDisplay)
     //> lda #$a4                   ;set status nybbles to update game timer display
     //> jmp PrintStatusBarNumbers  ;do sub to update the display
     printStatusBarNumbers(0xa4.toByte())

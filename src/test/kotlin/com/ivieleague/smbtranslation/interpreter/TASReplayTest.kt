@@ -87,9 +87,9 @@ class TASReplayTest {
             add(0x779)                              // mirrorPPUCTRLREG2
             // Joypad bit mask — internal counter during readJoypads serial read
             add(0x74a)                              // joypadBitMask
-            // Game timer display — consistently 1 frame ahead due to NMI ordering
-            // (runGameTimer runs at slightly different point in NMI sequence)
-            addAll(0x7F8..0x7FA)                    // gameTimerDisplay[0..2]
+            // Game timer display — was excluded due to digitsMathRoutine() bug (parameterless
+            // overload never decremented timer); now fixed, so we validate these addresses.
+            // addAll(0x7F8..0x7FA)                 // gameTimerDisplay[0..2] — no longer excluded
             // Area parser scratch — transient workspace filled and consumed within same frame
             addAll(0x6A1..0x6AD)                    // metatileBuffer (filled by areaParserCore, consumed by renderAreaGraphics)
             add(0x735)                              // areaObjectHeight
