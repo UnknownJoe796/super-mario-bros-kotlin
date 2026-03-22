@@ -164,30 +164,34 @@ fun System.digitsMathRoutine(displayDigits: ByteArray, startIndex: Int = display
         val addAmount = ram.digitModifier[x].toInt()
         //> clc
         //> adc DisplayDigits,y       ;add to current digit
-        var result = (displayDigits[y]) + addAmount
-        //> bmi BorrowOne             ;if result is a negative number, branch to subtract
-        if (result < 0) {
-            //> BorrowOne:  dec DigitModifier-1,x     ;decrement the previous digit, then put $09 in
-            if (x > 0) ram.digitModifier[x - 1] = (ram.digitModifier[x - 1] - 1).toByte()
-            //> lda #$09                  ;the game timer digit we're currently on to "borrow
-            //> bne StoreNewD             ;the one", then do an unconditional branch back
-            result = 9
-        } else {
-            //> cmp #10
-            //> bcs CarryOne              ;if digit greater than $09, branch to add
-            if (result >= 10) {
-                //> CarryOne:   sec                       ;subtract ten from our digit to make it a
-                //> sbc #10                   ;proper BCD number, then increment the digit
-                result -= 10
-                //> inc DigitModifier-1,x     ;preceding current digit to "carry the one" properly
-                if (x > 0) ram.digitModifier[x - 1] = (ram.digitModifier[x - 1] + 1).toByte()
-                //> jmp StoreNewD             ;go back to just after we branched here
+        // When y is out of bounds, the NES reads/writes an adjacent byte in the flat
+        // DisplayDigits region. For typed Kotlin arrays (coinDisplay, etc.) this is a
+        // different field. We skip the access; the carry/borrow to digitModifier still
+        // propagates, but the store is dropped (matching NES behavior for unused bytes).
+        if (y in displayDigits.indices) {
+            var result = (displayDigits[y]) + addAmount
+            //> bmi BorrowOne             ;if result is a negative number, branch to subtract
+            if (result < 0) {
+                //> BorrowOne:  dec DigitModifier-1,x
+                if (x > 0) ram.digitModifier[x - 1] = (ram.digitModifier[x - 1] - 1).toByte()
+                //> lda #$09
+                //> bne StoreNewD
+                result = 9
+            } else {
+                //> cmp #10
+                //> bcs CarryOne
+                if (result >= 10) {
+                    //> CarryOne:   sec; sbc #10
+                    result -= 10
+                    //> inc DigitModifier-1,x
+                    if (x > 0) ram.digitModifier[x - 1] = (ram.digitModifier[x - 1] + 1).toByte()
+                }
             }
+            //> StoreNewD:  sta DisplayDigits,y
+            displayDigits[y] = result.toByte()
         }
-        //> StoreNewD:  sta DisplayDigits,y       ;store as new score or game timer digit
-        displayDigits[y] = result.toByte()
         //> dey                       ;move onto next digits in score or game timer
-        y = (y - 1).coerceAtLeast(0)
+        y--
         //> dex                       ;and digit amounts to increment
         // loop variable 'x' handled by for
         //> bpl AddModLoop            ;loop back if we're not done yet
