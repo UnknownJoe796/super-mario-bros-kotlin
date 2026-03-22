@@ -379,9 +379,6 @@ class TASReplayTest {
             // Enable enemy trace for specific frames (set to non-empty for debugging)
             val TRACE_FRAMES = emptySet<Int>()
             system.debugEnemyTrace = frame in TRACE_FRAMES
-            if (frame in TRACE_FRAMES && name == "happylee-warpless") {
-                println("[$name] FRAME $frame: fbState0=${system.ram.fireballStates[0]} fbState1=${system.ram.fireballStates[1]} fbSpd7=${system.ram.sprObjXSpeed[7].toInt() and 0xFF} fbSpd8=${system.ram.sprObjXSpeed[8].toInt() and 0xFF} facingDir=${system.ram.playerFacingDir} bBtn=${system.inputs.joypadPort1.b} status=${system.ram.playerStatus} offscrBits2=${system.ram.offscrBits[2].toInt() and 0xFF}")
-            }
 
             // Run full NMI (includes joypads, timers, PRNG, pause, AND operModeExecutionTree)
             var runError: Throwable? = null
