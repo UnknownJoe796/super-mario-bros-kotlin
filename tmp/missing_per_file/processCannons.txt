@@ -1,0 +1,16 @@
+# Missing ASM lines for processCannons.kt
+# 5 lines to add
+
+
+--- Near CannonBitmasks ---
+  ASM  6761 [db_directive  ]: .db %00001111, %00000111
+
+--- Near ThreeSChk ---
+  ASM  6782 [instruction   ]: jmp Chk_BB                  ;then jump ahead to check enemy
+
+--- Near KillBB ---
+  ASM  6861 [label         ]: KillBB:    jsr EraseEnemyObject      ;kill bullet bill and leave
+
+--- Near ExScrnBd ---
+  ASM 11054 [comment       ]: ;some unused space
+  ASM 11058 [comment       ]: ;$01 - enemy buffer offset

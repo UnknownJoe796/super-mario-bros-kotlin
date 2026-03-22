@@ -1,0 +1,39 @@
+# Missing ASM lines for drawRoutines.kt
+# 16 lines to add
+
+
+--- Near DumpSixSpr ---
+  ASM 13313 [label         ]: DumpSixSpr:
+  ASM 13314 [instruction   ]: sta Sprite_Data+20,y      ;dump A contents
+
+--- Near DumpFourSpr ---
+  ASM 13317 [label         ]: DumpFourSpr:
+  ASM 13318 [instruction   ]: sta Sprite_Data+12,y      ;into second row sprites
+
+--- Near DumpThreeSpr ---
+  ASM 13320 [label         ]: DumpThreeSpr:
+  ASM 13321 [instruction   ]: sta Sprite_Data+8,y
+
+--- Near DumpTwoSpr ---
+  ASM 13323 [label         ]: DumpTwoSpr:
+  ASM 13324 [instruction   ]: sta Sprite_Data+4,y       ;and into first row sprites
+
+--- Near ExitDumpSpr ---
+  ASM 13327 [label         ]: ExitDumpSpr:
+
+--- Near DrawOneSpriteRow ---
+  ASM 14068 [label         ]: DrawOneSpriteRow:
+  ASM 14070 [instruction   ]: jmp DrawSpriteObject        ;draw them
+
+--- Near ExDBlk ---
+  ASM 14160 [comment       ]: ;$00 - used to hold palette bits for attribute byte or relative X position
+
+--- Near DrawFirebar ---
+  ASM 14248 [instruction   ]: bcc FireA                ;if last bit shifted out was not set, skip this
+
+--- Near ExDBub ---
+  ASM 14391 [comment       ]: ;$00 - used to store player's vertical offscreen bits
+
+--- Near DrawSpriteObject ---
+  ASM 15005 [instruction   ]: bcc NoHFlip                ;if d1 not set, branch
+  ASM 15010 [instruction   ]: bne SetHFAt                ;and unconditionally branch

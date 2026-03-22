@@ -1,0 +1,10 @@
+# Missing ASM lines for gravity.kt
+# 3 lines to add
+
+
+--- Near MaxSpdBlockData ---
+  ASM  7653 [label         ]: MaxSpdBlockData:
+  ASM  7654 [db_directive  ]: .db $06, $08
+
+--- Near ChkUpM ---
+  ASM  7739 [instruction   ]: eor #%11111111               ;otherwise get two's compliment of maximum speed

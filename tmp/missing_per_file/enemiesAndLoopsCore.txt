@@ -1,0 +1,80 @@
+# Missing ASM lines for enemiesAndLoopsCore.kt
+# 31 lines to add
+
+
+--- Near NextVO ---
+  ASM  6699 [comment       ]: ;$06-$07 - used as address to block buffer data
+  ASM  6700 [comment       ]: ;$02 - used as vertical high nybble of block buffer offset
+
+--- Near ExitELCore ---
+  ASM  7786 [comment       ]: ;loop command data
+
+--- Near InitMLp ---
+  ASM  7864 [instruction   ]: sta MultiLoopPassCntr
+  ASM  7865 [instruction   ]: sta MultiLoopCorrectCntr
+
+--- Near ChkEnemyFrenzy ---
+  ASM  7883 [comment       ]: ;$06 - used to hold page location of extended right boundary
+  ASM  7884 [comment       ]: ;$07 - used to hold high nybble of position of extended right boundary
+
+--- Near PositionEnemyObj ---
+  ASM  7942 [label         ]: PositionEnemyObj:
+
+--- Near InitEnemyRoutines ---
+  ASM  8070 [comment       ]: ;jump engine table for newly loaded enemy objects
+
+--- Near NoInitCode ---
+  ASM  8133 [label         ]: NoInitCode:
+
+--- Near KillLakitu ---
+  ASM  8268 [comment       ]: ;$01-$03 - used to hold pseudorandom difference adjusters
+
+--- Near ExLSHand ---
+  ASM  8306 [label         ]: ExLSHand: rts
+
+--- Near CreateSpiny ---
+  ASM  8310 [label         ]: CreateSpiny:
+
+--- Near DifLoop ---
+  ASM  8330 [label         ]: DifLoop:  lda PRDiffAdjustData,y     ;get three values and save them
+  ASM  8346 [instruction   ]: beq UsePosv                ;branch if neither bits are set
+  ASM  8348 [instruction   ]: eor #%11111111             ;otherwise get two's compliment of Y
+
+--- Near ChpChpEx ---
+  ASM  8365 [label         ]: ChpChpEx: rts
+
+--- Near InitShortFirebar ---
+  ASM  8403 [comment       ]: ;$00-$01 - used to hold pseudorandom bits
+
+--- Near FlmEx ---
+  ASM  8544 [label         ]: FlmEx:  rts                     ;and then leave
+
+--- Near SpawnFromMouth ---
+  ASM  8590 [label         ]: SpawnFromMouth:
+
+--- Near StarFChk ---
+  ASM  8641 [label         ]: StarFChk: dey
+
+--- Near ExitFWk ---
+  ASM  8672 [label         ]: ExitFWk:  rts
+
+--- Near Set17ID ---
+  ASM  8705 [label         ]: Set17ID: sta Enemy_ID,x            ;store whatever's in A as enemy identifier
+
+--- Near DoBulletBills ---
+  ASM  8730 [label         ]: DoBulletBills:
+
+--- Near ExF17 ---
+  ASM  8740 [label         ]: ExF17:    rts                        ;if found, leave
+
+--- Near FireBulletBill ---
+  ASM  8750 [comment       ]: ;$00 - used to store Y position of group enemies
+  ASM  8751 [comment       ]: ;$01 - used to store enemy ID
+  ASM  8752 [comment       ]: ;$02 - used to store page location of right side of screen
+  ASM  8753 [comment       ]: ;$03 - used to store X position of right side of screen
+
+--- Near InitEnemyFrenzy ---
+  ASM  8837 [comment       ]: ;frenzy object jump table
+
+--- Near NoFrenzyCode ---
+  ASM  8847 [label         ]: NoFrenzyCode:

@@ -1,0 +1,135 @@
+# Missing ASM lines for collisionDetection.kt
+# 62 lines to add
+
+
+--- Near NotGoomba ---
+  ASM 11095 [label         ]: NotGoomba: lda EnemyOffscrBitsMasked,x ;if any masked offscreen bits set,
+
+--- Near NoFToECol ---
+  ASM 11110 [label         ]: NoFToECol: pla                         ;pull fireball offset from stack
+  ASM 11114 [instruction   ]: bpl FireballEnemyCDLoop     ;loop back until collision detection done on all enemies
+
+--- Near ExHCF ---
+  ASM 11199 [label         ]: ExHCF: rts                      ;and now let's leave
+
+--- Near ExPHC ---
+  ASM 11233 [label         ]: ExPHC:  rts
+
+--- Near Shroom_Flower_PUp ---
+  ASM 11256 [instruction   ]: beq UpToSuper
+  ASM 11258 [instruction   ]: bne NoPUp
+  ASM 11265 [instruction   ]: jmp UpToFiery       ;jump to set values accordingly
+
+--- Near NoPUp ---
+  ASM 11280 [label         ]: NoPUp: rts
+
+--- Near EnemyStompedPts ---
+  ASM 11466 [instruction   ]: lda StompedEnemyPtsData,y  ;load points data using offset in Y
+
+--- Near ChkForDemoteKoopa ---
+  ASM 11494 [instruction   ]: jmp SBnce                  ;then move onto something else
+
+--- Near SetPSte ---
+  ASM 11918 [label         ]: SetPSte:  sta Player_State          ;set whatever player state is appropriate
+
+--- Near ExPBGCol ---
+  ASM 11927 [label         ]: ExPBGCol: rts                       ;otherwise leave
+
+--- Near HeadChk ---
+  ASM 11965 [instruction   ]: jmp DoFootCheck             ;jump ahead to skip these other parts here
+
+--- Near DoFootCheck ---
+  ASM 11988 [instruction   ]: bne ChkFootMTile           ;if anything here, skip this part
+
+--- Near AwardTouchedCoin ---
+  ASM 11994 [label         ]: AwardTouchedCoin:
+  ASM 11995 [instruction   ]: jmp HandleCoinMetatile     ;follow the code to erase coin and award to player 1 coin
+
+--- Near ChkGERtn ---
+  ASM 12111 [comment       ]: ;$02 - high nybble of vertical coordinate from block buffer
+  ASM 12112 [comment       ]: ;$04 - low nybble of horizontal coordinate from block buffer
+  ASM 12113 [comment       ]: ;$06-$07 - block buffer address
+
+--- Near ExCSM ---
+  ASM 12117 [label         ]: ExCSM: rts                       ;leave
+
+--- Near ErACM ---
+  ASM 12140 [comment       ]: ;$02 - high nybble of vertical coordinate from block buffer
+  ASM 12141 [comment       ]: ;$04 - low nybble of horizontal coordinate from block buffer
+  ASM 12142 [comment       ]: ;$06-$07 - block buffer address
+
+--- Near ExHC ---
+  ASM 12159 [label         ]: ExHC: rts                ;leave if too far left or too far right
+
+--- Near ChkForFlagpole ---
+  ASM 12163 [instruction   ]: beq FlagpoleCollision  ;branch if flagpole ball found
+  ASM 12165 [instruction   ]: bne VineCollision      ;branch to alternate code if flagpole shaft not found
+
+--- Near FlagpoleCollision ---
+  ASM 12170 [instruction   ]: beq PutPlayerOnVine       ;if running, branch to end of climbing code
+  ASM 12176 [instruction   ]: beq RunFR                 ;if running, branch to end of flagpole code here
+
+--- Near ChkFlagpoleYPosLoop ---
+  ASM 12188 [instruction   ]: cmp FlagpoleYPosData,x    ;compare with current vertical coordinate data
+  ASM 12189 [instruction   ]: bcs MtchF                 ;if player's => current, branch to use current offset
+  ASM 12191 [instruction   ]: bne ChkFlagpoleYPosLoop   ;do this until all data is checked (use last one if all checked)
+
+--- Near VineCollision ---
+  ASM 12199 [instruction   ]: bne PutPlayerOnVine
+  ASM 12202 [instruction   ]: bcs PutPlayerOnVine       ;branch if not that far up
+
+--- Near PutPlayerOnVine ---
+  ASM 12216 [instruction   ]: bcs SetVXPl             ;if 16 or more pixels difference, do not alter facing direction
+
+--- Near ExPVne ---
+  ASM 12234 [label         ]: ExPVne:  rts                     ;finally, we're done!
+
+--- Near ExCInvT ---
+  ASM 12245 [comment       ]: ;$00-$01 - used to hold bottom right and bottom left metatiles (in that order)
+  ASM 12246 [comment       ]: ;$00 - used as flag by ImpedePlayerMove to restrict specific movement
+
+--- Near ChkForLandJumpSpring ---
+  ASM 12250 [instruction   ]: bcc ExCJSp                  ;if carry not set, jumpspring not found, therefore leave
+
+--- Near ChkJumpspringMetatiles ---
+  ASM 12266 [instruction   ]: bne NoJSFnd   ;branch to use cleared carry if not found
+
+--- Near JSFnd ---
+  ASM 12267 [label         ]: JSFnd:   sec           ;set carry if found
+
+--- Near ExPipeE ---
+  ASM 12316 [label         ]: ExPipeE: rts                       ;leave!!!
+
+--- Near ChkBBill ---
+  ASM 12486 [instruction   ]: beq NoCDirF
+  ASM 12488 [instruction   ]: beq NoCDirF                ;branch if either found, direction does not change
+
+--- Near ChkForNonSolids ---
+  ASM 12714 [instruction   ]: beq NSFnd
+  ASM 12716 [instruction   ]: beq NSFnd
+  ASM 12718 [instruction   ]: beq NSFnd
+  ASM 12720 [instruction   ]: beq NSFnd
+
+--- Near InitFireballExplode ---
+  ASM 12760 [comment       ]: ;$00 - used to hold one of bitmasks, or offset
+  ASM 12761 [comment       ]: ;$01 - used for relative X coordinate, also used to store middle screen page location
+  ASM 12762 [comment       ]: ;$02 - used for relative Y coordinate, also used to store middle screen coordinate
+
+--- Near CollisionFound ---
+  ASM 12982 [label         ]: CollisionFound:
+  ASM 12986 [instruction   ]: bpl CollisionCoreLoop  ;if counter not expired, branch to loop
+  ASM 12992 [comment       ]: ;$02 - modified y coordinate
+  ASM 12993 [comment       ]: ;$03 - stores metatile involved in block buffer collisions
+  ASM 12994 [comment       ]: ;$04 - comes in with offset to block buffer adder data, goes out with low nybble x/y coordinate
+  ASM 12995 [comment       ]: ;$05 - modified x coordinate
+  ASM 12996 [comment       ]: ;$06-$07 - block buffer address
+
+--- Near BlockBufferChk_Enemy ---
+  ASM 13005 [instruction   ]: jmp BBChk_E
+
+--- Near BlockBufferCollision ---
+  ASM 13055 [instruction   ]: sty $04                     ;save contents of Y here
+  ASM 13085 [instruction   ]: jmp RetYC                   ;and jump
+
+--- Near SOfs ---
+  ASM 14354 [label         ]: SOfs:  pla                         ;move out and back into stack

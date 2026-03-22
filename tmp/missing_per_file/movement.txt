@@ -1,0 +1,12 @@
+# Missing ASM lines for movement.kt
+# 5 lines to add
+
+
+--- Near MoveObjectHorizontally ---
+  ASM  7542 [instruction   ]: lda SprObject_X_Speed,x     ;get currently saved value (horizontal
+  ASM  7548 [instruction   ]: lda SprObject_X_Speed,x     ;get saved value again
+
+--- Near ExXMove ---
+  ASM  7582 [comment       ]: ;$00 - used for downward force
+  ASM  7583 [comment       ]: ;$01 - used for upward force
+  ASM  7584 [comment       ]: ;$02 - used for maximum vertical speed

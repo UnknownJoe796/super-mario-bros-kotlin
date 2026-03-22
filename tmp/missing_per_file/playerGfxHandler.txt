@@ -1,0 +1,25 @@
+# Missing ASM lines for playerGfxHandler.kt
+# 14 lines to add
+
+
+--- Near PIntLoop ---
+  ASM 14554 [comment       ]: ;$00-$01 - used to hold tile numbers, $00 also used to hold upper extent of animation frames
+  ASM 14556 [comment       ]: ;$03 - facing direction, used as horizontal flip control
+  ASM 14557 [comment       ]: ;$04 - attributes
+  ASM 14558 [comment       ]: ;$05 - horizontal position
+  ASM 14559 [comment       ]: ;$07 - number of rows to draw
+  ASM 14560 [comment       ]: ;these also used in IntermediatePlayerData
+
+--- Near SzOfs ---
+  ASM 14687 [label         ]: SzOfs:  rts             ;go back
+
+--- Near ChkForPlayerAttrib ---
+  ASM 14733 [instruction   ]: lda PlayerGfxOffset         ;get graphics table offset
+  ASM 14735 [instruction   ]: beq C_S_IGAtt               ;if crouch offset, either standing offset,
+  ASM 14736 [instruction   ]: cmp #$b8                    ;or intermediate growing offset,
+  ASM 14737 [instruction   ]: beq C_S_IGAtt               ;go ahead and execute code to change
+  ASM 14739 [instruction   ]: beq C_S_IGAtt
+  ASM 14741 [instruction   ]: bne ExPlyrAt                ;if none of these, branch to leave
+
+--- Near ExPlyrAt ---
+  ASM 14759 [comment       ]: ;$00 - used in adding to get proper offset

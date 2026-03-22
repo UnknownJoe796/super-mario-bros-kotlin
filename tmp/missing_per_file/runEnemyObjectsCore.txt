@@ -1,0 +1,199 @@
+# Missing ASM lines for runEnemyObjectsCore.kt
+# 102 lines to add
+
+
+--- Near MoveRedPTroopaDown ---
+  ASM  7613 [instruction   ]: jmp MoveRedPTroopa  ;skip to movement routine
+
+--- Near RedPTroopaGrav ---
+  ASM  7694 [label         ]: RedPTroopaGrav:
+  ASM  7700 [comment       ]: ;$00 - used for downward force
+  ASM  7701 [comment       ]: ;$01 - used for upward force
+  ASM  7702 [comment       ]: ;$07 - used as adder for vertical position
+
+--- Near MovePodoboo ---
+  ASM  9190 [instruction   ]: jsr InitPodoboo            ;otherwise set up podoboo again
+
+--- Near PdbM ---
+  ASM  9202 [comment       ]: ;$00 - used in HammerBroJumpCode as bitmask
+
+--- Near ProcHammerBro ---
+  ASM  9216 [instruction   ]: beq ChkJH                  ;if not set, go ahead with code
+  ASM  9217 [instruction   ]: jmp MoveDefeatedEnemy      ;otherwise jump to something else
+
+--- Near HammerBroJumpCode ---
+  ASM  9250 [instruction   ]: bmi SetHJ                   ;if on the bottom half of the screen, use current speed
+  ASM  9251 [instruction   ]: ldy #$fd                    ;otherwise set alternate vertical speed
+  ASM  9254 [instruction   ]: bcc SetHJ                   ;if above the middle of the screen, use current speed and $01
+  ASM  9258 [instruction   ]: bne SetHJ                   ;if d0 of LSFR set, branch and use current speed and $00
+
+--- Near Shimmy ---
+  ASM  9282 [label         ]: Shimmy:  sty Enemy_X_Speed,x       ;store horizontal speed
+  ASM  9285 [instruction   ]: bmi SetShim               ;if enemy to the left of player, skip this part
+  ASM  9288 [instruction   ]: bne SetShim               ;if not yet expired, skip to set moving direction
+
+--- Near ProcMoveRedPTroopa ---
+  ASM  9383 [instruction   ]: cmp RedPTroopaOrigXPos,x
+  ASM  9384 [instruction   ]: bcs MoveRedPTUpOrDown       ;if current => original, skip ahead to more code
+  ASM  9387 [instruction   ]: bne NoIncPT                 ;if any bits set, branch to leave
+
+--- Near MoveRedPTUpOrDown ---
+  ASM  9393 [instruction   ]: cmp RedPTroopaCenterYPos,x
+  ASM  9394 [instruction   ]: bcc MovPTDwn                ;if current < central, jump to move downwards
+  ASM  9395 [instruction   ]: jmp MoveRedPTroopaUp        ;otherwise jump to move upwards
+
+--- Near MoveFlyGreenPTroopa ---
+  ASM  9408 [instruction   ]: bne NoMGPT                 ;branch to leave if set to move up/down every fourth frame
+  ASM  9411 [instruction   ]: bne YSway                  ;branch to move green paratroopa down if set
+
+--- Near XMoveCntr_GreenPTroopa ---
+  ASM  9420 [label         ]: XMoveCntr_GreenPTroopa:
+  ASM  9421 [instruction   ]: lda #$13                    ;load preset maximum value for secondary counter
+
+--- Near MoveBloober ---
+  ASM  9478 [instruction   ]: bcc FBLeft                 ;if not, branch to figure out moving direction
+  ASM  9479 [instruction   ]: ldy Player_MovingDir       ;otherwise, load player's moving direction and
+  ASM  9480 [instruction   ]: bcs SBMDir                 ;do an unconditional branch to set
+
+--- Near BlooberSwim ---
+  ASM  9488 [instruction   ]: jsr ProcSwimmingB        ;execute sub to make bloober swim characteristically
+  ASM  9491 [instruction   ]: sbc Enemy_Y_MoveForce,x  ;subtract movement force
+  ASM  9493 [instruction   ]: bcc SwimX                ;if so, don't do it
+
+--- Near SwimX ---
+  ASM  9497 [instruction   ]: bne LeftSwim             ;if moving to the left, branch to second part
+  ASM  9500 [instruction   ]: adc BlooperMoveSpeed,x
+
+--- Near ProcSwimmingB ---
+  ASM  9529 [instruction   ]: bcs SlowSwim              ;branch if set
+  ASM  9531 [instruction   ]: bne BSwimE                ;branch to leave, execute code only every eighth frame
+  ASM  9538 [instruction   ]: bne BSwimE                ;if certain horizontal speed, branch to leave
+  ASM  9539 [instruction   ]: inc BlooperMoveCounter,x  ;otherwise increment movement counter
+
+--- Near SlowSwim ---
+  ASM  9544 [instruction   ]: bne NoSSw                ;branch to leave, execute code only every eighth frame
+  ASM  9550 [instruction   ]: bne NoSSw                ;if any speed, branch to leave
+  ASM  9551 [instruction   ]: inc BlooperMoveCounter,x ;otherwise increment movement counter
+
+--- Near ChkForFloatdown ---
+  ASM  9558 [instruction   ]: beq ChkNearPlayer        ;branch if expired
+
+--- Near Floatdown ---
+  ASM  9563 [instruction   ]: bcs NoFD                ;branch to leave on every other frame
+
+--- Near ChkNearPlayer ---
+  ASM  9570 [instruction   ]: cmp Player_Y_Position     ;compare result with player's vertical coordinate
+  ASM  9571 [instruction   ]: bcc Floatdown             ;if modified vertical less than player's, branch
+  ASM  9573 [instruction   ]: sta BlooperMoveCounter,x  ;otherwise nullify movement counter
+
+--- Near MoveBulletBill ---
+  ASM  9582 [instruction   ]: jmp MoveJ_EnemyVertically  ;otherwise jump to move defeated bullet bill downwards
+
+--- Near NotDefB ---
+  ASM  9588 [comment       ]: ;$02 - used to hold preset values
+  ASM  9589 [comment       ]: ;$03 - used to hold enemy state
+
+--- Near SwimCCXMoveData ---
+  ASM  9593 [db_directive  ]: .db $04, $04 ;residual data, not used
+
+--- Near MoveSwimmingCheepCheep ---
+  ASM  9598 [instruction   ]: beq CCSwim                ;if not set, continue with movement code
+
+--- Near CCSwim ---
+  ASM  9605 [instruction   ]: lda SwimCCXMoveData,y     ;load value here
+  ASM  9621 [instruction   ]: lda CheepCheepMoveMFlag,x ;check movement flag
+  ASM  9623 [instruction   ]: bcc CCSwimUpwards         ;branch to move upwards
+  ASM  9629 [instruction   ]: adc $03                   ;add carry to it plus enemy state to slowly move it downwards
+  ASM  9633 [instruction   ]: jmp ChkSwimYPos           ;jump to end of movement code
+
+--- Near CCSwimUpwards ---
+  ASM  9641 [instruction   ]: sbc $03                   ;subtract borrow to it plus enemy state to slowly move it upwards
+
+--- Near ChkSwimYPos ---
+  ASM  9651 [instruction   ]: sbc CheepCheepOrigYPos,x  ;subtract original coordinate from current
+  ASM  9652 [instruction   ]: bpl YPDiff                ;if result positive, skip to next part
+
+--- Near ExSwCC ---
+  ASM  9661 [label         ]: ExSwCC: rts                       ;leave
+  ASM  9664 [comment       ]: ;$00 - used as counter for firebar parts
+  ASM  9665 [comment       ]: ;$01 - used for oscillated high byte of spin state or to hold horizontal adder
+  ASM  9666 [comment       ]: ;$02 - used for oscillated high byte of spin state or to hold vertical adder
+  ASM  9667 [comment       ]: ;$03 - used for mirror data
+  ASM  9668 [comment       ]: ;$04 - used to store player's sprite 1 X coordinate
+  ASM  9669 [comment       ]: ;$05 - used to evaluate mirror data
+  ASM  9670 [comment       ]: ;$06 - used to store either screen X coordinate or sprite data offset
+  ASM  9671 [comment       ]: ;$07 - used to store screen Y coordinate
+  ASM  9672 [comment       ]: ;$ed - used to hold maximum length of firebar
+  ASM  9673 [comment       ]: ;$ef - used to hold high byte of spinstate
+
+--- Near NextFbar ---
+  ASM  9755 [instruction   ]: cmp $ed                     ;if we end up at the maximum part, go on and leave
+  ASM  9756 [instruction   ]: bcc DrawFbar                ;otherwise go back and do another
+
+--- Near AddHA ---
+  ASM  9773 [instruction   ]: bcs SubtR1               ;if sprite coordinate => original coordinate, branch
+  ASM  9777 [instruction   ]: jmp ChkFOfs
+
+--- Near ChkVFBD ---
+  ASM  9827 [instruction   ]: bcs Chk2Ofs
+  ASM  9830 [instruction   ]: bcs Chk2Ofs
+
+--- Near ChkFBCl ---
+  ASM  9842 [instruction   ]: bcc ChgSDir              ;to process
+
+--- Near Chk2Ofs ---
+  ASM  9851 [instruction   ]: jmp FBCLoop
+
+--- Near MoveFlyingCheepCheep ---
+  ASM  9928 [instruction   ]: jmp MoveJ_EnemyVertically  ;and jump to move defeated cheep-cheep downwards
+
+--- Near FlyCC ---
+  ASM  9941 [instruction   ]: sbc PRandomSubtracter,y
+  ASM  9942 [instruction   ]: bpl AddCCF                  ;if result within top half of screen, skip this part
+
+--- Near BPGet ---
+  ASM  9962 [comment       ]: ;$00 - used to hold horizontal difference
+  ASM  9963 [comment       ]: ;$01-$03 - used to hold difference adjusters
+
+--- Near MoveLakitu ---
+  ASM  9971 [instruction   ]: beq ChkLS                  ;if not set, continue with code
+  ASM  9972 [instruction   ]: jmp MoveD_EnemyVertically  ;otherwise jump to move defeated lakitu downwards
+
+--- Near SetLSpd ---
+  ASM  9992 [instruction   ]: bne SetLMov                ;if set, branch to the end to use moving direction
+
+--- Near SetLMov ---
+  ASM  9999 [label         ]: SetLMov: sty Enemy_MovingDir,x      ;store moving direction
+
+--- Near ChkPSpeed ---
+  ASM 10031 [instruction   ]: and #%00111100             ;mask out all but four bits in the middle
+
+--- Near ChkSpinyO ---
+  ASM 10048 [label         ]: ChkSpinyO: lda Enemy_ID,x             ;check for spiny object
+  ASM 10050 [instruction   ]: bne ChkEmySpd              ;branch if not found
+
+--- Near SPixelLak ---
+  ASM 10058 [label         ]: SPixelLak: sec                        ;subtract one for each pixel of horizontal difference
+
+--- Near ExMoveLak ---
+  ASM 10062 [label         ]: ExMoveLak: rts                        ;leave!!!
+  ASM 10065 [comment       ]: ;$04-$05 - used to store name table address in little endian order
+
+--- Near MovePiranhaPlant ---
+  ASM 10587 [instruction   ]: bpl ChkPlayerNearPipe       ;piranha plant, and branch if enemy to right of player
+
+--- Near SetupToMovePPlant ---
+  ASM 10608 [instruction   ]: lda PiranhaPlantDownYPos,x  ;get original vertical coordinate (lowest point)
+  ASM 10610 [instruction   ]: bpl RiseFallPiranhaPlant    ;branch if moving downwards
+  ASM 10611 [instruction   ]: lda PiranhaPlantUpYPos,x    ;otherwise get other vertical coordinate (highest point)
+
+--- Near RiseFallPiranhaPlant ---
+  ASM 10622 [instruction   ]: adc PiranhaPlant_Y_Speed,x  ;add vertical speed to move up or down
+
+--- Near PutinPipe ---
+  ASM 10637 [comment       ]: ;$07 - spinning speed
+
+--- Near SpinCounterClockwise ---
+  ASM 10663 [comment       ]: ;$00 - used to hold collision flag, Y movement force + 5 or low byte of name table for rope
+  ASM 10664 [comment       ]: ;$01 - used to hold high byte of name table for rope
+  ASM 10665 [comment       ]: ;$02 - used to hold page location of rope

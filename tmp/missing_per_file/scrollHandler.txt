@@ -1,0 +1,6 @@
+# Missing ASM lines for scrollHandler.kt
+# 1 lines to add
+
+
+--- Near InitScrlAmt ---
+  ASM  5426 [label         ]: InitScrlAmt:  lda #$00

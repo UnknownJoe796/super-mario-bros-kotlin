@@ -651,12 +651,12 @@ private fun System.processEnemyData() {
     var finalEnemyId = enemyType
     //> cmp #Goomba          ;if below $37, check for goomba
     //> bne StrID            ;value ($3f or more always fails)
-    if (finalEnemyId == (Constants.Goomba.toInt() and 0xFF)) {
+    if (finalEnemyId == (EnemyId.Goomba.byte.toInt() and 0xFF)) {
         //> ldy PrimaryHardMode  ;check if primary hard mode flag is set
         //> beq StrID            ;and if so, change goomba to buzzy beetle
         if (ram.primaryHardMode) {
             //> lda #BuzzyBeetle
-            finalEnemyId = Constants.BuzzyBeetle.toInt() and 0xFF  // BuzzyBeetle = $02
+            finalEnemyId = EnemyId.BuzzyBeetle.byte.toInt() and 0xFF  // BuzzyBeetle = $02
         }
     }
 
@@ -791,7 +791,7 @@ private fun System.checkFrenzyBuffer() {
 
     //> lda #VineObject          ;otherwise put vine in enemy identifier
     //> StrFre: sta Enemy_ID,x
-    ram.enemyID[x] = Constants.VineObject
+    ram.enemyID[x] = EnemyId.VineObject.byte
     //> (falls through to InitEnemyObject)
     // NES Y register = enemyDataOffset here (no iny on vine/frenzy path)
     setupVineBlockY = ram.enemyDataOffset.toInt() and 0xFF
@@ -1277,7 +1277,7 @@ private fun System.endFrenzy() {
         //> LakituChk: lda Enemy_ID,y         ;check enemy identifiers
         //> cmp #Lakitu            ;for lakitu
         //> bne NextFSlot
-        if (ram.enemyID[y] == Constants.Lakitu) {
+        if (ram.enemyID[y] == EnemyId.Lakitu.byte) {
             //> lda #$01               ;if found, set state
             //> sta Enemy_State,y
             ram.enemyState[y] = 1
@@ -1316,7 +1316,7 @@ private fun System.initFireworks(x: Int) {
     //> ldy #$06; StarFChk: dey; lda Enemy_ID,y; cmp #StarFlagObject; bne StarFChk
     var starFlagSlot = -1
     for (y in 5 downTo 0) {
-        if (ram.enemyID[y] == Constants.StarFlagObject) {
+        if (ram.enemyID[y] == EnemyId.StarFlagObject.byte) {
             starFlagSlot = y
             break
         }
@@ -1374,7 +1374,7 @@ private fun System.lakituAndSpinyHandler(x: Int) {
     //> dey; bpl ChkLak
     var lakituSlot = -1
     for (y in 4 downTo 0) {
-        if (ram.enemyID[y] == Constants.Lakitu) {
+        if (ram.enemyID[y] == EnemyId.Lakitu.byte) {
             lakituSlot = y
             break
         }
@@ -1450,7 +1450,7 @@ private fun System.lakituAndSpinyHandler(x: Int) {
     //> lda #$00; sta Enemy_State,x
     ram.enemyState[emptySlot] = 0
     //> lda #Lakitu; sta Enemy_ID,x
-    ram.enemyID[emptySlot] = Constants.Lakitu
+    ram.enemyID[emptySlot] = EnemyId.Lakitu.byte
 
     //> jsr SetupLakitu
     val savedOffset = ram.objectOffset
@@ -1630,7 +1630,7 @@ private fun System.initBowserFlame(x: Int) {
     //> ldy BowserFront_Offset
     val bowserOfs = ram.bowserFrontOffset.toInt() and 0xFF
     //> lda Enemy_ID,y; cmp #Bowser; beq SpawnFromMouth
-    if (ram.enemyID[bowserOfs] == Constants.Bowser) {
+    if (ram.enemyID[bowserOfs] == EnemyId.Bowser.byte) {
         // --- SpawnFromMouth ---
         //> lda Enemy_X_Position,y; sec; sbc #$0e; sta Enemy_X_Position,x
         val bowserX = ram.sprObjXPos[1 + bowserOfs].toInt() and 0xFF
@@ -1698,7 +1698,7 @@ private fun System.bulletBillCheepCheep(x: Int) {
             //> lda Enemy_Flag,y; beq BB_SLoop
             if (ram.enemyFlags[y] == 0.toByte()) continue
             //> lda Enemy_ID,y; cmp #BulletBill_FrenzyVar; bne BB_SLoop
-            if (ram.enemyID[y] == Constants.BulletBill_FrenzyVar) {
+            if (ram.enemyID[y] == EnemyId.BulletBillFrenzyVar.byte) {
                 //> rts  ;if found, leave
                 return
             }
@@ -1707,7 +1707,7 @@ private fun System.bulletBillCheepCheep(x: Int) {
         //> lda Square2SoundQueue; ora #Sfx_Blast; sta Square2SoundQueue
         ram.square2SoundQueue = (ram.square2SoundQueue.toInt() or Constants.Sfx_Blast.toInt()).toByte()
         //> lda #BulletBill_FrenzyVar; bne Set17ID (unconditional)
-        ram.enemyID[x] = Constants.BulletBill_FrenzyVar
+        ram.enemyID[x] = EnemyId.BulletBillFrenzyVar.byte
     } else {
         // --- Water level: swimming cheep-cheeps ---
         //> cpx #$03; bcs ExF17
@@ -2098,7 +2098,7 @@ private fun System.setupVine() {
     //> Setup_Vine:
     //> lda #VineObject          ;load identifier for vine object
     //> sta Enemy_ID,x           ;store in buffer
-    ram.enemyID[x] = Constants.VineObject
+    ram.enemyID[x] = EnemyId.VineObject.byte
 
     //> lda #$01
     //> sta Enemy_Flag,x         ;set flag for enemy object buffer
@@ -2357,9 +2357,9 @@ private fun System.handleGroupEnemies(groupType: Int) {
         //> ldy #BuzzyBeetle          ;for buzzy beetle
         //> PullID: pla               ;get second copy from stack
         enemyIdForGroup = if (ram.primaryHardMode) {
-            Constants.BuzzyBeetle.toInt() and 0xFF
+            EnemyId.BuzzyBeetle.byte.toInt() and 0xFF
         } else {
-            Constants.Goomba.toInt() and 0xFF
+            EnemyId.Goomba.byte.toInt() and 0xFF
         }
     } else {
         //> SnglID: sty $01           ;save enemy id here (Y=0 = green koopa troopa)

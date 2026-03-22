@@ -1,0 +1,57 @@
+# Missing ASM lines for enemyGfxHandler.kt
+# 26 lines to add
+
+
+--- Near CheckForRetainerObj ---
+  ASM 13643 [instruction   ]: bne CheckForBulletBillCV    ;if not found, branch
+
+--- Near CheckForBulletBillCV ---
+  ASM 13651 [instruction   ]: bne CheckForJumpspring      ;if not found, branch again
+
+--- Near CheckForJumpspring ---
+  ASM 13663 [instruction   ]: cmp #JumpspringObject        ;check for jumpspring object
+  ASM 13664 [instruction   ]: bne CheckForPodoboo
+
+--- Near SBwsrGfxOfs ---
+  ASM 13686 [label         ]: SBwsrGfxOfs: sty $ef
+
+--- Near DrawBowser ---
+  ASM 13728 [label         ]: DrawBowser:
+  ASM 13729 [instruction   ]: jmp DrawEnemyObject   ;draw bowser's graphics now
+
+--- Near CheckForSpiny ---
+  ASM 13746 [instruction   ]: cpx #$24               ;check if value loaded is for spiny
+  ASM 13747 [instruction   ]: bne CheckForLakitu     ;if not found, branch
+
+--- Near CheckForLakitu ---
+  ASM 13758 [instruction   ]: cpx #$90                  ;check value for lakitu's offset loaded
+  ASM 13759 [instruction   ]: bne CheckUpsideDownShell  ;branch if not loaded
+
+--- Near CheckUpsideDownShell ---
+  ASM 13772 [instruction   ]: bcs CheckRightSideUpShell  ;branch if true
+  ASM 13778 [instruction   ]: bne CheckRightSideUpShell
+
+--- Near CheckForHammerBro ---
+  ASM 13808 [instruction   ]: bne CheckForBloober      ;branch if not found
+
+--- Near CheckForBloober ---
+  ASM 13819 [instruction   ]: lda EnemyIntervalTimer,y
+
+--- Near CheckDefeatedState ---
+  ASM 13871 [instruction   ]: beq DrawEnemyObject   ;branch if not set
+  ASM 13874 [instruction   ]: bcc DrawEnemyObject   ;branch if less
+
+--- Near CheckToMirrorLakitu ---
+  ASM 13985 [instruction   ]: bne CheckToMirrorJSpring    ;branch if not found
+
+--- Near DrawEnemyObjRow ---
+  ASM 14063 [label         ]: DrawEnemyObjRow:
+  ASM 14064 [instruction   ]: lda EnemyGraphicsTable,x    ;load two tiles of enemy graphics
+  ASM 14066 [instruction   ]: lda EnemyGraphicsTable+1,x
+
+--- Near MoveESprColOffscreen ---
+  ASM 14088 [comment       ]: ;$00-$01 - tile numbers
+  ASM 14089 [comment       ]: ;$02 - relative Y position
+  ASM 14090 [comment       ]: ;$03 - horizontal flip flag (not used here)
+  ASM 14091 [comment       ]: ;$04 - attributes
+  ASM 14092 [comment       ]: ;$05 - relative X position

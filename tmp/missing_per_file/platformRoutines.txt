@@ -1,0 +1,85 @@
+# Missing ASM lines for platformRoutines.kt
+# 38 lines to add
+
+
+--- Near MoveDropPlatform ---
+  ASM  7633 [instruction   ]: bne SetMdMax  ;skip ahead of other value set here
+
+--- Near MovePlatformDown ---
+  ASM  7675 [db_directive  ]: .db $2c     ;part as BIT instruction)
+
+--- Near NoIncXM ---
+  ASM  9435 [label         ]: NoIncXM: rts
+
+--- Near PlatUp ---
+  ASM 10727 [label         ]: PlatUp: jsr MovePlatformUp          ;do a sub to move upwards
+  ASM 10728 [instruction   ]: jmp DoOtherPlatform         ;jump ahead to remaining code
+
+--- Near PlatSt ---
+  ASM 10729 [label         ]: PlatSt: jsr StopPlatforms           ;do a sub to stop movement
+  ASM 10730 [instruction   ]: jmp DoOtherPlatform         ;jump ahead to remaining code
+
+--- Near PlatDn ---
+  ASM 10731 [label         ]: PlatDn: jsr MovePlatformDown        ;do a sub to move downwards
+
+--- Near DrawEraseRope ---
+  ASM 10753 [instruction   ]: bcs ExitRp                  ;and skip this, branch to leave
+  ASM 10757 [instruction   ]: jsr SetupPlatformRope       ;do a sub to figure out where to put new bg tiles
+  ASM 10765 [instruction   ]: bmi EraseR1                 ;to do something else
+  ASM 10766 [instruction   ]: lda #$a2
+  ASM 10768 [instruction   ]: lda #$a3                    ;and right sides of rope in vram buffer
+  ASM 10770 [instruction   ]: jmp OtherRope               ;jump to skip this part
+
+--- Near ExitRp ---
+  ASM 10803 [label         ]: ExitRp:  ldx ObjectOffset            ;get enemy object buffer offset and leave
+
+--- Near SetupPlatformRope ---
+  ASM 10806 [label         ]: SetupPlatformRope:
+  ASM 10811 [instruction   ]: ldx SecondaryHardMode   ;if secondary hard mode flag set,
+  ASM 10812 [instruction   ]: bne GetLRp              ;use coordinate as-is
+
+--- Near YMovingPlatform ---
+  ASM 10899 [instruction   ]: bne ChkYCenterPos
+
+--- Near ExYPl ---
+  ASM 10925 [comment       ]: ;$00 - used as adder to position player hotizontally
+
+--- Near PositionPlayerOnHPlat ---
+  ASM 10943 [instruction   ]: jmp SetPVar               ;jump to skip subtraction
+
+--- Near ExDPl ---
+  ASM 10960 [comment       ]: ;$00 - residual value from sub
+
+--- Near ExLiftP ---
+  ASM 10998 [label         ]: ExLiftP: rts                         ;then leave
+  ASM 11001 [comment       ]: ;$00 - page location of extended left boundary
+  ASM 11002 [comment       ]: ;$01 - extended left boundary position
+  ASM 11003 [comment       ]: ;$02 - page location of extended right boundary
+  ASM 11004 [comment       ]: ;$03 - extended right boundary position
+
+--- Near ExLPC ---
+  ASM 11737 [label         ]: ExLPC: ldx ObjectOffset             ;get enemy object buffer offset and leave
+  ASM 11741 [comment       ]: ;$00 - counter for bounding boxes
+
+--- Near ChkSmallPlatLoop ---
+  ASM 11759 [instruction   ]: bcc MoveBoundBox           ;if so, branch, don't do collision detection
+
+--- Near ExSPC ---
+  ASM 11774 [label         ]: ExSPC: ldx ObjectOffset           ;get enemy object buffer offset, then leave
+
+--- Near PlatformSideCollisions ---
+  ASM 11823 [instruction   ]: bcc SideC
+
+--- Near NoSideC ---
+  ASM 11831 [label         ]: NoSideC: ldx ObjectOffset           ;return with enemy object buffer offset
+
+--- Near SixSpriteStacker ---
+  ASM 13162 [label         ]: SixSpriteStacker:
+
+--- Near SLChk ---
+  ASM 13406 [label         ]: SLChk:  lda Enemy_OffscreenBits     ;check d7 of offscreen bits
+  ASM 13408 [instruction   ]: bcc ExDLPl
+  ASM 13409 [instruction   ]: jsr MoveSixSpritesOffscreen ;otherwise branch to move all sprites offscreen
+
+--- Near SOfs2 ---
+  ASM 14361 [label         ]: SOfs2: pla                         ;get from stack

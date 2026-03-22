@@ -620,6 +620,7 @@ private fun System.continuePowerUpGrab() {
     //> tay; lda PowerUpGrabFreqData-1,y
     val y = len shr 1
     val freqIdx = SoundData.powerUpGrabFreqData[y - 1]
+    //> LoadSqu2Regs:
     //> ldx #$5d; ldy #$7f; LoadSqu2Regs: jsr PlaySqu2Sfx
     playSqu2Sfx(freqIdx, 0x5D, 0x7F)
     decrementSfx2Length()
@@ -631,6 +632,7 @@ private fun System.decrementSfx2Length() {
     val newLen = (len - 1) and 0xFF
     ram.squ2SfxLenCounter = newLen.toByte()
     //> dec Squ2_SfxLenCounter; bne ExSfx2
+    //> ExSfx2: rts
     if (newLen == 0) {
         emptySfx2Buffer()
     }

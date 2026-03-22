@@ -1,0 +1,119 @@
+# Missing ASM lines for soundData.kt
+# 66 lines to add
+
+
+--- Near PowerUpGrabFreqData ---
+  ASM 15347 [label         ]: PowerUpGrabFreqData:
+
+--- Near MusicHeaderData ---
+  ASM 15985 [db_directive  ]: .db GroundLevelPart2AHdr-MHD, GroundLevelPart2BHdr-MHD, GroundLevelPart2AHdr-MHD, GroundLevelPart2CHdr-MHD
+  ASM 15986 [db_directive  ]: .db GroundLevelPart2AHdr-MHD, GroundLevelPart2BHdr-MHD, GroundLevelPart2AHdr-MHD, GroundLevelPart2CHdr-MHD
+  ASM 15987 [db_directive  ]: .db GroundLevelPart3AHdr-MHD, GroundLevelPart3BHdr-MHD, GroundLevelPart3AHdr-MHD, GroundLevelLeadInHdr-MHD
+  ASM 15989 [db_directive  ]: .db GroundLevelPart4AHdr-MHD, GroundLevelPart4BHdr-MHD, GroundLevelPart4AHdr-MHD, GroundLevelPart4CHdr-MHD
+  ASM 15990 [db_directive  ]: .db GroundLevelPart4AHdr-MHD, GroundLevelPart4BHdr-MHD, GroundLevelPart4AHdr-MHD, GroundLevelPart4CHdr-MHD
+  ASM 15991 [db_directive  ]: .db GroundLevelPart3AHdr-MHD, GroundLevelPart3BHdr-MHD, GroundLevelPart3AHdr-MHD, GroundLevelLeadInHdr-MHD
+  ASM 15992 [db_directive  ]: .db GroundLevelPart4AHdr-MHD, GroundLevelPart4BHdr-MHD, GroundLevelPart4AHdr-MHD, GroundLevelPart4CHdr-MHD
+  ASM 15995 [comment       ]: ;header format is as follows:
+  ASM 15996 [comment       ]: ;1 byte - length byte offset
+  ASM 15997 [comment       ]: ;2 bytes -  music data address
+  ASM 15998 [comment       ]: ;1 byte - triangle data offset
+  ASM 15999 [comment       ]: ;1 byte - square 1 data offset
+  ASM 16000 [comment       ]: ;1 byte - noise data offset (not used by secondary music)
+
+--- Near DeathMusHdr ---
+  ASM 16027 [comment       ]: ;MUSIC DATA
+  ASM 16028 [comment       ]: ;square 2/triangle format
+  ASM 16029 [comment       ]: ;d7 - length byte flag (0-note, 1-length)
+  ASM 16030 [comment       ]: ;if d7 is set to 0 and d6-d0 is nonzero:
+  ASM 16031 [comment       ]: ;d6-d0 - note offset in frequency look-up table (must be even)
+  ASM 16032 [comment       ]: ;if d7 is set to 1:
+  ASM 16033 [comment       ]: ;d6-d3 - unused
+  ASM 16034 [comment       ]: ;d2-d0 - length offset in length look-up table
+  ASM 16035 [comment       ]: ;value of $00 in square 2 data is used as null terminator, affects all sound channels
+  ASM 16036 [comment       ]: ;value of $00 in triangle data causes routine to skip note
+  ASM 16038 [comment       ]: ;square 1 format
+  ASM 16039 [comment       ]: ;d7-d6, d0 - length offset in length look-up table (bit order is d0,d7,d6)
+  ASM 16040 [comment       ]: ;d5-d1 - note offset in frequency look-up table
+  ASM 16041 [comment       ]: ;value of $00 in square 1 data is flag alternate control reg data to be loaded
+  ASM 16043 [comment       ]: ;noise format
+  ASM 16044 [comment       ]: ;d7-d6, d0 - length offset in length look-up table (bit order is d0,d7,d6)
+  ASM 16045 [comment       ]: ;d5-d4 - beat type (0 - rest, 1 - short, 2 - strong, 3 - long)
+  ASM 16046 [comment       ]: ;d3-d1 - unused
+  ASM 16047 [comment       ]: ;value of $00 in noise data is used as null terminator, affects only noise
+  ASM 16049 [comment       ]: ;all music data is organized into sections (unless otherwise stated):
+  ASM 16050 [comment       ]: ;square 2, square 1, triangle, noise
+
+--- Near Star_CloudMData ---
+  ASM 16052 [label         ]: Star_CloudMData:
+
+--- Near GroundM_P1Data ---
+  ASM 16064 [label         ]: GroundM_P1Data:
+
+--- Near SilenceData ---
+  ASM 16069 [label         ]: SilenceData:
+
+--- Near GroundM_P2AData ---
+  ASM 16079 [label         ]: GroundM_P2AData:
+
+--- Near GroundM_P2BData ---
+  ASM 16089 [label         ]: GroundM_P2BData:
+
+--- Near GroundM_P2CData ---
+  ASM 16099 [label         ]: GroundM_P2CData:
+
+--- Near GroundM_P3AData ---
+  ASM 16109 [label         ]: GroundM_P3AData:
+
+--- Near GroundM_P3BData ---
+  ASM 16115 [label         ]: GroundM_P3BData:
+  ASM 16120 [comment       ]: ;triangle data used by both sections of third part
+
+--- Near GroundMLdInData ---
+  ASM 16123 [label         ]: GroundMLdInData:
+  ASM 16130 [comment       ]: ;noise data used by lead-in and third part sections
+
+--- Near GroundM_P4AData ---
+  ASM 16133 [label         ]: GroundM_P4AData:
+
+--- Near GroundM_P4BData ---
+  ASM 16142 [label         ]: GroundM_P4BData:
+
+--- Near DeathMusData ---
+  ASM 16151 [label         ]: DeathMusData:
+  ASM 16152 [db_directive  ]: .db $86, $04 ;death music share data with fourth part c of ground level music
+
+--- Near GroundM_P4CData ---
+  ASM 16154 [label         ]: GroundM_P4CData:
+  ASM 16161 [db_directive  ]: .db $86, $04 ;death music only
+  ASM 16165 [comment       ]: ;noise data used by fourth part sections
+
+--- Near CastleMusData ---
+  ASM 16168 [label         ]: CastleMusData:
+
+--- Near GameOverMusData ---
+  ASM 16192 [label         ]: GameOverMusData:
+
+--- Near TimeRunOutMusData ---
+  ASM 16201 [label         ]: TimeRunOutMusData:
+
+--- Near WinLevelMusData ---
+  ASM 16211 [label         ]: WinLevelMusData:
+  ASM 16227 [comment       ]: ;square 2 and triangle use the same data, square 1 is unused
+
+--- Near UndergroundMusData ---
+  ASM 16228 [label         ]: UndergroundMusData:
+  ASM 16238 [comment       ]: ;noise data directly follows square 2 here unlike in other songs
+
+--- Near WaterMusData ---
+  ASM 16239 [label         ]: WaterMusData:
+
+--- Near EndOfCastleMusData ---
+  ASM 16270 [label         ]: EndOfCastleMusData:
+
+--- Near VictoryMusData ---
+  ASM 16288 [label         ]: VictoryMusData:
+  ASM 16298 [comment       ]: ;unused space
+
+--- Near BrickShatterEnvData ---
+  ASM 16348 [comment       ]: ;INTERRUPT VECTORS
+  ASM 16352 [dw_directive  ]: .dw $fff0  ;unused

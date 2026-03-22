@@ -167,7 +167,7 @@ fun System.enemyGfxHandler() {
 
     //> cmp #PiranhaPlant           ;is enemy object piranha plant?
     //> bne CheckForRetainerObj     ;if not, branch
-    if (enemyId == Constants.PiranhaPlant.toInt() and 0xFF) {
+    if (enemyId == EnemyId.PiranhaPlant.byte.toInt() and 0xFF) {
         //> ldy PiranhaPlant_Y_Speed,x
         //> bmi CheckForRetainerObj     ;if piranha plant moving upwards, branch
         val ppYSpeed = ram.sprObjYSpeed[1 + objectX]
@@ -194,7 +194,7 @@ fun System.enemyGfxHandler() {
     //> cmp #RetainerObject
     var enemyCode = enemyId  // $ef: enemy code used throughout the handler
 
-    if (enemyId == Constants.RetainerObject.toInt() and 0xFF) {
+    if (enemyId == EnemyId.RetainerObject.byte.toInt() and 0xFF) {
         //> ldy #$00                    ;if found, nullify saved state in Y
         altState = 0
         //> lda #$01                    ;set value that will not be used
@@ -205,7 +205,7 @@ fun System.enemyGfxHandler() {
     }
 
     //> CheckForBulletBillCV:
-    if (enemyCode == Constants.BulletBill_CannonVar.toInt() and 0xFF) {
+    if (enemyCode == EnemyId.BulletBillCannonVar.byte.toInt() and 0xFF) {
         //> dec $02                     ;decrement saved vertical position
         yCoord = (yCoord - 1).toByte()
         //> lda #$03
@@ -226,7 +226,7 @@ fun System.enemyGfxHandler() {
     }
 
     //> CheckForJumpspring:
-    if (enemyCode == Constants.JumpspringObject.toInt() and 0xFF) {
+    if (enemyCode == EnemyId.JumpspringObject.byte.toInt() and 0xFF) {
         //> ldy #$03                     ;set enemy state -2 MSB here for jumpspring object
         altState = 0x03
         //> ldx JumpspringAnimCtrl       ;get current frame number for jumpspring object
@@ -267,7 +267,7 @@ fun System.enemyGfxHandler() {
     //> CheckForGoomba:
     var gfxTableOfs: Int  // X in the assembly, offset into EnemyGraphicsTable
 
-    if (enemyCode == Constants.Goomba.toInt() and 0xFF) {
+    if (enemyCode == EnemyId.Goomba.byte.toInt() and 0xFF) {
         //> lda Enemy_State,x
         //> cmp #$02              ;check for defeated state
         //> bcc GmbaAnim          ;if not defeated, go ahead and animate
@@ -391,7 +391,7 @@ fun System.enemyGfxHandler() {
                 gfxTableOfs = 0x5a
                 //> ldy $ef
                 //> cpy #BuzzyBeetle           ;check for buzzy beetle object
-                if (enemyCode == Constants.BuzzyBeetle.toInt() and 0xFF) {
+                if (enemyCode == EnemyId.BuzzyBeetle.byte.toInt() and 0xFF) {
                     //> ldx #$7e                   ;set for upside-down buzzy beetle shell if found
                     gfxTableOfs = 0x7e
                     //> inc $02                    ;increment vertical position by one pixel
@@ -408,7 +408,7 @@ fun System.enemyGfxHandler() {
                 gfxTableOfs = 0x72
                 //> inc $02                ;increment saved vertical position by one pixel
                 yCoord = (yCoord + 1).toByte()
-                if (enemyCode == Constants.BuzzyBeetle.toInt() and 0xFF) {
+                if (enemyCode == EnemyId.BuzzyBeetle.byte.toInt() and 0xFF) {
                     //> beq CheckForDefdGoomba ;branch if found
                     // (use buzzy beetle shell, don't change further)
                 } else {
@@ -418,7 +418,7 @@ fun System.enemyGfxHandler() {
                     yCoord = (yCoord + 1).toByte()
                 }
                 //> CheckForDefdGoomba:
-                if (enemyCode == Constants.Goomba.toInt() and 0xFF) {
+                if (enemyCode == EnemyId.Goomba.byte.toInt() and 0xFF) {
                     //> ldx #$54               ;load for regular goomba
                     gfxTableOfs = 0x54
                     //> lda $ed                ;note that this only gets performed if enemy state => $02
@@ -435,7 +435,7 @@ fun System.enemyGfxHandler() {
 
         //> CheckForHammerBro:
         x = ram.objectOffset.toInt()
-        if (enemyCode == Constants.HammerBro.toInt() and 0xFF) {
+        if (enemyCode == EnemyId.HammerBro.byte.toInt() and 0xFF) {
             //> lda $ed
             //> beq CheckToAnimateEnemy  ;branch if not in normal enemy state
             if (savedEnemyState != 0) {
@@ -482,9 +482,9 @@ fun System.enemyGfxHandler() {
                     // Not bloober or cheep-cheep
                     //> CheckToAnimateEnemy:
                     val shouldCheckAnim = when {
-                        enemyCode == Constants.Goomba.toInt() and 0xFF -> false
+                        enemyCode == EnemyId.Goomba.byte.toInt() and 0xFF -> false
                         enemyCode == 0x08 -> false  // bullet bill
-                        enemyCode == Constants.Podoboo.toInt() and 0xFF -> false
+                        enemyCode == EnemyId.Podoboo.byte.toInt() and 0xFF -> false
                         enemyCode >= 0x18 -> false
                         else -> true
                     }
@@ -620,8 +620,8 @@ fun System.enemyGfxHandler() {
         //> beq FlipEnemyVertically    ;branch for hammer bro or lakitu
         //> cmp #$15
         //> bcs FlipEnemyVertically    ;also branch if enemy object => $15
-        val isSpecialFlip = (enemyCode == Constants.HammerBro.toInt() and 0xFF) ||
-                (enemyCode == Constants.Lakitu.toInt() and 0xFF) ||
+        val isSpecialFlip = (enemyCode == EnemyId.HammerBro.byte.toInt() and 0xFF) ||
+                (enemyCode == EnemyId.Lakitu.byte.toInt() and 0xFF) ||
                 (enemyCode >= 0x15)
         if (!isSpecialFlip) {
             //> txa
@@ -676,9 +676,9 @@ fun System.enemyGfxHandler() {
     //> beq MirrorEnemyGfx
     //> cmp #Podoboo                ;check for podoboo object
     //> beq MirrorEnemyGfx          ;branch if either of three are found
-    val shouldMirror = (enemyCode == Constants.Bloober.toInt() and 0xFF) ||
-            (enemyCode == Constants.PiranhaPlant.toInt() and 0xFF) ||
-            (enemyCode == Constants.Podoboo.toInt() and 0xFF)
+    val shouldMirror = (enemyCode == EnemyId.Bloober.byte.toInt() and 0xFF) ||
+            (enemyCode == EnemyId.PiranhaPlant.byte.toInt() and 0xFF) ||
+            (enemyCode == EnemyId.Podoboo.byte.toInt() and 0xFF)
 
     val skipToMirrorLakitu: Boolean
 
@@ -688,7 +688,7 @@ fun System.enemyGfxHandler() {
     } else {
         //> cmp #Spiny                  ;check for spiny object
         //> bne ESRtnr                  ;branch closer if not found
-        if (enemyCode == Constants.Spiny.toInt() and 0xFF) {
+        if (enemyCode == EnemyId.Spiny.byte.toInt() and 0xFF) {
             //> cpx #$05                    ;check spiny's state
             //> bne CheckToMirrorLakitu     ;branch if not an egg, otherwise
             if (savedAltState == 0x05) {
@@ -717,7 +717,7 @@ fun System.enemyGfxHandler() {
     }
 
     //> CheckToMirrorLakitu:
-    if (enemyCode == Constants.Lakitu.toInt() and 0xFF) {
+    if (enemyCode == EnemyId.Lakitu.byte.toInt() and 0xFF) {
         //> lda VerticalFlipFlag
         //> bne NVFLak                  ;branch if vertical flip flag not set
         if (ram.verticalFlipFlag == 0.toByte()) {
@@ -886,7 +886,7 @@ private fun System.sprObjectOffscrChk(objectX: Int, sprOfs: Int, enemyCode: Int)
         //> cmp #Podoboo              ;check enemy identifier for podoboo
         //> beq ExEGHandler           ;skip this part if found, we do not want to erase podoboo!
         val eid = ram.enemyID[objectX].toInt() and 0xFF
-        if (eid != Constants.Podoboo.toInt() and 0xFF) {
+        if (eid != EnemyId.Podoboo.byte.toInt() and 0xFF) {
             //> lda Enemy_Y_HighPos,x     ;check high byte of vertical position
             //> cmp #$02                  ;if not yet past the bottom of the screen, branch
             //> bne ExEGHandler

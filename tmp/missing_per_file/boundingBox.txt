@@ -1,0 +1,12 @@
+# Missing ASM lines for boundingBox.kt
+# 5 lines to add
+
+
+--- Near GetEnemyBoundBoxOfsArg ---
+  ASM 11895 [comment       ]: ;$00-$01 - used to hold many values, essentially temp variables
+  ASM 11896 [comment       ]: ;$04 - holds lower nybble of vertical coordinate from block buffer routine
+  ASM 11897 [comment       ]: ;$eb - used to hold block buffer adder
+
+--- Near NoOfs2 ---
+  ASM 12928 [comment       ]: ;$06 - second object's offset
+  ASM 12929 [comment       ]: ;$07 - counter

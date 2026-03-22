@@ -111,18 +111,18 @@ fun System.floateyNumbersRoutine(comboNumber: Byte) {
         //> beq FloateyPart              ;branch if spiny
         //> cmp #PiranhaPlant
         //> beq FloateyPart              ;branch if piranha plant
-        Constants.Spiny, Constants.PiranhaPlant -> false
+        EnemyId.Spiny.byte, EnemyId.PiranhaPlant.byte -> false
         //> cmp #HammerBro
         //> beq GetAltOffset             ;branch elsewhere if hammer bro
-        Constants.HammerBro -> true
+        EnemyId.HammerBro.byte -> true
         //> cmp #GreyCheepCheep
         //> beq FloateyPart              ;branch if cheep-cheep of either color
         //> cmp #RedCheepCheep
         //> beq FloateyPart
-        Constants.GreyCheepCheep, Constants.RedCheepCheep -> false
+        EnemyId.GreyCheepCheep.byte, EnemyId.RedCheepCheep.byte -> false
         //> cmp #TallEnemy
         //> bcs GetAltOffset             ;branch elsewhere if enemy object => $09
-        in Constants.TallEnemy..Byte.MAX_VALUE -> true
+        in EnemyId.TallEnemy.byte..Byte.MAX_VALUE -> true
         else -> {
             //> lda Enemy_State,x
             //> cmp #$02                     ;if enemy state defeated or otherwise

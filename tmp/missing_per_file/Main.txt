@@ -1,0 +1,7 @@
+# Missing ASM lines for Main.kt
+# 2 lines to add
+
+
+--- Near ExTA ---
+  ASM 11704 [label         ]: ExTA:  rts                      ;leave!!!
+  ASM 11707 [comment       ]: ;$00 - vertical position of platform

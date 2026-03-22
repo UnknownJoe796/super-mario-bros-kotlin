@@ -1,0 +1,57 @@
+# Missing ASM lines for enemyBGCollision.kt
+# 24 lines to add
+
+
+--- Near WarpZoneObject ---
+  ASM  6487 [comment       ]: ;$00 - used in WhirlpoolActivate to store whirlpool length / 2, page location of center of whirlpool
+  ASM  6488 [comment       ]: ;and also to store movement force exerted on player
+  ASM  6489 [comment       ]: ;$01 - used in ProcessWhirlpools to store page location of right extent of whirlpool
+  ASM  6490 [comment       ]: ;and in WhirlpoolActivate to store center of whirlpool
+  ASM  6491 [comment       ]: ;$02 - used in ProcessWhirlpools to store right extent of whirlpool and in
+  ASM  6492 [comment       ]: ;WhirlpoolActivate to store maximum vertical speed
+
+--- Near SmallBP ---
+  ASM  7272 [label         ]: SmallBP:   iny                      ;increment for small or big and crouching
+
+--- Near BigBP ---
+  ASM  7282 [instruction   ]: jmp InvOBit              ;skip subroutine to do last part of code here
+
+--- Near ExtraLifeMushBlock ---
+  ASM  7348 [instruction   ]: sta $39          ;store correct power-up type
+  ASM  7349 [instruction   ]: jmp SetupPowerUp
+
+--- Near ExitBlockChk ---
+  ASM  7356 [label         ]: ExitBlockChk:
+
+--- Near BumpChkLoop ---
+  ASM  7370 [label         ]: BumpChkLoop: cmp BrickQBlockMetatiles,y  ;check to see if current metatile matches
+
+--- Near MatchBump ---
+  ASM  7375 [label         ]: MatchBump:   rts                         ;note carry is set if found match
+
+--- Near TopEx ---
+  ASM  7412 [label         ]: TopEx: rts                     ;leave!
+
+--- Near ExEBG ---
+  ASM 12390 [label         ]: ExEBG: rts            ;leave
+  ASM 12393 [comment       ]: ;$06-$07 - address from block buffer routine
+
+--- Near NoEToBGCollision ---
+  ASM 12434 [comment       ]: ;$02 - vertical coordinate from block buffer routine
+
+--- Near ExEBGChk ---
+  ASM 12493 [label         ]: ExEBGChk: rts
+  ASM 12496 [comment       ]: ;$04 - low nybble of vertical coordinate from block buffer routine
+
+--- Near ExSteChk ---
+  ASM 12531 [label         ]: ExSteChk:  rts                       ;then leave
+
+--- Near SetD6Ste ---
+  ASM 12589 [comment       ]: ;$00 - used to store bitmask (not used but initialized here)
+  ASM 12590 [comment       ]: ;$eb - used in DoEnemySideCheck as counter and to compare moving directions
+
+--- Near ExESdeC ---
+  ASM 12611 [label         ]: ExESdeC:  rts
+
+--- Near InvEnemyDir ---
+  ASM 12633 [comment       ]: ;$00 - used to hold horizontal difference between player and enemy

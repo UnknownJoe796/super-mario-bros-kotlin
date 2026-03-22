@@ -1,0 +1,159 @@
+# Missing ASM lines for NOT_FOUND
+# 78 lines to add
+
+
+--- Near FMiscLoop ---
+  ASM  7002 [label         ]: FMiscLoop: lda Misc_State,y        ;get misc object state
+  ASM  7003 [instruction   ]: beq UseMiscS            ;branch if none found to use current offset
+  ASM  7006 [instruction   ]: bne FMiscLoop           ;do this until all slots are checked
+
+--- Near UseMiscS ---
+  ASM  7008 [label         ]: UseMiscS:  sty JumpCoinMiscOffset  ;store offset of misc object buffer here (residual)
+
+--- Near ResidualGravityCode ---
+  ASM  7656 [label         ]: ResidualGravityCode:
+  ASM  7658 [db_directive  ]: .db $2c        ;no code branches or jumps to it...
+
+--- Near UsePosv ---
+  ASM  8351 [label         ]: UsePosv:  tya                        ;put value from A in Y back to A (they will be lost anyway)
+
+--- Near ChkJH ---
+  ASM  9218 [label         ]: ChkJH: lda HammerBroJumpTimer,x   ;check jump timer
+  ASM  9224 [instruction   ]: lda HammerThrowingTimer,x  ;check hammer throwing timer
+  ASM  9225 [instruction   ]: bne DecHT                  ;if not expired, skip ahead, do not throw hammer
+  ASM  9230 [instruction   ]: bcc DecHT                  ;if carry clear, hammer not spawned, skip to decrement timer
+  ASM  9234 [instruction   ]: jmp MoveHammerBroXDir      ;jump to move hammer bro
+
+--- Near DecHT ---
+  ASM  9235 [label         ]: DecHT: dec HammerThrowingTimer,x  ;decrement timer
+  ASM  9236 [instruction   ]: jmp MoveHammerBroXDir      ;jump to move hammer bro
+
+--- Near SetShim ---
+  ASM  9291 [label         ]: SetShim: sty Enemy_MovingDir,x     ;set moving direction
+
+--- Near NoIncPT ---
+  ASM  9389 [label         ]: NoIncPT:  rts                         ;leave
+
+--- Near MovPTDwn ---
+  ASM  9396 [label         ]: MovPTDwn: jmp MoveRedPTroopaDown      ;move downwards
+  ASM  9399 [comment       ]: ;$00 - used to store adder for movement, also used as adder for platform
+  ASM  9400 [comment       ]: ;$01 - used to store maximum value for secondary counter
+
+--- Near YSway ---
+  ASM  9413 [label         ]: YSway:  sty $00                    ;store adder here
+
+--- Near NoMGPT ---
+  ASM  9418 [label         ]: NoMGPT: rts                        ;leave!
+
+--- Near FBLeft ---
+  ASM  9481 [label         ]: FBLeft: ldy #$02                   ;set left moving direction by default
+  ASM  9483 [instruction   ]: bpl SBMDir                 ;if enemy to the right of player, keep left
+
+--- Near SBMDir ---
+  ASM  9485 [label         ]: SBMDir: sty Enemy_MovingDir,x      ;set moving direction of bloober, then continue on here
+
+--- Near LeftSwim ---
+  ASM  9507 [label         ]: LeftSwim:
+  ASM  9510 [instruction   ]: sbc BlooperMoveSpeed,x
+
+--- Near BSwimE ---
+  ASM  9540 [label         ]: BSwimE: rts
+
+--- Near NoSSw ---
+  ASM  9554 [label         ]: NoSSw: rts                      ;leave
+
+--- Near NoFD ---
+  ASM  9565 [label         ]: NoFD: rts                     ;leave
+
+--- Near YPDiff ---
+  ASM  9657 [label         ]: YPDiff: cmp #$0f                  ;if difference between original vs. current vertical
+
+--- Near AddCCF ---
+  ASM  9946 [label         ]: AddCCF: cmp #$08                   ;if result or two's compliment greater than eight,
+  ASM  9947 [instruction   ]: bcs BPGet                  ;skip to the end without changing movement force
+
+--- Near ChkLS ---
+  ASM  9973 [label         ]: ChkLS:   lda Enemy_State,x          ;if lakitu's enemy state not set at all,
+  ASM  9974 [instruction   ]: beq Fr12S                  ;go ahead and continue with code
+
+--- Near LdLDa ---
+  ASM  9983 [label         ]: LdLDa:   lda LakituDiffAdj,y        ;load values
+  ASM  9984 [instruction   ]: sta $0001,y                ;store in zero page
+  ASM  9986 [instruction   ]: bpl LdLDa                  ;do this until all values are stired
+
+--- Near ChkPlayerNearPipe ---
+  ASM 10594 [label         ]: ChkPlayerNearPipe:
+
+--- Near EraseR1 ---
+  ASM 10771 [label         ]: EraseR1: lda #$24                    ;put blank tiles in vram buffer
+
+--- Near OtherRope ---
+  ASM 10775 [label         ]: OtherRope:
+  ASM 10780 [instruction   ]: jsr SetupPlatformRope       ;do sub again to figure out where to put bg tiles
+  ASM 10786 [instruction   ]: sta VRAM_Buffer1+7,x        ;set length again for 2 bytes
+  ASM 10788 [instruction   ]: bpl EraseR2                 ;if moving upwards (note inversion earlier), skip this
+  ASM 10789 [instruction   ]: lda #$a2
+  ASM 10790 [instruction   ]: sta VRAM_Buffer1+8,x        ;otherwise put tile numbers for left
+  ASM 10791 [instruction   ]: lda #$a3                    ;and right sides of rope in vram
+  ASM 10792 [instruction   ]: sta VRAM_Buffer1+9,x        ;transfer buffer
+  ASM 10793 [instruction   ]: jmp EndRp                   ;jump to skip this part
+
+--- Near EraseR2 ---
+  ASM 10794 [label         ]: EraseR2: lda #$24                    ;put blank tiles in vram buffer
+  ASM 10795 [instruction   ]: sta VRAM_Buffer1+8,x        ;to erase rope
+  ASM 10796 [instruction   ]: sta VRAM_Buffer1+9,x
+
+--- Near EndRp ---
+  ASM 10797 [label         ]: EndRp:   lda #$00                    ;put null terminator at the end
+  ASM 10798 [instruction   ]: sta VRAM_Buffer1+10,x
+
+--- Near GetLRp ---
+  ASM 10815 [label         ]: GetLRp: pha                     ;save modified horizontal coordinate to stack
+  ASM 10825 [instruction   ]: ldx Enemy_Y_Position,y  ;get vertical coordinate
+  ASM 10827 [instruction   ]: bpl GetHRp              ;skip this part if moving downwards or not at all
+
+--- Near GetHRp ---
+  ASM 10832 [label         ]: GetHRp: txa                     ;move vertical coordinate to A
+  ASM 10848 [instruction   ]: and #%11100000          ;mask out low nybble and LSB of high nybble
+  ASM 10853 [instruction   ]: cmp #$e8                ;if vertical position not below the
+  ASM 10854 [instruction   ]: bcc ExPRp               ;bottom of the screen, we're done, branch to leave
+
+--- Near ExPRp ---
+  ASM 10858 [label         ]: ExPRp:  rts                     ;leave!
+
+--- Near UpToFiery ---
+  ASM 11277 [label         ]: UpToFiery:
+  ASM 11279 [instruction   ]: jsr SetPRout     ;set values to stop certain things in motion
+
+--- Near ExCJSp ---
+  ASM 12259 [label         ]: ExCJSp: rts                         ;and leave
+
+--- Near NoJSFnd ---
+  ASM 12268 [label         ]: NoJSFnd: rts           ;leave
+
+--- Near NSFnd ---
+  ASM 12722 [label         ]: NSFnd: rts
+
+--- Near ResidualMiscObjectCode ---
+  ASM 13007 [label         ]: ResidualMiscObjectCode:
+  ASM 13013 [instruction   ]: jmp ResJmpM   ;probably used in early stages to do misc to bg collision detection
+
+--- Near ResJmpM ---
+  ASM 13021 [label         ]: ResJmpM: lda #$00                  ;set A to return vertical coordinate
+
+--- Near RetYC ---
+  ASM 13087 [label         ]: RetYC: and #%00001111              ;and mask out high nybble
+  ASM 13095 [db_directive  ]: .db $ff
+  ASM 13098 [comment       ]: ;$00 - offset to vine Y coordinate adder
+  ASM 13099 [comment       ]: ;$02 - offset to sprite data
+
+--- Near StkLp ---
+  ASM 13164 [label         ]: StkLp: sta Sprite_Data,y  ;store X or Y coordinate into OAM data
+  ASM 13172 [instruction   ]: bne StkLp          ;do this until all sprites are done
+
+--- Near ExDLPl ---
+  ASM 13410 [label         ]: ExDLPl: rts
+
+--- Near SetHFAt ---
+  ASM 15015 [label         ]: SetHFAt: ora $04                    ;add other OAM attributes if necessary
+  ASM 15040 [comment       ]: ;unused space

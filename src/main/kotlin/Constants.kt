@@ -45,38 +45,7 @@ object Constants {
     const val GameOverMusic: Byte         = 0b00000010
     const val DeathMusic: Byte            = 0b00000001
 
-    // enemy object constants
-    const val GreenKoopa: Byte            = 0x00
-    const val BuzzyBeetle: Byte           = 0x02
-    const val RedKoopa: Byte              = 0x03
-    const val HammerBro: Byte             = 0x05
-    const val Goomba: Byte                = 0x06
-    const val Bloober: Byte               = 0x07
-    const val BulletBill_FrenzyVar: Byte  = 0x08
-    const val GreyCheepCheep: Byte        = 0x0a
-    const val RedCheepCheep: Byte         = 0x0b
-    const val Podoboo: Byte               = 0x0c
-    const val PiranhaPlant: Byte          = 0x0d
-    const val GreenParatroopaJump: Byte   = 0x0e
-    const val RedParatroopa: Byte         = 0x0f
-    const val GreenParatroopaFly: Byte    = 0x10
-    const val Lakitu: Byte                = 0x11
-    const val Spiny: Byte                 = 0x12
-    const val FlyCheepCheepFrenzy: Byte   = 0x14
-    const val FlyingCheepCheep: Byte      = 0x14
-    const val BowserFlame: Byte           = 0x15
-    const val Fireworks: Byte             = 0x16
-    const val BBill_CCheep_Frenzy: Byte   = 0x17
-    const val Stop_Frenzy: Byte           = 0x18
-    const val Bowser: Byte                = 0x2d
-    const val PowerUpObject: Byte         = 0x2e
-    const val VineObject: Byte            = 0x2f
-    const val FlagpoleFlagObject: Byte    = 0x30
-    const val StarFlagObject: Byte        = 0x31
-    const val JumpspringObject: Byte      = 0x32
-    const val BulletBill_CannonVar: Byte  = 0x33
-    const val RetainerObject: Byte        = 0x35
-    const val TallEnemy: Byte             = 0x09
+    // enemy object constants — see EnemyId enum
 
     // other constants
     const val World1: Byte = 0
@@ -119,6 +88,7 @@ enum class OperMode {
     TitleScreen, Game, Victory, GameOver
 }
 
+<<<<<<< HEAD
 enum class AreaType(val byte: Byte) {
     Water(0), Ground(1), Underground(2), Castle(3);
     companion object {
@@ -151,5 +121,43 @@ enum class Direction(val byte: Byte) {
     None(0), Left(1), Right(2);
     companion object {
         fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { None }
+    }
+}
+
+enum class EnemyId(val byte: Byte) {
+    GreenKoopa(0x00),
+    BuzzyBeetle(0x02),
+    RedKoopa(0x03),
+    HammerBro(0x05),
+    Goomba(0x06),
+    Bloober(0x07),
+    BulletBillFrenzyVar(0x08),
+    TallEnemy(0x09),
+    GreyCheepCheep(0x0a),
+    RedCheepCheep(0x0b),
+    Podoboo(0x0c),
+    PiranhaPlant(0x0d),
+    GreenParatroopaJump(0x0e),
+    RedParatroopa(0x0f),
+    GreenParatroopaFly(0x10),
+    Lakitu(0x11),
+    Spiny(0x12),
+    FlyingCheepCheep(0x14),
+    BowserFlame(0x15),
+    Fireworks(0x16),
+    BBillCCheepFrenzy(0x17),
+    StopFrenzy(0x18),
+    Bowser(0x2d),
+    PowerUpObject(0x2e),
+    VineObject(0x2f),
+    FlagpoleFlagObject(0x30),
+    StarFlagObject(0x31),
+    JumpspringObject(0x32),
+    BulletBillCannonVar(0x33),
+    RetainerObject(0x35);
+
+    companion object {
+        /** Alias: FlyCheepCheepFrenzy and FlyingCheepCheep share the same byte value */
+        val FlyCheepCheepFrenzy = FlyingCheepCheep
     }
 }

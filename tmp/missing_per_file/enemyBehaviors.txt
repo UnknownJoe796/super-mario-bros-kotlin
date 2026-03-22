@@ -1,0 +1,16 @@
+# Missing ASM lines for enemyBehaviors.kt
+# 5 lines to add
+
+
+--- Near JumpspringHandler ---
+  ASM  6641 [instruction   ]: jmp PosJSpr                 ;skip to next part
+
+--- Near StarFlagExit2 ---
+  ASM 10575 [comment       ]: ;$00 - used to store horizontal difference between player and piranha plant
+
+--- Near ExSFN ---
+  ASM 11541 [label         ]: ExSFN: rts
+  ASM 11544 [comment       ]: ;$01 - used to hold enemy offset for second enemy
+
+--- Near ECLoop ---
+  ASM 11593 [instruction   ]: bcc NoEnemyCollision        ;if carry clear, no collision, branch ahead of this

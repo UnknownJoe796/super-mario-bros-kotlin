@@ -1,0 +1,142 @@
+# Missing ASM lines for soundEngine.kt
+# 59 lines to add
+
+
+--- Near ContPau ---
+  ASM 15079 [instruction   ]: cmp #$1e                  ;time to play first again?
+  ASM 15080 [instruction   ]: beq PTone1F
+  ASM 15082 [instruction   ]: bne DecPauC               ;only load regs during times, otherwise skip
+
+--- Near DecPauC ---
+  ASM 15088 [instruction   ]: bne SkipSoundSubroutines
+
+--- Near NoTone ---
+  ASM 15149 [label         ]: NoTone: rts
+
+--- Near PlayFlagpoleSlide ---
+  ASM 15179 [instruction   ]: bne FPS2nd
+
+--- Near ContinueSndJump ---
+  ASM 15198 [instruction   ]: bne N2Prt
+
+--- Near N2Prt ---
+  ASM 15202 [label         ]: N2Prt:    cmp #$20               ;check for third part
+
+--- Near FPS2nd ---
+  ASM 15205 [label         ]: FPS2nd:   ldy #$bc               ;the flagpole slide sound shares part of third part
+
+--- Near DmpJpFPS ---
+  ASM 15206 [label         ]: DmpJpFPS: jsr Dump_Squ1_Regs
+
+--- Near DecJpFPS ---
+  ASM 15228 [label         ]: DecJpFPS: bne BranchToDecLength1  ;unconditional branch
+
+--- Near Square1SfxHandler ---
+  ASM 15236 [instruction   ]: lsr Square1SoundQueue
+  ASM 15238 [instruction   ]: lsr Square1SoundQueue
+  ASM 15240 [instruction   ]: lsr Square1SoundQueue
+  ASM 15242 [instruction   ]: lsr Square1SoundQueue
+  ASM 15244 [instruction   ]: lsr Square1SoundQueue
+  ASM 15246 [instruction   ]: lsr Square1SoundQueue
+  ASM 15248 [instruction   ]: lsr Square1SoundQueue
+
+--- Near ExS1H ---
+  ASM 15269 [label         ]: ExS1H: rts
+
+--- Near BranchToDecLength1 ---
+  ASM 15288 [label         ]: BranchToDecLength1:
+
+--- Near ExSfx1 ---
+  ASM 15322 [label         ]: ExSfx1: rts
+
+--- Near CGrab_TTickRegL ---
+  ASM 15370 [label         ]: CGrab_TTickRegL:
+
+--- Near SBlasJ ---
+  ASM 15397 [label         ]: SBlasJ: bne BlstSJp             ;unconditional branch to load rest of reg contents
+
+--- Near LoadSqu2Regs ---
+  ASM 15412 [label         ]: LoadSqu2Regs:
+
+--- Near ExSfx2 ---
+  ASM 15428 [label         ]: ExSfx2: rts
+
+--- Near Square2SfxHandler ---
+  ASM 15438 [instruction   ]: lsr Square2SoundQueue
+  ASM 15440 [instruction   ]: lsr Square2SoundQueue
+  ASM 15442 [instruction   ]: lsr Square2SoundQueue
+  ASM 15444 [instruction   ]: lsr Square2SoundQueue
+  ASM 15446 [instruction   ]: lsr Square2SoundQueue
+  ASM 15448 [instruction   ]: lsr Square2SoundQueue
+  ASM 15450 [instruction   ]: lsr Square2SoundQueue
+
+--- Near ExS2H ---
+  ASM 15471 [label         ]: ExS2H:  rts
+
+--- Near Cont_CGrab_TTick ---
+  ASM 15473 [label         ]: Cont_CGrab_TTick:
+  ASM 15474 [instruction   ]: jmp ContinueCGrabTTick
+
+--- Near JumpToDecLength2 ---
+  ASM 15476 [label         ]: JumpToDecLength2:
+  ASM 15477 [instruction   ]: jmp DecrementSfx2Length
+
+--- Near BlstSJp ---
+  ASM 15484 [label         ]: BlstSJp: bne PBFRegs
+
+--- Near PBFRegs ---
+  ASM 15492 [label         ]: PBFRegs:  ldx #$9f                 ;the fireworks/gunfire sound shares part of reg contents here
+
+--- Near EL_LRegs ---
+  ASM 15493 [label         ]: EL_LRegs: bne LoadSqu2Regs         ;this is an unconditional branch outta here
+
+--- Near GrowItemRegs ---
+  ASM 15519 [label         ]: GrowItemRegs:
+
+--- Near StopGrowItems ---
+  ASM 15539 [label         ]: StopGrowItems:
+
+--- Near ExSfx3 ---
+  ASM 15573 [label         ]: ExSfx3: rts
+
+--- Near CheckNoiseBuffer ---
+  ASM 15585 [instruction   ]: lda NoiseSoundBuffer      ;check for sfx in buffer
+
+--- Near ExNH ---
+  ASM 15591 [label         ]: ExNH:   rts
+
+--- Near ContinueMusic ---
+  ASM 15607 [label         ]: ContinueMusic:
+  ASM 15608 [instruction   ]: jmp HandleSquare2Music  ;if we have music, start with square 2 channel
+
+--- Near GMLoopB ---
+  ASM 15642 [label         ]: GMLoopB: sty GroundMusicHeaderOfs
+
+--- Near LoadHeader ---
+  ASM 15685 [instruction   ]: sta Tri_NoteLenCounter
+
+--- Near NoiseBeatHandler ---
+  ASM 15884 [instruction   ]: bne PlayBeat
+
+--- Near StrongBeat ---
+  ASM 15890 [instruction   ]: bne PlayBeat
+
+--- Near LongBeat ---
+  ASM 15896 [instruction   ]: bne PlayBeat
+
+--- Near PlayBeat ---
+  ASM 15901 [label         ]: PlayBeat:
+  ASM 15904 [instruction   ]: sty SND_NOISE_REG+3
+
+--- Near ExitMusicHandler ---
+  ASM 15906 [label         ]: ExitMusicHandler:
+
+--- Near AlternateLengthHandler ---
+  ASM 15909 [label         ]: AlternateLengthHandler:
+
+--- Near AllMus ---
+  ASM 15938 [label         ]: AllMus:    ldx #$82              ;load contents of other sound regs for square 2
+
+--- Near LoadWaterEventMusEnvData ---
+  ASM 15956 [label         ]: LoadWaterEventMusEnvData:
+  ASM 15962 [comment       ]: ;music header offsets

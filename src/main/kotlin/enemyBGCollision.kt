@@ -207,7 +207,7 @@ fun System.enemyToBGCollisionDet() {
 
     //> cpy #Spiny               ;if enemy object is not spiny, branch elsewhere
     //> bne DoIDCheckBGColl
-    if (enemyId == Constants.Spiny.toInt() and 0xFF) {
+    if (enemyId == EnemyId.Spiny.byte.toInt() and 0xFF) {
         //> lda Enemy_Y_Position,x
         //> cmp #$25                 ;if enemy vertical coordinate < 36 branch to leave
         //> bcc ExEBG
@@ -217,7 +217,7 @@ fun System.enemyToBGCollisionDet() {
     //> DoIDCheckBGColl:
     //> cpy #GreenParatroopaJump ;check for some other enemy object
     //> bne HBChk                ;branch if not found
-    if (enemyId == Constants.GreenParatroopaJump.toInt() and 0xFF) {
+    if (enemyId == EnemyId.GreenParatroopaJump.byte.toInt() and 0xFF) {
         //> jmp EnemyJump            ;otherwise jump elsewhere
         enemyJump(x)
         return
@@ -225,7 +225,7 @@ fun System.enemyToBGCollisionDet() {
 
     //> HBChk: cpy #HammerBro    ;check for hammer bro
     //> bne CInvu                ;branch if not found
-    if (enemyId == Constants.HammerBro.toInt() and 0xFF) {
+    if (enemyId == EnemyId.HammerBro.byte.toInt() and 0xFF) {
         //> jmp HammerBroBGColl      ;otherwise jump elsewhere
         hammerBroBGColl(x)
         return
@@ -237,8 +237,8 @@ fun System.enemyToBGCollisionDet() {
     //> beq YesIn
     //> cpy #$07                 ;if enemy object =>$07, branch to leave
     //> bcs ExEBGChk
-    if (enemyId != Constants.Spiny.toInt() and 0xFF &&
-        enemyId != Constants.PowerUpObject.toInt() and 0xFF &&
+    if (enemyId != EnemyId.Spiny.byte.toInt() and 0xFF &&
+        enemyId != EnemyId.PowerUpObject.byte.toInt() and 0xFF &&
         enemyId >= 0x07) return
 
     //> YesIn: jsr ChkUnderEnemy ;if enemy object < $07, or = $12 or $2e, do this sub
@@ -321,7 +321,7 @@ private fun System.handleEToBGCollision(x: Int, underResult: BlockBufferResult) 
         }
         //> cmp #Goomba               ;if enemy object not goomba, branch ahead
         //> bne GiveOEPoints
-        if (enemyId == Constants.Goomba.toInt() and 0xFF) {
+        if (enemyId == EnemyId.Goomba.byte.toInt() and 0xFF) {
             //> jsr KillEnemyAboveBlock
             killEnemyAboveBlock(x)
         }
@@ -369,7 +369,7 @@ private fun System.shellOrBlockDefeatLocal(x: Int) {
     //> ShellOrBlockDefeat:
     val enemyId = ram.enemyID[x].toInt() and 0xFF
     //> cmp #PiranhaPlant; bne StnE
-    if (enemyId == Constants.PiranhaPlant.toInt() and 0xFF) {
+    if (enemyId == EnemyId.PiranhaPlant.byte.toInt() and 0xFF) {
         val yPos = ram.sprObjYPos[x + 1].toInt() and 0xFF
         ram.sprObjYPos[x + 1] = (yPos + 0x18).toByte()
     }
@@ -381,10 +381,10 @@ private fun System.shellOrBlockDefeatLocal(x: Int) {
 
     //> lda #$02
     var points = 0x02
-    if (enemyId == Constants.HammerBro.toInt() and 0xFF) {
+    if (enemyId == EnemyId.HammerBro.byte.toInt() and 0xFF) {
         points = 0x06
     }
-    if (enemyId == Constants.Goomba.toInt() and 0xFF) {
+    if (enemyId == EnemyId.Goomba.byte.toInt() and 0xFF) {
         points = 0x01
     }
 
@@ -408,7 +408,7 @@ private fun System.chkToStunEnemiesLocal(x: Int) {
     //> cmp #$0a; bcc Demote
     //> cmp #PiranhaPlant; bcc SetStun
     if (enemyId in 0x09 until 0x11) {
-        if (enemyId < 0x0a || enemyId >= (Constants.PiranhaPlant.toInt() and 0xFF)) {
+        if (enemyId < 0x0a || enemyId >= (EnemyId.PiranhaPlant.byte.toInt() and 0xFF)) {
             //> Demote: and #%00000001; sta Enemy_ID,x
             ram.enemyID[x] = (enemyId and 0x01).toByte()
         }
@@ -423,7 +423,7 @@ private fun System.chkToStunEnemiesLocal(x: Int) {
 
     //> lda Enemy_ID,x; cmp #Bloober; beq SetWYSpd
     val currentId = ram.enemyID[x].toInt() and 0xFF
-    val ySpeed: Byte = if (currentId == Constants.Bloober.toInt() and 0xFF) {
+    val ySpeed: Byte = if (currentId == EnemyId.Bloober.byte.toInt() and 0xFF) {
         //> SetWYSpd: lda #$ff
         0xff.toByte()
     } else {
@@ -440,8 +440,8 @@ private fun System.chkToStunEnemiesLocal(x: Int) {
 
     //> ChkBBill:
     val stunId = ram.enemyID[x].toInt() and 0xFF
-    if (stunId != Constants.BulletBill_CannonVar.toInt() and 0xFF &&
-        stunId != Constants.BulletBill_FrenzyVar.toInt() and 0xFF) {
+    if (stunId != EnemyId.BulletBillCannonVar.byte.toInt() and 0xFF &&
+        stunId != EnemyId.BulletBillFrenzyVar.byte.toInt() and 0xFF) {
         //> sty Enemy_MovingDir,x
         ram.enemyMovingDirs[x] = dir.toByte()
     }
@@ -519,7 +519,7 @@ private fun System.landEnemyProperly(x: Int) {
     //> lda #$10                ;load default timer here
     var timer = 0x10
     //> ldy Enemy_ID,x; cpy #Spiny; bne SetForStn
-    if ((ram.enemyID[x].toInt() and 0xFF) == Constants.Spiny.toInt() and 0xFF) {
+    if ((ram.enemyID[x].toInt() and 0xFF) == EnemyId.Spiny.byte.toInt() and 0xFF) {
         timer = 0x00
     }
     //> SetForStn: sta EnemyIntervalTimer,x
@@ -538,13 +538,13 @@ private fun System.procEnemyDirection(x: Int) {
     val enemyId = ram.enemyID[x].toInt() and 0xFF
 
     //> cmp #Goomba; beq LandEnemyInitState
-    if (enemyId == Constants.Goomba.toInt() and 0xFF) {
+    if (enemyId == EnemyId.Goomba.byte.toInt() and 0xFF) {
         landEnemyInitState(x)
         return
     }
 
     //> cmp #Spiny; bne InvtD
-    if (enemyId == Constants.Spiny.toInt() and 0xFF) {
+    if (enemyId == EnemyId.Spiny.byte.toInt() and 0xFF) {
         //> lda #$01; sta Enemy_MovingDir,x
         ram.enemyMovingDirs[x] = 0x01
         //> lda #$08; sta Enemy_X_Speed,x
@@ -620,7 +620,7 @@ private fun System.chkForRedKoopa(x: Int) {
     //> ChkForRedKoopa:
     val enemyId = ram.enemyID[x].toInt() and 0xFF
     //> cmp #RedKoopa; bne Chk2MSBSt
-    if (enemyId == Constants.RedKoopa.toInt() and 0xFF) {
+    if (enemyId == EnemyId.RedKoopa.byte.toInt() and 0xFF) {
         //> lda Enemy_State,x; beq ChkForBump_HammerBroJ
         if (ram.enemyState[x] == 0.toByte()) {
             chkForBumpHammerBroJ(x)
@@ -710,7 +710,7 @@ private fun System.chkForBumpHammerBroJ(x: Int) {
 
     //> NoBump: lda Enemy_ID,x; cmp #$05; bne InvEnemyDir
     val enemyId = ram.enemyID[x].toInt() and 0xFF
-    if (enemyId == Constants.HammerBro.toInt() and 0xFF) {
+    if (enemyId == EnemyId.HammerBro.byte.toInt() and 0xFF) {
         //> lda #$00; sta $00; ldy #$fa; jmp SetHJ
         setHJ(x, 0x00, 0xfa.toByte())
         return
@@ -775,17 +775,17 @@ private fun System.enemyTurnAroundLocal(x: Int) {
     //> EnemyTurnAround:
     val enemyId = ram.enemyID[x].toInt() and 0xFF
     //> cmp #PiranhaPlant; beq ExTA
-    if (enemyId == Constants.PiranhaPlant.toInt() and 0xFF) return
+    if (enemyId == EnemyId.PiranhaPlant.byte.toInt() and 0xFF) return
     //> cmp #Lakitu; beq ExTA
-    if (enemyId == Constants.Lakitu.toInt() and 0xFF) return
+    if (enemyId == EnemyId.Lakitu.byte.toInt() and 0xFF) return
     //> cmp #HammerBro; beq ExTA
-    if (enemyId == Constants.HammerBro.toInt() and 0xFF) return
+    if (enemyId == EnemyId.HammerBro.byte.toInt() and 0xFF) return
 
     //> cmp #Spiny; beq RXSpd
     //> cmp #GreenParatroopaJump; beq RXSpd
     //> cmp #$07; bcs ExTA
-    if (enemyId != Constants.Spiny.toInt() and 0xFF &&
-        enemyId != Constants.GreenParatroopaJump.toInt() and 0xFF &&
+    if (enemyId != EnemyId.Spiny.byte.toInt() and 0xFF &&
+        enemyId != EnemyId.GreenParatroopaJump.byte.toInt() and 0xFF &&
         enemyId >= 0x07) return
 
     reverseEnemySpeed(x)
