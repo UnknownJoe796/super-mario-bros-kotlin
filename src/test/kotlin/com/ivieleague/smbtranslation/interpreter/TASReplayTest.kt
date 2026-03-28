@@ -2099,18 +2099,21 @@ class TASReplayTest {
         }
     }
 
-    /** Returns a diagnostic string describing how the area pointer was resolved (or "UNRESOLVED"). */
-    private fun syncSmb2jRomPointers(system: System): String {
+    // Cache: FDS NES address → headerless area data array (avoids re-stripping every frame)
+    private val smb2jHeaderlessCache = mutableMapOf<Int, ByteArray>()
+
+    private fun syncSmb2jRomPointers(system: System) {
         system.ram.stack.clear()
         system.ram.vRAMBuffer1.clear()
         system.ram.vRAMBuffer2.clear()
 
+        // Resolve enemy data pointer.
+        // SMB2J uses synthetic addresses ($2000+) in Smb2jRomData but FCEUX has real
+        // FDS addresses. Try lookup; if unresolved, enemy data stays from level load.
         val enemyAddr = (system.ram.enemyDataLow.toInt() and 0xFF) or
                 ((system.ram.enemyDataHigh.toInt() and 0xFF) shl 8)
-        // Try worlds 1-9 lookup first, then A-D
         val enemyIdx = smb2jEnemyAddrToIdx[enemyAddr] ?: smb2jEnemyAddrToIdx_AD[enemyAddr]
         if (enemyIdx != null) {
-            val arrays = if (enemyIdx in smb2jEnemyAddrToIdx.values.toSet()) Smb2jRomData else Smb2jRomData
             system.ram.enemyDataBytes = Smb2jRomData.enemyDataWithOverflow[enemyAddr]
                 ?: Smb2jRomData.enemyDataWithOverflow_AD?.get(enemyAddr)
                 ?: if (smb2jEnemyAddrToIdx.containsKey(enemyAddr))
@@ -2119,43 +2122,53 @@ class TASReplayTest {
                     Smb2jRomData.enemyDataArrays_AD?.get(smb2jEnemyAddrToIdx_AD[enemyAddr]!!)
                         ?: ByteArray(0)
         }
+        // Enemy data has no header, so no stripping needed for unresolved pointers.
 
+        // Resolve area data pointer.
+        // FCEUX pointer is post-header (NES advances $E7/$E8 by 2 past header).
         val areaAddr = (system.ram.areaDataLow.toInt() and 0xFF) or
                 ((system.ram.areaDataHigh.toInt() and 0xFF) shl 8)
-        // Try base address (worlds 1-9), then A-D, then +2 variants
         val areaIdx = smb2jAreaAddrToIdx[areaAddr]
         if (areaIdx != null) {
-            val arr = Smb2jRomData.areaDataArrays[areaIdx]
-            system.ram.areaData = arr
-            return "base-1to9[idx=$areaIdx] addr=\$${areaAddr.toString(16)} arraySize=${arr.size}"
+            system.ram.areaData = Smb2jRomData.areaDataArrays[areaIdx]
         } else {
             val areaIdxAD = smb2jAreaAddrToIdx_AD[areaAddr]
             if (areaIdxAD != null) {
-                val arr = Smb2jRomData.areaDataArrays_AD!![areaIdxAD]
-                system.ram.areaData = arr
-                return "base-AD[idx=$areaIdxAD] addr=\$${areaAddr.toString(16)} arraySize=${arr.size}"
+                system.ram.areaData = Smb2jRomData.areaDataArrays_AD!![areaIdxAD]
             } else {
                 val idx2 = smb2jAreaAddrPlus2ToIdx[areaAddr]
                 if (idx2 != null) {
-                    val arr = smb2jAreaDataHeaderless[idx2]
-                    system.ram.areaData = arr
-                    return "headerless-1to9[idx=$idx2] addr=\$${areaAddr.toString(16)} arraySize=${arr.size}"
+                    system.ram.areaData = smb2jAreaDataHeaderless[idx2]
                 } else {
                     val idx2AD = smb2jAreaAddrPlus2ToIdx_AD[areaAddr]
                     if (idx2AD != null) {
-                        val arr = smb2jAreaDataHeaderless_AD[idx2AD]
-                        system.ram.areaData = arr
-                        return "headerless-AD[idx=$idx2AD] addr=\$${areaAddr.toString(16)} arraySize=${arr.size}"
+                        system.ram.areaData = smb2jAreaDataHeaderless_AD[idx2AD]
+                    } else {
+                        // Pointer unresolved (FDS uses real NES addresses that don't match
+                        // our synthetic addresses). The FCEUX pointer is post-header, so
+                        // use the cached headerless version for this pointer.
+                        val cached = smb2jHeaderlessCache[areaAddr]
+                        if (cached != null) {
+                            system.ram.areaData = cached
+                        } else {
+                            // First time seeing this pointer: strip 2-byte header from
+                            // the current area data (set during level load) and cache it.
+                            val cur = system.ram.areaData
+                            if (cur != null && cur.size > 2) {
+                                val stripped = cur.copyOfRange(2, cur.size)
+                                smb2jHeaderlessCache[areaAddr] = stripped
+                                system.ram.areaData = stripped
+                            }
+                        }
                     }
                 }
             }
         }
-        return "UNRESOLVED addr=\$${areaAddr.toString(16)} (low=\$${(system.ram.areaDataLow.toInt() and 0xFF).toString(16)}, high=\$${(system.ram.areaDataHigh.toInt() and 0xFF).toString(16)})"
     }
 
-    private fun syncSmb2jFullRamFromFceux(system: System, fceuxFrame: ByteArray, offset: Int): String {
+    private fun syncSmb2jFullRamFromFceux(system: System, fceuxFrame: ByteArray, offset: Int) {
         GameRamMapper.fromFlat(system.ram, fceuxFrame, offset)
-        return syncSmb2jRomPointers(system)
+        syncSmb2jRomPointers(system)
     }
 
     private fun runSmb2jTasReplay(scenario: Smb2jScenario, tasFile: File, ramFile: File?) {
@@ -2212,92 +2225,7 @@ class TASReplayTest {
                     if (warmBoot != 0xA5 || operMode > 3) {
                         continue // Skip uninitialized boot frame
                     }
-                    syncResolution = syncSmb2jFullRamFromFceux(system, fceuxRam, fOff)
-                }
-            }
-
-            // ---- DIAGNOSTIC: area parser tracing for frames 1008-1012 ----
-            val diagFrames = 1008..1012
-            if (frame in diagFrames && fceuxRam != null && scenario.name == "smb2j-warps-mario") {
-                val fOff = frame * 2048
-                fun fceuxByte(addr: Int) = fceuxRam[fOff + addr].toInt() and 0xFF
-                fun hex(v: Int) = "0x${v.toString(16).padStart(2, '0')}"
-                fun hex16(v: Int) = "0x${v.toString(16).padStart(4, '0')}"
-
-                val fAreaDataOfs = fceuxByte(0x072C)
-                val fAreaDataLow = fceuxByte(0xE7)
-                val fAreaDataHigh = fceuxByte(0xE8)
-                val fAreaPtr = fAreaDataLow or (fAreaDataHigh shl 8)
-                val fCurrentColPos = fceuxByte(0x0726)
-                val fAreaObjLen0 = fceuxByte(0x072D)
-                val fAreaObjLen1 = fceuxByte(0x072E)
-                val fAreaObjLen2 = fceuxByte(0x072F)
-                val fWorld = fceuxByte(0x075F)
-                val fLevel = fceuxByte(0x0760)
-                val fAreaNum = fceuxByte(0x0760) // areaNumber is at $0760 per GameRam
-                val fOperMode = fceuxByte(OPER_MODE)
-                val fOperModeTask = fceuxByte(OPER_MODE_TASK)
-
-                // Check areaNumber at its actual address
-                val fAreaNumber_760 = fceuxByte(0x0760)
-                val fAreaNumber_761 = fceuxByte(0x0761)
-
-                println("==== DIAG Frame $frame BEFORE NMI (FCEUX state) ====")
-                println("  areaDataOffset(\$072C)=${hex(fAreaDataOfs)}")
-                println("  areaDataLow(\$E7)=${hex(fAreaDataLow)}, areaDataHigh(\$E8)=${hex(fAreaDataHigh)} => ptr=${hex16(fAreaPtr)}")
-                println("  currentColumnPos(\$0726)=${hex(fCurrentColPos)}")
-                println("  areaObjectLength[0-2]=${hex(fAreaObjLen0)},${hex(fAreaObjLen1)},${hex(fAreaObjLen2)}")
-                println("  worldNumber(\$075F)=$fWorld, levelNumber(\$075C)=${fceuxByte(0x075C)}")
-                println("  areaNumber(\$0760)=${hex(fAreaNumber_760)}, \$0761=${hex(fAreaNumber_761)}")
-                println("  operMode(\$0770)=$fOperMode, operModeTask(\$0772)=$fOperModeTask")
-                println("  syncResolution: $syncResolution")
-
-                // Print Kotlin state after sync (before NMI)
-                println("  -- Kotlin after sync --")
-                println("  ram.areaDataOffset=${hex(system.ram.areaDataOffset.toInt() and 0xFF)}")
-                println("  ram.areaDataLow=${hex(system.ram.areaDataLow.toInt() and 0xFF)}, ram.areaDataHigh=${hex(system.ram.areaDataHigh.toInt() and 0xFF)}")
-                println("  ram.currentColumnPos=${hex(system.ram.currentColumnPos.toInt())}")
-                println("  ram.areaObjectLength[0-2]=${hex(system.ram.areaObjectLength[0].toInt() and 0xFF)},${hex(system.ram.areaObjectLength[1].toInt() and 0xFF)},${hex(system.ram.areaObjectLength[2].toInt() and 0xFF)}")
-                println("  ram.worldNumber=${system.ram.worldNumber}, ram.levelNumber=${system.ram.levelNumber}")
-                println("  ram.areaNumber=${hex(system.ram.areaNumber.toInt() and 0xFF)}")
-                println("  ram.operMode=${system.ram.operMode}, ram.operModeTask=${system.ram.operModeTask}")
-                val ad = system.ram.areaData
-                println("  ram.areaData.size=${ad?.size ?: "NULL"}")
-
-                // Print area data bytes at current offset
-                val ofs = system.ram.areaDataOffset.toInt() and 0xFF
-                if (ad != null) {
-                    val bytesToShow = minOf(10, ad.size - ofs)
-                    if (bytesToShow > 0 && ofs < ad.size) {
-                        val bytes = (0 until bytesToShow).joinToString(" ") {
-                            hex(ad[ofs + it].toInt() and 0xFF)
-                        }
-                        println("  areaData[offset=$ofs..${ofs + bytesToShow - 1}]: $bytes")
-                    } else {
-                        println("  areaData[offset=$ofs]: OUT OF BOUNDS (size=${ad.size})")
-                    }
-                } else {
-                    println("  areaData is NULL, offset=$ofs")
-                }
-
-                // Try to read what FCEUX has at the NES area data pointer + offset
-                // to compare the bytes the NES would see
-                println("  -- FCEUX area data pointer analysis --")
-                // Check all lookup tables for this pointer
-                val inBase = smb2jAreaAddrToIdx.containsKey(fAreaPtr)
-                val inAD = smb2jAreaAddrToIdx_AD.containsKey(fAreaPtr)
-                val inPlus2 = smb2jAreaAddrPlus2ToIdx.containsKey(fAreaPtr)
-                val inPlus2AD = smb2jAreaAddrPlus2ToIdx_AD.containsKey(fAreaPtr)
-                println("  ptr ${hex16(fAreaPtr)}: inBase=$inBase, inAD=$inAD, inPlus2=$inPlus2, inPlus2AD=$inPlus2AD")
-
-                // If the pointer is an NES ROM address, we can't read it from RAM.
-                // But we can check what the resolved Kotlin areaData contains vs what
-                // we'd expect. Also show nearby known addresses.
-                val nearbyAddrs = (Smb2jRomData.areaDataAddresses.toList() + (Smb2jRomData.areaDataAddresses_AD?.toList() ?: emptyList()))
-                    .filter { kotlin.math.abs(it - fAreaPtr) < 0x100 }
-                    .sorted()
-                if (nearbyAddrs.isNotEmpty()) {
-                    println("  Nearby known area addresses: ${nearbyAddrs.joinToString { hex16(it) }}")
+                    syncSmb2jFullRamFromFceux(system, fceuxRam, fOff)
                 }
             }
 
@@ -2312,52 +2240,6 @@ class TASReplayTest {
                 system.nonMaskableInterrupt()
             } catch (e: Throwable) {
                 runError = e
-            }
-
-            // ---- DIAGNOSTIC: Kotlin state after NMI + next FCEUX frame ----
-            if (frame in diagFrames && fceuxRam != null && scenario.name == "smb2j-warps-mario") {
-                fun hex(v: Int) = "0x${v.toString(16).padStart(2, '0')}"
-                fun hex16(v: Int) = "0x${v.toString(16).padStart(4, '0')}"
-
-                println("  -- Kotlin AFTER NMI --")
-                println("  ram.areaDataOffset=${hex(system.ram.areaDataOffset.toInt() and 0xFF)}")
-                println("  ram.areaDataLow=${hex(system.ram.areaDataLow.toInt() and 0xFF)}, ram.areaDataHigh=${hex(system.ram.areaDataHigh.toInt() and 0xFF)}")
-                println("  ram.currentColumnPos=${hex(system.ram.currentColumnPos.toInt())}")
-                println("  ram.areaObjectLength[0-2]=${hex(system.ram.areaObjectLength[0].toInt() and 0xFF)},${hex(system.ram.areaObjectLength[1].toInt() and 0xFF)},${hex(system.ram.areaObjectLength[2].toInt() and 0xFF)}")
-                println("  ram.operMode=${system.ram.operMode}, ram.operModeTask=${system.ram.operModeTask}")
-
-                // Next FCEUX frame state
-                val nextOff = (frame + 1) * 2048
-                if (nextOff + 2047 < fceuxRam.size) {
-                    fun fceuxNextByte(addr: Int) = fceuxRam[nextOff + addr].toInt() and 0xFF
-                    val nAreaDataOfs = fceuxNextByte(0x072C)
-                    val nAreaDataLow = fceuxNextByte(0xE7)
-                    val nAreaDataHigh = fceuxNextByte(0xE8)
-                    val nAreaPtr = nAreaDataLow or (nAreaDataHigh shl 8)
-                    val nCurrentColPos = fceuxNextByte(0x0726)
-                    val nAreaObjLen0 = fceuxNextByte(0x072D)
-                    val nAreaObjLen1 = fceuxNextByte(0x072E)
-                    val nAreaObjLen2 = fceuxNextByte(0x072F)
-
-                    println("  -- FCEUX AFTER NMI (frame ${frame + 1} state) --")
-                    println("  areaDataOffset(\$072C)=${hex(nAreaDataOfs)}")
-                    println("  areaDataLow(\$E7)=${hex(nAreaDataLow)}, areaDataHigh(\$E8)=${hex(nAreaDataHigh)} => ptr=${hex16(nAreaPtr)}")
-                    println("  currentColumnPos(\$0726)=${hex(nCurrentColPos)}")
-                    println("  areaObjectLength[0-2]=${hex(nAreaObjLen0)},${hex(nAreaObjLen1)},${hex(nAreaObjLen2)}")
-                    println("  operMode(\$0770)=${fceuxNextByte(OPER_MODE)}, operModeTask(\$0772)=${fceuxNextByte(OPER_MODE_TASK)}")
-
-                    // Compare the key divergent field
-                    val kOfs = system.ram.areaDataOffset.toInt() and 0xFF
-                    if (kOfs != nAreaDataOfs) {
-                        println("  *** DIVERGENCE: areaDataOffset kotlin=${hex(kOfs)} fceux=${hex(nAreaDataOfs)} diff=${kOfs - nAreaDataOfs}")
-                    } else {
-                        println("  areaDataOffset MATCHES: ${hex(kOfs)}")
-                    }
-                }
-                if (runError != null) {
-                    println("  NMI ERROR: ${runError!!::class.simpleName}: ${runError!!.message}")
-                }
-                println("==== END DIAG Frame $frame ====")
             }
 
             if (runError != null) {
