@@ -153,14 +153,14 @@ class TASReplayTest {
                 ((system.ram.enemyDataHigh.toInt() and 0xFF) shl 8)
         val enemyIdx = enemyAddrToIdx[enemyAddr]
         if (enemyIdx != null) {
-            system.ram.enemyDataBytes = RomData.enemyDataWithOverflow[enemyAddr]
-                ?: RomData.enemyDataArrays[enemyIdx]
+            system.ram.enemyDataBytes = Smb1RomData.enemyDataWithOverflow[enemyAddr]
+                ?: Smb1RomData.enemyDataArrays[enemyIdx]
         }
         val areaAddr = (system.ram.areaDataLow.toInt() and 0xFF) or
                 ((system.ram.areaDataHigh.toInt() and 0xFF) shl 8)
         val areaIdx = areaAddrToIdx[areaAddr]
         if (areaIdx != null) {
-            system.ram.areaData = RomData.areaDataArrays[areaIdx]
+            system.ram.areaData = Smb1RomData.areaDataArrays[areaIdx]
         } else {
             val idx2 = areaAddrPlus2ToIdx[areaAddr]
             if (idx2 != null) system.ram.areaData = areaDataHeaderless[idx2]
@@ -168,16 +168,16 @@ class TASReplayTest {
     }
 
     // Reverse lookup: ROM address → index in RomData arrays
-    private val enemyAddrToIdx: Map<Int, Int> = RomData.enemyDataAddresses
+    private val enemyAddrToIdx: Map<Int, Int> = Smb1RomData.enemyDataAddresses
         .mapIndexed { idx, addr -> addr to idx }.toMap()
-    private val areaAddrToIdx: Map<Int, Int> = RomData.areaDataAddresses
+    private val areaAddrToIdx: Map<Int, Int> = Smb1RomData.areaDataAddresses
         .mapIndexed { idx, addr -> addr to idx }.toMap()
     // NES advances AreaData pointer by 2 past the header (see getAreaDataAddrs assembly).
     // Build a lookup for base+2 addresses, and pre-compute headerless arrays so that
     // NES offsets work directly (they're relative to the advanced pointer).
-    private val areaAddrPlus2ToIdx: Map<Int, Int> = RomData.areaDataAddresses
+    private val areaAddrPlus2ToIdx: Map<Int, Int> = Smb1RomData.areaDataAddresses
         .mapIndexed { idx, addr -> (addr + 2) to idx }.toMap()
-    private val areaDataHeaderless: Array<ByteArray> = RomData.areaDataArrays
+    private val areaDataHeaderless: Array<ByteArray> = Smb1RomData.areaDataArrays
         .map { if (it.size > 2) it.copyOfRange(2, it.size) else it }.toTypedArray()
 
     private fun snapshot(system: System, name: String) {
@@ -207,8 +207,8 @@ class TASReplayTest {
                 ((system.ram.enemyDataHigh.toInt() and 0xFF) shl 8)
         val enemyIdx = enemyAddrToIdx[enemyAddr]
         if (enemyIdx != null) {
-            system.ram.enemyDataBytes = RomData.enemyDataWithOverflow[enemyAddr]
-                ?: RomData.enemyDataArrays[enemyIdx]
+            system.ram.enemyDataBytes = Smb1RomData.enemyDataWithOverflow[enemyAddr]
+                ?: Smb1RomData.enemyDataArrays[enemyIdx]
         }
 
         // NES advances the AreaData pointer ($E7/$E8) by 2 past the 2-byte header
@@ -220,7 +220,7 @@ class TASReplayTest {
                 ((system.ram.areaDataHigh.toInt() and 0xFF) shl 8)
         val areaIdx = areaAddrToIdx[areaAddr]
         if (areaIdx != null) {
-            system.ram.areaData = RomData.areaDataArrays[areaIdx]
+            system.ram.areaData = Smb1RomData.areaDataArrays[areaIdx]
         } else {
             val idx2 = areaAddrPlus2ToIdx[areaAddr]
             if (idx2 != null) {

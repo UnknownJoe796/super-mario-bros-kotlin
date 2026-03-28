@@ -1403,6 +1403,16 @@ private fun System.handlePowerUpCollision(x: Int) {
     //> HandlePowerUpCollision:
     //> jsr EraseEnemyObject
     eraseEnemyObject(x)
+
+    //> lda PowerUpType          ;(sm2main) check power-up type
+    //> cmp #$04                ;if poison mushroom, injure player
+    //> bne Safe
+    //> jmp InjurePlayer
+    if ((ram.powerUpType.toInt() and 0xFF) == 0x04) {
+        forceInjury()
+        return
+    }
+
     //> lda #$06; jsr SetupFloateyNumber
     val savedOfs = ram.objectOffset
     ram.objectOffset = x.toByte()

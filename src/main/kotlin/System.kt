@@ -7,6 +7,9 @@ import com.ivieleague.smbtranslation.nes.Inputs
 import com.ivieleague.smbtranslation.nes.PictureProcessingUnit
 
 class System {
+    var variant: GameVariant = GameVariant.SMB1
+    var character: Character = Character.Mario
+    var romData: RomData = Smb1RomData
     val ram = GameRam()
     val ppu = PictureProcessingUnit()
     val apu = AudioProcessingUnit()

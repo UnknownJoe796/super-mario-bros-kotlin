@@ -76,6 +76,13 @@ private fun System.runGameOver(): Unit {
     //> lda ScreenTimer       ;if not pressed, wait for
     //> bne GameIsOn          ;screen timer to expire
     if (!ram.savedJoypad1Bits.start && ram.screenTimer != 0.toByte()) return
+
+    // SMB2J continue system: continue/retry menu instead of immediate title screen
+    if (variant == GameVariant.SMB2J) {
+        smb2jGameOver()
+        return
+    }
+
     //> TerminateGame:
     //> lda #Silence          ;silence music
     //> sta EventMusicQueue

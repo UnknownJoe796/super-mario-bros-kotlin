@@ -86,6 +86,12 @@ fun System.powerUpObjHandler() {
                 moveNormalEnemy()
                 enemyToBGCollisionDet()
             }
+            //> cmp #$04                ;(sm2main) if poison mushroom, move like regular
+            //> beq ShroomM
+            0x04 -> {
+                moveNormalEnemy()
+                enemyToBGCollisionDet()
+            }
             //> cmp #$02
             //> MEHor: jmp MoveEnemyHorizontally  ;jump here to move enemy horizontally for <> $2e and d6 set
             //> bne SlowM                  ;if any other object where d6 set, jump to set Y

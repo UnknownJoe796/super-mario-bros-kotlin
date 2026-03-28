@@ -232,6 +232,12 @@ private fun System.playerEndWorld() {
     //> cpy #World8                ;if on world 8, player is done with game,
     //> bcs EndChkBButton          ;thus branch to read controller
     val world = ram.worldNumber
+    // SMB2J: track completed worlds in bitfield
+    //> (sm2main) ldy WorldNumber; lda WorldBits,y; ora CompletedWorlds; sta CompletedWorlds
+    if (variant == GameVariant.SMB2J) {
+        val bit = 1 shl (world.toInt() and 7)
+        ram.completedWorlds = ((ram.completedWorlds.toInt() and 0xFF) or bit).toByte()
+    }
     if (world.toUByte() < World8.toUByte()) {
         // Initialize for next world start at area 1-1
         //> lda #$00
@@ -243,7 +249,12 @@ private fun System.playerEndWorld() {
         ram.operModeTask = 0x00
         // increment world number
         //> inc WorldNumber            ;increment world number to move onto the next world
-        ram.worldNumber = world.inc()
+        var nextWorld = world.inc()
+        //> (sm2main) cmp #World9; bcc NoPast9; lda #World9
+        if (variant == GameVariant.SMB2J && nextWorld > Constants.World9) {
+            nextWorld = Constants.World9 // World 9 loops forever
+        }
+        ram.worldNumber = nextWorld
         // load next area's pointer
         //> jsr LoadAreaPointer        ;get area address offset for the next area
         loadAreaPointer()

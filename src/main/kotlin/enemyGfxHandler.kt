@@ -692,9 +692,11 @@ fun System.enemyGfxHandler() {
     //> beq MirrorEnemyGfx
     //> cmp #Podoboo                ;check for podoboo object
     //> beq MirrorEnemyGfx          ;branch if either of three are found
+    // SMB2J: upside-down piranha (ID $04) also mirrors like regular piranha
     val shouldMirror = (enemyCode == EnemyId.Bloober.id) ||
             (enemyCode == EnemyId.PiranhaPlant.id) ||
-            (enemyCode == EnemyId.Podoboo.id)
+            (enemyCode == EnemyId.Podoboo.id) ||
+            (variant == GameVariant.SMB2J && enemyCode == EnemyId.GreenKoopaVar.id)
 
     val skipToMirrorLakitu: Boolean
 
