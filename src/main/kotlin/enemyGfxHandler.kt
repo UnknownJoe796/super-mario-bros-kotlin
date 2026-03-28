@@ -302,7 +302,10 @@ fun System.enemyGfxHandler() {
     //> lda EnemyAttributeData,y    ;load sprite attribute using enemy object
     //> ora $04                     ;as offset, and add to bits already loaded
     //> sta $04
-    attribs = (attribs.toInt() or EnemyAttributeData[enemyCode]).toByte()
+    // SMB2J patches EnemyAttributeData[PiranhaPlant] at runtime (red=$22 vs green=$21)
+    val enemyAttr = if (variant == GameVariant.SMB2J && enemyCode == EnemyId.PiranhaPlant.id)
+        ram.piranhaPlantAttribute else EnemyAttributeData[enemyCode]
+    attribs = (attribs.toInt() or enemyAttr).toByte()
     //> lda EnemyGfxTableOffsets,y  ;load value based on enemy object as offset
     //> tax                         ;save as X
     gfxTableOfs = EnemyGfxTableOffsets[enemyCode]

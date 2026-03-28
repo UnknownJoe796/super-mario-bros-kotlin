@@ -8,6 +8,7 @@ import com.ivieleague.smbtranslation.nes.PictureProcessingUnit
 
 class System {
     var variant: GameVariant = GameVariant.SMB1
+        set(value) { field = value; ram.variant = value }
     var character: Character = Character.Mario
     var romData: RomData = Smb1RomData
     val ram = GameRam()

@@ -6,15 +6,20 @@ import kotlin.experimental.and
 import kotlin.experimental.or
 
 /**
- * GameCoreRoutine: Sets up the current player's joypad bits,
- * dispatches to the appropriate game routine, then runs the main game engine.
+ * GameCoreRoutine: Dispatches to the appropriate game routine, then runs the main game engine.
+ * SMB1: also copies the active player's joypad bits into the master register (2-player alternation).
+ * SMB2J: skips the joypad copy since it's single-player (ReadJoypads writes port 1 directly).
  */
 fun System.gameCoreRoutine() {
     //> GameCoreRoutine:
-    //> ldx CurrentPlayer          ;get which player is on the screen
-    //> lda SavedJoypadBits,x      ;use appropriate player's controller bits
-    //> sta SavedJoypadBits        ;as the master controller bits
-    ram.savedJoypadBits = if (ram.currentPlayer == 0.toByte()) ram.savedJoypad1Bits else ram.savedJoypad2Bits
+    // SMB1 only: copy the active player's joypad bits into the master register.
+    // SMB2J omits this — it's single-player, ReadJoypads already writes port 1 to SavedJoypadBits.
+    if (variant != GameVariant.SMB2J) {
+        //> ldx CurrentPlayer          ;get which player is on the screen
+        //> lda SavedJoypadBits,x      ;use appropriate player's controller bits
+        //> sta SavedJoypadBits        ;as the master controller bits
+        ram.savedJoypadBits = if (ram.currentPlayer == 0.toByte()) ram.savedJoypad1Bits else ram.savedJoypad2Bits
+    }
     //> jsr GameRoutines           ;execute one of many possible subs
     if (debugEnemyTrace) {
         println("[GCR-pre] pX=${ram.playerXPosition.toInt() and 0xFF} pP=${ram.playerPageLoc.toInt() and 0xFF}")
@@ -26,9 +31,11 @@ fun System.gameCoreRoutine() {
         println("[GCR-post] pX=${ram.playerXPosition.toInt() and 0xFF} pP=${ram.playerPageLoc.toInt() and 0xFF}")
     }
     //> lda OperMode_Task          ;check major task of operating mode
-    //> cmp #$03                   ;if we are supposed to be here,
-    //> bcs GameEngine             ;branch to the game engine itself
-    if (ram.operModeTask.toUByte() >= 3u) {
+    //> cmp #$03                   ;(SMB1) if we are supposed to be here,
+    //> cmp #$04                   ;(SMB2J) branch to the game engine itself
+    //> bcs GameEngine
+    val gameEngineMinTask: UByte = if (variant == GameVariant.SMB2J) 4u else 3u
+    if (ram.operModeTask.toUByte() >= gameEngineMinTask) {
         gameEngine()
     }
     //> rts

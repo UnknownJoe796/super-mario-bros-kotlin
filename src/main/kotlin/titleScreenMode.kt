@@ -12,25 +12,165 @@ import kotlin.experimental.xor
 
 
 fun System.titleScreenMode(): Unit {
-    //> TitleScreenMode:
-    //> lda OperMode_Task
-    //> jsr JumpEngine
-
-    //> .dw InitializeGame
-    //> .dw ScreenRoutines
-    //> .dw PrimaryGameSetup
-    //> .dw GameMenuRoutine
-    when(ram.operModeTask.toInt()) {
-        0 -> initializeGame()
-        1 -> screenRoutines()
-        2 -> primaryGameSetup()
-        3 -> gameMenuRoutine()
-        else -> throw IllegalStateException()
+    if (variant == GameVariant.SMB2J) {
+        //> AttractModeSubs: (SMB2J)
+        //> lda OperMode_Task; jsr JumpEngine
+        //> .word AttractModeDiskRoutines  ;0
+        //> .word InitializeGame           ;1
+        //> .word ScreenRoutines           ;2
+        //> .word PrimaryGameSetup         ;3
+        //> .word GameMenuRoutine          ;4
+        //> .word HardWorldsCheckpoint     ;5
+        when (ram.operModeTask.toInt()) {
+            0 -> attractModeDiskRoutines()
+            1 -> initializeGame()
+            2 -> screenRoutines()
+            3 -> primaryGameSetup()
+            4 -> smb2jGameMenuRoutine()
+            5 -> hardWorldsCheckpoint()
+            else -> {}
+        }
+    } else {
+        //> TitleScreenMode: (SMB1)
+        //> lda OperMode_Task
+        //> jsr JumpEngine
+        //> .dw InitializeGame
+        //> .dw ScreenRoutines
+        //> .dw PrimaryGameSetup
+        //> .dw GameMenuRoutine
+        when (ram.operModeTask.toInt()) {
+            0 -> initializeGame()
+            1 -> screenRoutines()
+            2 -> primaryGameSetup()
+            3 -> gameMenuRoutine()
+            else -> {}
+        }
     }
 }
 
+/**
+ * SMB2J attract mode disk routines (task 0). On real FDS, this loads game files
+ * from disk. We stub this to just advance to the next task.
+ */
+private fun System.attractModeDiskRoutines() {
+    //> AttractModeDiskRoutines: (FDS disk load stub)
+    //> Falls through to InitWorldPos -> ResetDiskIOTask -> inc OperMode_Task
+    ram.operModeTask++
+}
+
+/**
+ * SMB2J hard worlds checkpoint (task 5). On real FDS, this loads worlds A-D
+ * data from disk if HardWorldFlag is set. We stub the disk loading but
+ * perform the game mode transition.
+ */
+private fun System.hardWorldsCheckpoint() {
+    //> HardWorldsCheckpoint -> LoadHardWorlds / NoLoadHW path:
+    //> jsr LoadAreaPointer
+    loadAreaPointer()
+    // HardWorldFlag disk loading would happen here (FDS stub)
+    //> inc Hidden1UpFlag
+    ram.hidden1UpFlag = true
+    //> inc FetchNewGameTimerFlag
+    ram.fetchNewGameTimerFlag = true
+    //> inc OperMode
+    ram.operMode = OperMode.Game
+    //> lda #$00
+    //> sta DiskIOTask
+    ram.worldSelectEnableFlag = false // diskIOTask alias
+    //> sta OperMode_Task
+    ram.operModeTask = 0x00
+    //> sta DemoTimer
+    ram.demoTimer = 0x00
+}
+
+/**
+ * SMB2J GameMenuRoutine. Unlike SMB1, this checks Start_Button as a bit
+ * (not exact match), has no A+Start continue or B-button world select,
+ * and goes through StartGame -> HardWorldsCheckpoint instead of ChkContinue.
+ */
+private fun System.smb2jGameMenuRoutine() {
+    //> GameMenuRoutine: (SMB2J)
+    //> lda SavedJoypadBits; and #Start_Button; beq ChkSelect
+    if (ram.savedJoypadBits.start) {
+        //> lda #$00
+        //> sta CompletedWorlds; sta DiskIOTask; sta HardWorldFlag
+        ram.completedWorlds = 0
+        ram.worldSelectEnableFlag = false // diskIOTask alias
+        ram.hardWorldFlag = false
+        //> lda GamesBeatenCount; cmp #$08; bcc StG
+        if ((ram.gamesBeatenCount.toInt() and 0xFF) >= 8) {
+            //> lda SavedJoypadBits; and #A_Button; beq StG
+            if (ram.savedJoypadBits.a) {
+                //> inc HardWorldFlag
+                ram.hardWorldFlag = true
+            }
+        }
+        //> StG: jmp StartGame
+        return smb2jStartGame()
+    }
+    //> ChkSelect: lda SavedJoypadBits; cmp #Select_Button; beq SelectLogic
+    if (ram.savedJoypadBits == JoypadBits(select = true)) {
+        return smb2jSelectLogic()
+    }
+    //> ldx DemoTimer; bne NullJoypad
+    if (ram.demoTimer != 0.toByte()) {
+        return nullJoypad()
+    }
+    //> sta SelectTimer; jsr DemoEngine; bcs ResetTitle; bcc RunDemo
+    ram.selectTimer = ram.savedJoypadBits.byte
+    if (demoEngine()) resetTitle() else runDemo()
+}
+
+/**
+ * SMB2J StartGame: advances to HardWorldsCheckpoint task, patches player name,
+ * and clears world/level/area/score state.
+ */
+private fun System.smb2jStartGame() {
+    //> StartGame:
+    //> lda DemoTimer; beq ResetTitle
+    if (ram.demoTimer == 0.toByte()) return resetTitle()
+    //> inc OperMode_Task
+    ram.operModeTask++
+    //> jsr PatchPlayerNamePal
+    patchPlayerNamePal()
+    // Sync character from selectedPlayer
+    character = if (ram.selectedPlayer.toInt() != 0) Character.Luigi else Character.Mario
+    //> lda #$00; sta WorldNumber; sta LevelNumber; sta AreaNumber
+    ram.worldNumber = 0
+    ram.levelNumber = 0
+    ram.areaNumber = 0
+    //> ldx #$0b; lda #$00; InitScore: sta ScoreAndCoinDisplay,x; dex; bpl InitScore
+    ram.playerScoreDisplay.zeros()
+    ram.coinDisplay.zeros()
+    //> ExitMenu: rts
+}
+
+/**
+ * SMB2J SelectLogic: toggles between Mario and Luigi, clears LSB of FrameCounter.
+ */
+private fun System.smb2jSelectLogic() {
+    //> SelectLogic:
+    //> lda DemoTimer; beq ResetTitle
+    if (ram.demoTimer == 0.toByte()) return resetTitle()
+    //> lda #$18; sta DemoTimer
+    ram.demoTimer = 0x18
+    //> lda FrameCounter; and #$fe; sta FrameCounter
+    ram.frameCounter = (ram.frameCounter.toInt() and 0xFE).toByte()
+    //> lda SelectTimer; bne NullJoypad
+    if (ram.selectTimer != 0.toByte()) return nullJoypad()
+    //> lda #$10; sta SelectTimer
+    ram.selectTimer = 0x10
+    //> lda SelectedPlayer; eor #$01; sta SelectedPlayer
+    ram.selectedPlayer = (ram.selectedPlayer.toInt() xor 0x01).toByte()
+    character = if (ram.selectedPlayer.toInt() != 0) Character.Luigi else Character.Mario
+    //> jsr DrawMenuCursor
+    drawMenuCursor()
+    //> jmp NullJoypad
+    return nullJoypad()
+}
+
 fun System.gameMenuRoutine() {
-    //> GameMenuRoutine:
+    //> GameMenuRoutine: (SMB1)
     //> ldy #$00
     //> lda SavedJoypad1Bits        ;check to see if either player pressed
     //> ora SavedJoypad2Bits        ;only the start button (either joypad)
@@ -42,7 +182,10 @@ fun System.gameMenuRoutine() {
                 //> cmp #A_Button+Start_Button  ;check to see if A + start was pressed
                 //> bne ChkSelect               ;if not, branch to check select button
                 //> StartGame:    jmp ChkContinue             ;if either start or A + start, execute here
-                eitherController == JoypadBits(start = true, a = true) -> chkContinue(eitherController)
+                eitherController == JoypadBits(start = true, a = true) -> {
+            //> jmp ChkContinue
+            chkContinue(eitherController)
+        }
 
         //> ChkSelect:    cmp #Select_Button          ;check to see if the select button was pressed
         //> beq SelectBLogic            ;if so, branch reset demo timer
@@ -80,6 +223,7 @@ fun System.gameMenuRoutine() {
             //> cpy #$01                    ;was the B button pressed earlier?  if so, branch
             //> beq IncWorldSel             ;note this will not be run if world selection is disabled
             if (eitherController == JoypadBits(b = true)) return incWorldSel()
+
             //> lda NumberOfPlayers         ;if no, must have been the select button, therefore
             //> eor #%00000001              ;change number of players and draw icon accordingly
             //> sta NumberOfPlayers
@@ -242,6 +386,23 @@ fun System.initializeGame() {
     //> lda #$18              ;set demo timer
     //> sta DemoTimer
     ram.demoTimer = 0x18.toByte()
+
+    // SMB2J: clear character select state and set up title screen cursor
+    if (variant == GameVariant.SMB2J) {
+        //> lda #$00
+        //> sta CompletedWorlds      ;clean slate
+        ram.completedWorlds = 0
+        //> sta HardWorldFlag
+        ram.hardWorldFlag = false
+        //> sta SelectedPlayer
+        ram.selectedPlayer = 0
+        character = Character.Mario
+        //> jsr PatchPlayerNamePal   ;set up mario's/luigi's name and palette
+        patchPlayerNamePal()
+        //> jsr SetupMenuCursor      ;put menu cursor next to mario's name
+        setupMenuCursor()
+    }
+
     //> jsr LoadAreaPointer
     loadAreaPointer()
     // NES: InitializeGame falls through directly into InitializeArea (adjacent in ROM).
@@ -261,9 +422,11 @@ fun System.primaryGameSetup() {
     ram.playerSize = PlayerSize.Small
     //> lda #$02
     //> sta NumberofLives           ;give each player three lives
-    //> sta OffScr_NumberofLives
     ram.numberofLives = 0x02
-    ram.offScrNumberofLives = 0x02
+    if (variant != GameVariant.SMB2J) {
+        //> sta OffScr_NumberofLives  ;(SMB1 only: two-player support)
+        ram.offScrNumberofLives = 0x02
+    }
     //> (falls through to SecondaryGameSetup)
     secondaryGameSetup()
 }
@@ -309,6 +472,88 @@ fun System.drawMushroomIcon() {
         }
     }
     //> ExitIcon:     rts
+}
+
+// ---- SMB2J character select helpers ----
+
+//> PlayerNameData:
+//>   .byte $16, $0a, $1b, $12, $18   ; "MARIO"
+//>   .byte $15, $1e, $12, $10, $12   ; "LUIGI"
+private val playerNameTiles = arrayOf(
+    intArrayOf(0x16, 0x0a, 0x1b, 0x12, 0x18),  // MARIO
+    intArrayOf(0x15, 0x1e, 0x12, 0x10, 0x12),  // LUIGI
+)
+
+/**
+ * Patches the player name ("MARIO" or "LUIGI") into the top status bar VRAM data
+ * based on the current selectedPlayer value.
+ */
+fun System.patchPlayerNamePal() {
+    //> PatchPlayerNamePal:
+    val player = ram.selectedPlayer.toInt() and 1
+    val nameTiles = playerNameTiles[player]
+    // Patch TopStatusBarLine entry 0 (the "MARIO" name at nametable 0, x=3, y=2)
+    // This affects future writeGameText(0) calls that render the top status bar.
+    // The VRAM buffer entries are rebuilt each time writeGameText is called,
+    // so we write directly to the buffer here for immediate title screen effect.
+    ram.vRAMBuffer1.addAll(listOf(
+        BufferedPpuUpdate.BackgroundPatternString(
+            nametable = 0,
+            x = 3,
+            y = 2,
+            drawVertically = false,
+            patterns = nameTiles.map { OriginalRom.backgrounds[it] }
+        )
+    ))
+}
+
+//> MenuCursorTiles:
+//>   .byte $ce, $24            ;mushroom, blank
+//> MenuCursorTemplate:
+//>   .byte $22, $28, $01, $ce  ;row 17, col 8: mushroom (mario)
+//>   .byte $22, $48, $01, $24  ;row 18, col 8: blank (luigi)
+//>   .byte $00                 ;terminator
+
+/**
+ * Writes the menu cursor VRAM entries to show a mushroom icon next to the
+ * selected player's name on the SMB2J title screen. Also sets
+ * vRAMBufferAddrCtrl to trigger a VRAM transfer.
+ */
+fun System.drawMenuCursor() {
+    //> DrawMenuCursor:
+    //> lda #$1c                 ;set up VRAM address controller
+    //> sta VRAM_Buffer_AddrCtrl
+    ram.vRAMBufferAddrCtrl = 0x1c
+    setupMenuCursor()
+}
+
+/**
+ * Sets up the menu cursor tile data without triggering a VRAM transfer.
+ * Called during initialization and by drawMenuCursor().
+ */
+fun System.setupMenuCursor() {
+    //> SetupMenuCursor:
+    val player = ram.selectedPlayer.toInt() and 1
+    // NES nametable address $2228 = nametable 0, row 17, col 8 (MARIO row)
+    // NES nametable address $2248 = nametable 0, row 18, col 8 (LUIGI row)
+    val marioTile = if (player == 0) 0xce else 0x24  // mushroom or blank
+    val luigiTile = if (player == 1) 0xce else 0x24  // mushroom or blank
+    ram.vRAMBuffer1.addAll(listOf(
+        BufferedPpuUpdate.BackgroundPatternString(
+            nametable = 0,
+            x = 8,
+            y = 17,
+            drawVertically = false,
+            patterns = listOf(OriginalRom.backgrounds[marioTile])
+        ),
+        BufferedPpuUpdate.BackgroundPatternString(
+            nametable = 0,
+            x = 8,
+            y = 18,
+            drawVertically = false,
+            patterns = listOf(OriginalRom.backgrounds[luigiTile])
+        ),
+    ))
 }
 
 private val originalRom = File("smb.nes").readBytes()

@@ -380,6 +380,11 @@ private fun System.processPlayerAction(): Int {
             //> and PlayerFacingDir        ;and facing direction are the same
             //> bne ActionWalkRun          ;if moving direction = facing direction, branch, don't skid
             if ((ram.playerMovingDir.byte.toInt() and ram.playerFacingDir.byte.toInt()) != 0) return actionWalkRun()
+            //> (SMB2J) lda GameEngineSubroutine; cmp #$09; bcs NoSkidS
+            //> lda #$80; sta NoiseSoundQueue
+            if (variant == GameVariant.SMB2J && ram.gameEngineSubroutine.ordinal < 0x09) {
+                ram.noiseSoundQueue = 0x80.toByte()
+            }
             //> iny                        ;otherwise increment to skid offset ($03)
             return nonAnimatedActs(0x03)
         }

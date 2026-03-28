@@ -25,6 +25,9 @@ object Constants {
 
     const val Sfx_BowserFlame: Byte       = 0b00000010
     const val Sfx_BrickShatter: Byte      = 0b00000001
+    // SMB2J-only noise SFX
+    const val Sfx_Wind: Byte             = 0b00000100
+    const val Sfx_Skid: Byte             = 0b10000000.toByte()
 
     // music constants
     const val Silence: Byte               = 0b10000000.toByte()

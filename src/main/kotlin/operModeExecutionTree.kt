@@ -20,20 +20,47 @@ fun System.operModeExecutionTree(): Unit {
 }
 
 fun System.gameMode() {
-    //> GameMode:
-    //> lda OperMode_Task
-    //> jsr JumpEngine
-    when(ram.operModeTask.toInt()) {
+    if (variant == GameVariant.SMB2J) {
+        //> GameModeSubs: (SMB2J)
+        //> lda OperMode_Task; jsr JumpEngine
+        //> .word GameModeDiskRoutines  ;0
+        //> .word InitializeArea        ;1
+        //> .word ScreenRoutines        ;2
+        //> .word SecondaryGameSetup    ;3
+        //> .word GameCoreRoutine       ;4
+        when (ram.operModeTask.toInt()) {
+            0 -> gameModeDiskRoutines()
+            1 -> initializeArea()
+            2 -> screenRoutines()
+            3 -> secondaryGameSetup()
+            else -> gameCoreRoutine()
+        }
+    } else {
+        //> GameMode: (SMB1)
+        //> lda OperMode_Task; jsr JumpEngine
         //> .dw InitializeArea
-        0 -> initializeArea()
         //> .dw ScreenRoutines
-        1 -> screenRoutines()
         //> .dw SecondaryGameSetup
-        2 -> secondaryGameSetup()
         //> .dw GameCoreRoutine
-        else -> gameCoreRoutine()
+        when (ram.operModeTask.toInt()) {
+            0 -> initializeArea()
+            1 -> screenRoutines()
+            2 -> secondaryGameSetup()
+            else -> gameCoreRoutine()
+        }
     }
 }
+
+/**
+ * SMB2J game mode disk routines (task 0). Loads worlds 5-8 data from FDS.
+ * Stub: just advances to the next task (InitializeArea).
+ */
+private fun System.gameModeDiskRoutines() {
+    //> GameModeDiskRoutines -> ResetDiskIOTask -> inc OperMode_Task
+    ram.worldSelectEnableFlag = false // diskIOTask alias, clear for next time
+    ram.operModeTask++
+}
+
 fun System.gameOverMode(): Unit {
     //> GameOverMode:
     //> lda OperMode_Task

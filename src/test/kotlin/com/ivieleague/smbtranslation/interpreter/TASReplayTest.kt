@@ -100,8 +100,9 @@ class TASReplayTest {
             add(0x6FD)                              // savedJoypad2Bits
         }
 
-        val COVERED_ADDRESSES: Set<Int> get() = GameRamMapper.coveredAddresses
-        val BOOLEAN_ADDRESSES: Set<Int> get() = GameRamMapper.booleanAddresses
+        val COVERED_ADDRESSES: Set<Int> = GameRamMapper.coveredAddresses(GameVariant.SMB1)
+        val SMB2J_COVERED_ADDRESSES: Set<Int> = GameRamMapper.coveredAddresses(GameVariant.SMB2J)
+        val BOOLEAN_ADDRESSES: Set<Int> = GameRamMapper.booleanAddresses
 
         /** Available TAS scenarios: (display name, fm2 file, ram dump file). */
         val TAS_SCENARIOS: List<Triple<String, String, String>> = listOf(
@@ -304,6 +305,7 @@ class TASReplayTest {
         }
 
         return TAS_SCENARIOS.mapNotNull { (name, fm2Path, ramPath) ->
+            println("Running scenario ${fm2Path}...")
             val tasFile = findFile(fm2Path, "../$fm2Path")
             if (tasFile == null) {
                 DynamicTest.dynamicTest("$name - skip (no .fm2)") {
@@ -380,6 +382,7 @@ class TASReplayTest {
             val TRACE_FRAMES = emptySet<Int>()
             system.debugEnemyTrace = frame in TRACE_FRAMES
 
+
             // Run full NMI (includes joypads, timers, PRNG, pause, AND operModeExecutionTree)
             var runError: Throwable? = null
             try {
@@ -405,9 +408,11 @@ class TASReplayTest {
 
             if (runError != null) {
                 nmiErrorCount++
-                val loc = runError!!.stackTrace.firstOrNull {
+                val frame0 = runError!!.stackTrace.firstOrNull {
                     it.className.startsWith("com.ivieleague.smbtranslation")
-                }?.let { "${it.fileName}:${it.lineNumber}" } ?: "unknown"
+                }
+                val loc = if (frame0 != null) "${frame0.fileName}:${frame0.lineNumber}"
+                    else "${runError!!::class.simpleName}: ${runError!!.message?.take(40)}"
                 errorLocations[loc] = (errorLocations[loc] ?: 0) + 1
                 if (nmiErrorCount <= 5 || frame % 2000 == 0) {
                     println("Frame $frame ERROR #$nmiErrorCount: ${runError!!::class.simpleName}: ${runError!!.message}")
@@ -1945,6 +1950,381 @@ class TASReplayTest {
         sys2.colorRotation()
         sys2.updScrollVar()
         printState("complete NMI")
+    }
+
+    /**
+     * Diagnostic: trace vRAMBuffer1 contents and vRAMBufferAddrCtrl during warpless divergent frames.
+     * Investigates root causes of colorRotateOffset and areaParserTaskNum divergences.
+     */
+    @org.junit.jupiter.api.Test
+    fun `diagnose warpless divergences`() {
+        val romFile = findFile("smb.nes", "../smb.nes") ?: run {
+            println("Skipping: No ROM file found"); return
+        }
+        val ramFile = findFile("data/tas/happylee-warpless-ram.bin", "../data/tas/happylee-warpless-ram.bin") ?: run {
+            println("Skipping: No warpless FCEUX RAM dump found"); return
+        }
+        val tasFile = findFile("happylee-warpless.fm2", "../happylee-warpless.fm2") ?: run {
+            println("Skipping: No warpless FM2 found"); return
+        }
+
+        val fceuxRam = ramFile.readBytes()
+        val tasInputs = parseFM2(tasFile)
+
+        // Frames to diagnose
+        val diagFrames = listOf(17407, 18102, 28155, 28156, 28158, 28165)
+
+        for (frame in diagFrames) {
+            val fOff = frame * 2048
+            val nextOff = (frame + 1) * 2048
+            if (nextOff + 2047 >= fceuxRam.size) continue
+
+            println("\n${"=".repeat(80)}")
+            println("=== DIAGNOSING FRAME $frame ===")
+            val world = (fceuxRam[fOff + WORLD_NUMBER].toInt() and 0xFF) + 1
+            val level = (fceuxRam[fOff + LEVEL_NUMBER].toInt() and 0xFF) + 1
+            println("World $world-$level")
+            println("FCEUX input: areaParserTaskNum=0x${(fceuxRam[fOff + 0x071F].toInt() and 0xFF).toString(16)}" +
+                    " colorRotateOffset=0x${(fceuxRam[fOff + 0x06D4].toInt() and 0xFF).toString(16)}" +
+                    " vRAMBufferAddrCtrl=0x${(fceuxRam[fOff + 0x0773].toInt() and 0xFF).toString(16)}" +
+                    " scrollThirtyTwo=0x${(fceuxRam[fOff + 0x073F].toInt() and 0xFF).toString(16)}" +
+                    " frameCounter=0x${(fceuxRam[fOff + 0x09].toInt() and 0xFF).toString(16)}")
+            println("FCEUX output: areaParserTaskNum=0x${(fceuxRam[nextOff + 0x071F].toInt() and 0xFF).toString(16)}" +
+                    " colorRotateOffset=0x${(fceuxRam[nextOff + 0x06D4].toInt() and 0xFF).toString(16)}" +
+                    " vRAMBufferAddrCtrl=0x${(fceuxRam[nextOff + 0x0773].toInt() and 0xFF).toString(16)}")
+            // FCEUX VRAM_Buffer1_Offset is at $0300 area; the actual offset variable is at...
+            // The NES VRAM_Buffer1_Offset is part of the buffer area tracked separately.
+            // For diagnostics, print the NES buffer content at $0300+
+            val nesBuffer1Start = 0x300
+            val nesBuf1Bytes = (0 until 0x50).map { fceuxRam[nextOff + nesBuffer1Start + it].toInt() and 0xFF }
+            println("FCEUX output $0300-$034F: ${nesBuf1Bytes.take(20).joinToString(" ") { "%02x".format(it) }}...")
+
+            // Set up Kotlin system from FCEUX dump and run full NMI
+            val system = System()
+            initializeFromInterpreter(system, romFile)
+            syncFullRamFromFceux(system, fceuxRam, fOff)
+            system.pendingNmiAction = null
+            system.shadow = null
+            if (frame + 1 < tasInputs.size) {
+                system.inputs.joypadPort1 = JoypadBits(tasInputs[frame + 1].player1.toByte())
+            }
+
+            // Run full NMI
+            system.nonMaskableInterrupt()
+
+            // Compare final state for key addresses
+            val kotlinFlat = GameRamMapper.toFlat(system.ram)
+            val divergentAddrs = listOf(0x06D4, 0x0089, 0x071F, 0x0721, 0x0773, 0x03F9, 0x03FE, 0x03FF, 0x06A0, 0x0726)
+            println("Kotlin output: areaParserTaskNum=0x${(kotlinFlat[0x071F].toInt() and 0xFF).toString(16)}" +
+                    " colorRotateOffset=0x${(kotlinFlat[0x06D4].toInt() and 0xFF).toString(16)}" +
+                    " vRAMBufferAddrCtrl=0x${(kotlinFlat[0x0773].toInt() and 0xFF).toString(16)}")
+            println("Divergences:")
+            for (addr in divergentAddrs) {
+                val kv = kotlinFlat[addr].toInt() and 0xFF
+                val fv = fceuxRam[nextOff + addr].toInt() and 0xFF
+                if (kv != fv) {
+                    println("  ** \$${addr.toString(16).padStart(4, '0')}: kotlin=0x${kv.toString(16).padStart(2, '0')} fceux=0x${fv.toString(16).padStart(2, '0')}")
+                }
+            }
+
+            // For the colorRotation frames, also print buffer state
+            if (frame == 17407 || frame == 28155) {
+                println("vRAMBuffer1 entries: ${system.ram.vRAMBuffer1.size}")
+                val estimated = system.ram.vRAMBuffer1.sumOf { entry ->
+                    when (entry) {
+                        is BufferedPpuUpdate.BackgroundPatternString -> 3 + entry.patterns.size
+                        is BufferedPpuUpdate.BackgroundPatternRepeat -> 4
+                        is BufferedPpuUpdate.BackgroundSetPalette -> 7
+                        is BufferedPpuUpdate.SpriteSetPalette -> 7
+                        is BufferedPpuUpdate.BackgroundAttributeString -> 3 + entry.values.size
+                        is BufferedPpuUpdate.BackgroundAttributeRepeat -> 4
+                    }
+                }
+                println("vRAMBuffer1 estimated NES bytes: 0x${estimated.toString(16)}")
+                println("vRAMBuffer2 entries: ${system.ram.vRAMBuffer2.size}")
+            }
+        }
+    }
+
+    // ---- SMB2J TAS replay with full per-frame comparison ----
+
+    data class Smb2jScenario(
+        val name: String,
+        val fm2Path: String,
+        val ramPath: String,
+        val character: Character,
+    )
+
+    private val smb2jScenarios = listOf(
+        Smb2jScenario("smb2j-warps-mario", "happylee-smb2j-warps-mario.fm2", "data/tas/smb2j-warps-mario-ram.bin", Character.Mario),
+        Smb2jScenario("smb2j-warps-luigi", "happylee-smb2j-warps-luigi.fm2", "data/tas/smb2j-warps-luigi-ram.bin", Character.Luigi),
+        Smb2jScenario("smb2j-allitems-mario", "smb2j-allitems-mario.fm2", "data/tas/smb2j-allitems-mario-ram.bin", Character.Mario),
+    )
+
+    // ROM pointer reverse lookups for Smb2jRomData (worlds 1-9)
+    private val smb2jEnemyAddrToIdx: Map<Int, Int> = Smb2jRomData.enemyDataAddresses
+        .mapIndexed { idx, addr -> addr to idx }.toMap()
+    private val smb2jAreaAddrToIdx: Map<Int, Int> = Smb2jRomData.areaDataAddresses
+        .mapIndexed { idx, addr -> addr to idx }.toMap()
+    private val smb2jAreaAddrPlus2ToIdx: Map<Int, Int> = Smb2jRomData.areaDataAddresses
+        .mapIndexed { idx, addr -> (addr + 2) to idx }.toMap()
+    private val smb2jAreaDataHeaderless: Array<ByteArray> = Smb2jRomData.areaDataArrays
+        .map { if (it.size > 2) it.copyOfRange(2, it.size) else it }.toTypedArray()
+
+    // Worlds A-D lookup tables
+    private val smb2jEnemyAddrToIdx_AD: Map<Int, Int> = (Smb2jRomData.enemyDataAddresses_AD
+        ?.mapIndexed { idx, addr -> addr to idx } ?: emptyList()).toMap()
+    private val smb2jAreaAddrToIdx_AD: Map<Int, Int> = (Smb2jRomData.areaDataAddresses_AD
+        ?.mapIndexed { idx, addr -> addr to idx } ?: emptyList()).toMap()
+    private val smb2jAreaAddrPlus2ToIdx_AD: Map<Int, Int> = (Smb2jRomData.areaDataAddresses_AD
+        ?.mapIndexed { idx, addr -> (addr + 2) to idx } ?: emptyList()).toMap()
+    private val smb2jAreaDataHeaderless_AD: Array<ByteArray> = (Smb2jRomData.areaDataArrays_AD
+        ?.map { if (it.size > 2) it.copyOfRange(2, it.size) else it } ?: emptyList()).toTypedArray()
+
+    @TestFactory
+    fun `SMB2J TAS replay scenarios`(): List<DynamicTest> {
+        return smb2jScenarios.mapNotNull { scenario ->
+            println("Running scenario ${scenario.fm2Path}...")
+            val tasFile = findFile(scenario.fm2Path, "../${scenario.fm2Path}")
+            val ramFile = findFile(scenario.ramPath, "../${scenario.ramPath}")
+            if (tasFile == null) {
+                DynamicTest.dynamicTest("${scenario.name} - skip (no .fm2)") {
+                    println("Skipping ${scenario.name}: ${scenario.fm2Path} not found")
+                }
+            } else {
+                DynamicTest.dynamicTest(scenario.name) {
+                    runSmb2jTasReplay(scenario, tasFile, ramFile)
+                }
+            }
+        }
+    }
+
+    private fun syncSmb2jRomPointers(system: System) {
+        system.ram.stack.clear()
+        system.ram.vRAMBuffer1.clear()
+        system.ram.vRAMBuffer2.clear()
+
+        val enemyAddr = (system.ram.enemyDataLow.toInt() and 0xFF) or
+                ((system.ram.enemyDataHigh.toInt() and 0xFF) shl 8)
+        // Try worlds 1-9 lookup first, then A-D
+        val enemyIdx = smb2jEnemyAddrToIdx[enemyAddr] ?: smb2jEnemyAddrToIdx_AD[enemyAddr]
+        if (enemyIdx != null) {
+            val arrays = if (enemyIdx in smb2jEnemyAddrToIdx.values.toSet()) Smb2jRomData else Smb2jRomData
+            system.ram.enemyDataBytes = Smb2jRomData.enemyDataWithOverflow[enemyAddr]
+                ?: Smb2jRomData.enemyDataWithOverflow_AD?.get(enemyAddr)
+                ?: if (smb2jEnemyAddrToIdx.containsKey(enemyAddr))
+                    Smb2jRomData.enemyDataArrays[smb2jEnemyAddrToIdx[enemyAddr]!!]
+                else
+                    Smb2jRomData.enemyDataArrays_AD?.get(smb2jEnemyAddrToIdx_AD[enemyAddr]!!)
+                        ?: ByteArray(0)
+        }
+
+        val areaAddr = (system.ram.areaDataLow.toInt() and 0xFF) or
+                ((system.ram.areaDataHigh.toInt() and 0xFF) shl 8)
+        // Try base address (worlds 1-9), then A-D, then +2 variants
+        val areaIdx = smb2jAreaAddrToIdx[areaAddr]
+        if (areaIdx != null) {
+            system.ram.areaData = Smb2jRomData.areaDataArrays[areaIdx]
+        } else {
+            val areaIdxAD = smb2jAreaAddrToIdx_AD[areaAddr]
+            if (areaIdxAD != null) {
+                system.ram.areaData = Smb2jRomData.areaDataArrays_AD!![areaIdxAD]
+            } else {
+                val idx2 = smb2jAreaAddrPlus2ToIdx[areaAddr]
+                if (idx2 != null) {
+                    system.ram.areaData = smb2jAreaDataHeaderless[idx2]
+                } else {
+                    val idx2AD = smb2jAreaAddrPlus2ToIdx_AD[areaAddr]
+                    if (idx2AD != null) {
+                        system.ram.areaData = smb2jAreaDataHeaderless_AD[idx2AD]
+                    }
+                }
+            }
+        }
+    }
+
+    private fun syncSmb2jFullRamFromFceux(system: System, fceuxFrame: ByteArray, offset: Int) {
+        GameRamMapper.fromFlat(system.ram, fceuxFrame, offset)
+        syncSmb2jRomPointers(system)
+    }
+
+    private fun runSmb2jTasReplay(scenario: Smb2jScenario, tasFile: File, ramFile: File?) {
+        val fceuxRam = ramFile?.readBytes()
+        val comparisonMode = fceuxRam != null
+
+        println("=== SMB2J TAS Replay: ${scenario.name} ===")
+        println("TAS: ${tasFile.absolutePath}")
+        println("Character: ${scenario.character}")
+        if (fceuxRam != null) {
+            println("FCEUX RAM dump: ${fceuxRam.size / 2048} frames")
+            println("Comparison mode: ON")
+        } else {
+            println("WARNING: No FCEUX RAM dump — running open-loop, no comparison")
+        }
+
+        val tasInputs = parseFM2(tasFile)
+        println("Loaded ${tasInputs.size} TAS frames")
+
+        val system = System()
+        system.variant = GameVariant.SMB2J
+        system.character = scenario.character
+        system.romData = Smb2jRomData
+        if (scenario.character == Character.Luigi) system.ram.selectedPlayer = 1
+
+        val totalFrames = minOf(tasInputs.size, if (fceuxRam != null) fceuxRam.size / 2048 else tasInputs.size)
+
+        // Divergence tracking
+        val addrDivergenceCount = IntArray(2048)
+        var framesWithErrors = 0
+        var totalDivergences = 0
+        var comparedFrames = 0
+        var lagFramesSkipped = 0
+        val firstDivFrame = mutableMapOf<Int, Int>()
+        var maxWorld = 1
+        var maxLevel = 1
+        var nmiErrorCount = 0
+        val errorLocations = mutableMapOf<String, Int>()
+
+        println("\n=== Running ${scenario.name} ($totalFrames frames) ===")
+
+        for (frame in 0 until totalFrames) {
+            // Full RAM sync from FCEUX dump
+            if (fceuxRam != null) {
+                val fOff = frame * 2048
+                if (fOff + 2047 < fceuxRam.size) {
+                    // Skip FDS boot frames: during BIOS disk loading, game RAM is
+                    // uninitialized. Detect by checking WarmBootValidation ($07FF) —
+                    // the game sets this to $A5 after initialization. Also check that
+                    // OperMode is within valid range (0-3).
+                    val warmBoot = fceuxRam[fOff + 0x07FF].toInt() and 0xFF
+                    val operMode = fceuxRam[fOff + OPER_MODE].toInt() and 0xFF
+                    if (warmBoot != 0xA5 || operMode > 3) {
+                        continue // Skip uninitialized boot frame
+                    }
+                    syncSmb2jFullRamFromFceux(system, fceuxRam, fOff)
+                }
+            }
+
+            system.pendingNmiAction = null
+
+            val nextInput = if (frame + 1 < tasInputs.size) tasInputs[frame + 1].player1 else 0
+            system.inputs.joypadPort1 = JoypadBits(nextInput.toByte())
+
+            // Run full NMI (direct call — thread timeout removed for performance)
+            var runError: Throwable? = null
+            try {
+                system.nonMaskableInterrupt()
+            } catch (e: Throwable) {
+                runError = e
+            }
+
+            if (runError != null) {
+                nmiErrorCount++
+                val frame0 = runError!!.stackTrace.firstOrNull {
+                    it.className.startsWith("com.ivieleague.smbtranslation")
+                }
+                val loc = if (frame0 != null) "${frame0.fileName}:${frame0.lineNumber}"
+                    else "${runError!!::class.simpleName}: ${runError!!.message?.take(40)}"
+                errorLocations[loc] = (errorLocations[loc] ?: 0) + 1
+                if (nmiErrorCount <= 10 || frame % 2000 == 0) {
+                    println("Frame $frame ERROR #$nmiErrorCount: ${runError!!::class.simpleName}: ${runError!!.message}")
+                    println(runError!!.stackTraceToString().lines().take(15).joinToString("\n"))
+                }
+            }
+
+            if (frame % 2000 == 0) {
+                println("Frame $frame: World=${system.ram.worldNumber + 1}-${system.ram.levelNumber + 1}, Mode=${system.ram.operMode}, Task=${system.ram.operModeTask}")
+            }
+
+            // Track progress
+            val world = (system.ram.worldNumber.toInt() and 0xFF) + 1
+            val level = (system.ram.levelNumber.toInt() and 0xFF) + 1
+            if (world > maxWorld || (world == maxWorld && level > maxLevel)) {
+                maxWorld = world; maxLevel = level
+            }
+
+            // Compare Kotlin output against next frame's FCEUX state
+            if (comparisonMode && runError == null) {
+                val nextOff = (frame + 1) * 2048
+                if (nextOff + 2047 < fceuxRam!!.size) {
+                    val kotlinFlat = GameRamMapper.toFlat(system.ram)
+                    val diffs = mutableListOf<Triple<Int, Int, Int>>()
+
+                    for (addr in 0 until 2048) {
+                        if (addr in EXCLUDED_ADDRESSES || addr !in SMB2J_COVERED_ADDRESSES) continue
+                        var kv = kotlinFlat[addr].toInt() and 0xFF
+                        var fv = fceuxRam[nextOff + addr].toInt() and 0xFF
+                        if (addr in BOOLEAN_ADDRESSES) {
+                            kv = if (kv != 0) 1 else 0
+                            fv = if (fv != 0) 1 else 0
+                        }
+                        if (kv != fv) diffs.add(Triple(addr, kv, fv))
+                    }
+
+                    val fOff2 = frame * 2048
+                    val isLagFrame = diffs.isNotEmpty() && diffs.all { (addr, _, fv) ->
+                        (fceuxRam[fOff2 + addr].toInt() and 0xFF) == fv
+                    }
+                    val vramOverflowDiffs = diffs.count { it.first in 0x03D1..0x04FF }
+                    val isVramOverflow = diffs.size > 10 && vramOverflowDiffs > diffs.size / 2
+
+                    fun isLoadingFrame(off: Int): Boolean {
+                        val mode = fceuxRam[off + OPER_MODE].toInt() and 0xFF
+                        val task = fceuxRam[off + OPER_MODE_TASK].toInt() and 0xFF
+                        return mode != 1 || task < 3
+                    }
+                    val isLoadingOrTransitionFrame = isLoadingFrame(fOff2) || isLoadingFrame(nextOff)
+
+                    val isSkippedFrame = isLagFrame || isVramOverflow || isLoadingOrTransitionFrame
+                    if (isSkippedFrame) lagFramesSkipped++
+
+                    if (diffs.isNotEmpty() && !isSkippedFrame) {
+                        for ((addr, _, _) in diffs) {
+                            addrDivergenceCount[addr]++
+                            if (addr !in firstDivFrame) firstDivFrame[addr] = frame
+                        }
+                        framesWithErrors++
+                        totalDivergences += diffs.size
+
+                        if (framesWithErrors <= 10) {
+                            val w = (fceuxRam[fOff2 + WORLD_NUMBER].toInt() and 0xFF) + 1
+                            val l = (fceuxRam[fOff2 + LEVEL_NUMBER].toInt() and 0xFF) + 1
+                            println("Frame $frame (W$w-$l): ${diffs.size} divergences: ${
+                                diffs.take(5).joinToString("; ") { (a, k, f) ->
+                                    "\$${a.toString(16).padStart(4, '0')}: kotlin=${k.toString(16).padStart(2, '0')} fceux=${f.toString(16).padStart(2, '0')}"
+                                }
+                            }${if (diffs.size > 5) " ..." else ""}")
+                        }
+                    }
+                    comparedFrames++
+                }
+            }
+        }
+
+        println("\n=== Results: ${scenario.name} ===")
+        println("Frames run: $totalFrames, Max progress: W$maxWorld-$maxLevel")
+        println("NMI errors: $nmiErrorCount / $totalFrames")
+        if (comparisonMode) {
+            println("Compared frames: $comparedFrames (skipped $lagFramesSkipped loading/lag)")
+            println("Frames with errors: $framesWithErrors / $comparedFrames")
+            println("Total divergent bytes: $totalDivergences")
+            if (framesWithErrors > 0) {
+                println("Top divergent addresses:")
+                addrDivergenceCount.indices
+                    .filter { addrDivergenceCount[it] > 0 }
+                    .sortedByDescending { addrDivergenceCount[it] }
+                    .take(20)
+                    .forEach { addr ->
+                        println("  \$${addr.toString(16).padStart(4, '0')}: ${addrDivergenceCount[addr]} frames (first: ${firstDivFrame[addr]})")
+                    }
+            }
+        }
+        if (errorLocations.isNotEmpty()) {
+            println("Error breakdown:")
+            errorLocations.entries.sortedByDescending { it.value }.take(10).forEach { (loc, count) ->
+                println("  $count x $loc")
+            }
+        }
     }
 
 }

@@ -157,8 +157,8 @@ val BackSceneryMetatiles = ubyteArrayOf(
 //> .db $00, $0d, $1a
 val FSceneDataOffsets = ubyteArrayOf(0x00u, 0x0du, 0x1au)
 
-//> ForeSceneryData:
-val ForeSceneryData = ubyteArrayOf(
+//> ForeSceneryData: (SMB1)
+val ForeSceneryData_SMB1 = ubyteArrayOf(
 //> .db $86, $87, $87, $87, $87, $87, $87   ;in water
     0x86u, 0x87u, 0x87u, 0x87u, 0x87u, 0x87u, 0x87u,
 //> .db $87, $87, $87, $87, $69, $69
@@ -175,9 +175,23 @@ val ForeSceneryData = ubyteArrayOf(
     0x00u, 0x00u, 0x00u, 0x00u, 0x86u, 0x87u,
 )
 
-//> TerrainMetatiles:
+//> ForeSceneryData: (SMB2J - uses $6a instead of $69 for water terrain)
+val ForeSceneryData_SMB2J = ubyteArrayOf(
+    0x86u, 0x87u, 0x87u, 0x87u, 0x87u, 0x87u, 0x87u,
+    0x87u, 0x87u, 0x87u, 0x87u, 0x6au, 0x6au,
+    0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x45u, 0x47u,
+    0x47u, 0x47u, 0x47u, 0x47u, 0x00u, 0x00u,
+    0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+    0x00u, 0x00u, 0x00u, 0x00u, 0x86u, 0x87u,
+)
+
+//> TerrainMetatiles: (SMB1)
 //> .db $69, $54, $52, $62
-val TerrainMetatiles = ubyteArrayOf(0x69u, 0x54u, 0x52u, 0x62u)
+val TerrainMetatiles_SMB1 = ubyteArrayOf(0x69u, 0x54u, 0x52u, 0x62u)
+
+//> TerrainMetatiles: (SMB2J)
+//> .db $6a, $6b, $50, $63
+val TerrainMetatiles_SMB2J = ubyteArrayOf(0x6au, 0x6bu, 0x50u, 0x63u)
 
 //> TerrainRenderBits:
 val TerrainRenderBits = ubyteArrayOf(
@@ -318,7 +332,8 @@ private fun System.areaParserCore() {
         do {
             //> SceLoop2: lda ForeSceneryData,y      ;load data until counter expires
             //> beq NoFore                 ;do not store if zero found
-            val v = ForeSceneryData[y]
+            val foreSceneryData = if (variant == GameVariant.SMB2J) ForeSceneryData_SMB2J else ForeSceneryData_SMB1
+            val v = foreSceneryData[y]
             if (v != 0.toUByte()) {
                 //> sta MetatileBuffer,x
                 ram.metatileBuffer[x] = v
@@ -339,12 +354,13 @@ private fun System.areaParserCore() {
     //> cmp #World8                ;then skip this part
     //> bne TerMTile
     if (ram.areaType == AreaType.Water && ram.worldNumber == World8) {
-        //> lda #$62                   ;if set as water level and world number eight,
-        aTerrain = 0x62u
+        //> lda #$62 / #$63            ;if set as water level and world number eight,
+        aTerrain = if (variant == GameVariant.SMB2J) 0x63u else 0x62u
         //> jmp StoreMT                ;use castle wall metatile as terrain type
     } else {
         //> TerMTile: lda TerrainMetatiles,y     ;otherwise get appropriate metatile for area type
-        aTerrain = TerrainMetatiles[ram.areaType.ordinal]
+        val terrainMetatiles = if (variant == GameVariant.SMB2J) TerrainMetatiles_SMB2J else TerrainMetatiles_SMB1
+        aTerrain = terrainMetatiles[ram.areaType.ordinal]
         //> ldy CloudTypeOverride      ;check for cloud type override
         //> beq StoreMT                ;if not set, keep value otherwise
         if (ram.cloudTypeOverride) {
@@ -628,6 +644,9 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
     if (objByte1.isEndOfData) return
     //> Determine jump table offset based on row:
     //> row 15 → offset 0x10, row 12 → offset 0x08, rows 0-11/13/14 → offset 0x00
+    // SMB2J inserts UpsideDownPipe_High/Low at indices $16-$17, shifting all subsequent
+    // dispatch entries (small objects, row 13, row 14) by 2 in the jump table.
+    val smb2jShift: Byte = if (variant == GameVariant.SMB2J) 2 else 0
     var temp07: Byte = when {
         objByte1.isSpecialRow15 -> 0x10
         objByte1.isSpecialRow12 -> 0x08
@@ -639,16 +658,16 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
         //> lda #$00                   ;if so, load offset with $00
         //> sta $07
         temp07 = 0x00
-        //> lda #$2e                   ;and load A with another value
-        a = 0x2E.toByte()
+        //> lda #$2e                   ;and load A with another value (SMB2J: #$36)
+        a = (0x2E + smb2jShift).toByte()
         //> bne NormObj                ;unconditional branch
         // jump to NormObj
     } else if (objByte1.isSpecialRow13) {
         //> ChkRow13: cmp #$0d                   ;row 13?
         //> bne ChkSRows
-        //> lda #$22                   ;if so, load offset with 34
+        //> lda #$22                   ;if so, load offset with 34 (SMB2J: 40/$28)
         //> sta $07
-        temp07 = 0x22
+        temp07 = (0x22 + smb2jShift).toByte()
         //> iny                        ;get next byte
         y++
         //> lda (AreaData),y
@@ -683,8 +702,8 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
             if (highBits == 0.toByte()) {
                 // small object
                 //> lda #$16
-                //> sta $07                    ;otherwise set offset of 24 for small object
-                temp07 = 0x16
+                //> sta $07                    ;otherwise set offset of 24 for small object (SMB2J: #$18)
+                temp07 = (0x16 + smb2jShift).toByte()
                 //> lda (AreaData),y           ;reload second byte of level object
                 a = ram.areaData!![y]
                 //> and #%00001111             ;mask out higher nybble and jump
@@ -933,11 +952,86 @@ private fun System.smb2jAreaObjectDispatch(index: Int) {
     }
 }
 
-/** Stub for upside-down pipe area object (sets up piranha plant enemy). */
+// by Claude - UpsideDownPipe: renders inverted pipe (body on top, opening on bottom)
+// with upside-down piranha plant enemy (SMB2J only)
+//> UpsideDownPipe_High: lda #$01; pha; bne UDP
+//> UpsideDownPipe_Low:  lda #$04; pha
+//> UDP:
 private fun System.upsideDownPipe(high: Boolean) {
-    // TODO: Full implementation needs pipe metatile rendering + SetupPiranhaPlant($04)
-    // For now, delegate to regular vertical pipe rendering
-    verticalPipe()
+    val x = ram.objectOffset
+
+    //> lda #$01 / lda #$04    ;start row: 1 (high) or 4 (low)
+    //> pha
+    val startRow = if (high) 1 else 4
+
+    //> jsr GetPipeHeight       ;get pipe height from object byte
+    val pipeInfo = getPipeHeight(x.toInt())
+    val verticalLength = pipeInfo.verticalLength
+    val horizLengthLeft = pipeInfo.horizLengthLeft
+
+    //> pla
+    //> sta $07                 ;save buffer offset (overrides row from GetLrgObjAttrib)
+    //> tya; pha                ;save horiz length temporarily
+
+    //> ldy AreaObjectLength,x  ;if on second column of pipe, skip enemy setup
+    //> beq NoUDP
+    if (ram.areaObjectLength[x.toInt()] != 0.toByte()) {
+        //> jsr FindEmptyEnemySlot  ;try to insert upside-down piranha
+        //> bcs NoUDP               ;if no empty slots, skip
+        val slot = findEmptyEnemySlot()
+        if (slot != null) {
+            //> lda #$04
+            //> jsr SetupPiranhaPlant   ;set up upside-down piranha plant (enemy ID $04)
+            // Inline SetupPiranhaPlant with enemy ID $04:
+            val xPos = (getAreaObjXPosition().toInt() and 0xFF) + 8
+            ram.sprObjXPos[1 + slot] = (xPos and 0xFF).toByte()
+            ram.sprObjPageLoc[1 + slot] = ((ram.currentPageLoc.toInt() + (if (xPos > 0xFF) 1 else 0)) and 0xFF).toByte()
+            ram.sprObjYHighPos[1 + slot] = 1
+            ram.enemyFlags[slot] = 1
+            ram.sprObjYPos[1 + slot] = getAreaObjYPosition(startRow.toByte())
+            ram.enemyID[slot] = 0x04  // UpsideDownPiranhaP
+            val savedOffset = ram.objectOffset
+            ram.objectOffset = slot.toByte()
+            initPiranhaPlant()
+            ram.objectOffset = savedOffset
+
+            //> lda $06                 ;get vertical length
+            //> asl; asl; asl; asl      ;multiply by 16
+            //> clc
+            //> adc Enemy_Y_Position,x  ;add to enemy's Y position
+            //> sec
+            //> sbc #$0a               ;subtract 10 pixels
+            val baseY = ram.sprObjYPos[1 + slot].toInt() and 0xFF
+            val adjustedY = ((verticalLength shl 4) + baseY - 0x0a) and 0xFF
+            //> sta Enemy_Y_Position,x  ;set as new Y position
+            ram.sprObjYPos[1 + slot] = adjustedY.toByte()
+            //> sta PiranhaPlantDownYPos,x  ;set as "down" position (inside pipe)
+            ram.sprObjYMoveForce[1 + slot] = adjustedY.toByte()
+            //> clc
+            //> adc #$18               ;add 24 for "up" position (outside pipe, below)
+            //> sta PiranhaPlantUpYPos,x
+            ram.sprObjYMFDummy[1 + slot] = ((adjustedY + 0x18) and 0xFF).toByte()
+            //> inc PiranhaPlant_MoveFlag,x ;set movement flag
+            ram.sprObjYSpeed[1 + slot] = 1
+        }
+    }
+
+    //> NoUDP: pla; tay          ;restore horiz length
+    //> pha
+    val y = horizLengthLeft
+    //> ldx $07                  ;get buffer row offset (1 or 4)
+    //> lda VerticalPipeData+2,y ;get pipe BODY metatile
+    val bodyMetatile = VerticalPipeData.getOrElse(y + 2) { 0x15u }
+    //> ldy $06                  ;get vertical length
+    //> dey                      ;-1 for RenderUnderPart count
+    //> jsr RenderUnderPart      ;render body from startRow downward
+    renderUnderPart(bodyMetatile, startRow, verticalLength - 1)
+
+    //> pla; tay
+    //> lda VerticalPipeData,y   ;get pipe OPENING metatile
+    val openingMetatile = VerticalPipeData.getOrElse(y) { 0x15u }
+    //> sta MetatileBuffer,x     ;write at bottom (after body)
+    ram.metatileBuffer[startRow + verticalLength] = openingMetatile
 }
 
 //> WindOn: (sm2data2/sm2data4)
@@ -1568,12 +1662,14 @@ private fun System.waterPipe() {
     //> ldy AreaObjectLength,x  ;get length (residual code, water pipe is 1 col thick)
     //> ldx $07                 ;get row
     val row = attrib.row.toInt() and 0xFF
-    //> lda #$6b
+    //> lda #$6b (SMB1) / #$6d (SMB2J)
     //> sta MetatileBuffer,x    ;draw something here and below it
-    ram.metatileBuffer[row] = 0x6b.toUByte()
-    //> lda #$6c
-    //> sta MetatileBuffer+1,x
-    ram.metatileBuffer[row + 1] = 0x6c.toUByte()
+    val topTile: UByte = if (variant == GameVariant.SMB2J) 0x6d.toUByte() else 0x6b.toUByte()
+    val botTile: UByte = if (variant == GameVariant.SMB2J) 0x6e.toUByte() else 0x6c.toUByte()
+    if (row < ram.metatileBuffer.size) ram.metatileBuffer[row] = topTile
+    //> lda #$6c (SMB1) / #$6e (SMB2J)
+    //> sta MetatileBuffer+1,x  (on NES, overflow writes past buffer into adjacent RAM)
+    if (row + 1 < ram.metatileBuffer.size) ram.metatileBuffer[row + 1] = botTile
     //> rts
 }
 
@@ -2041,7 +2137,8 @@ private fun System.getAreaObjectID(): Int {
 private fun System.drawQBlk(metatileIdx: Int) {
     val x = ram.objectOffset
     //> DrawQBlk: lda BrickQBlockMetatiles,y  ;get appropriate metatile for brick/question block
-    val metatile = brickQBlockMetatiles()[metatileIdx]
+    val table = brickQBlockMetatiles()
+    val metatile = table[metatileIdx.coerceIn(0, table.lastIndex)]
     //> pha                         ;save
     //> jsr GetLrgObjAttrib         ;get row from location byte
     val attrib = getLrgObjAttrib(x)

@@ -83,14 +83,14 @@ fun System.verticalPipe() {
 }
 
 // by Claude - data class for getPipeHeight results
-private data class PipeHeightResult(
+data class PipeHeightResult(
     val row: Int,             // $07 from GetLrgObjAttrib (starting row in metatile buffer)
     val verticalLength: Int,  // $06 (lower 3 bits of second byte's lower nybble)
     val horizLengthLeft: Int, // Y = AreaObjectLength,x (horizontal length remaining)
 )
 
 // by Claude - GetPipeHeight: gets pipe row, vertical length, and horizontal length counter
-private fun System.getPipeHeight(counterIndex: Int): PipeHeightResult {
+fun System.getPipeHeight(counterIndex: Int): PipeHeightResult {
     val x = counterIndex.toByte()
     //> GetPipeHeight:
     //> ldy #$01       ;check for length loaded, if not, load

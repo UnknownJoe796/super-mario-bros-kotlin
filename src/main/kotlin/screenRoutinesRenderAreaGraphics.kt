@@ -98,7 +98,8 @@ fun System.renderAreaGraphics() {
         // mtVal layout: %aabbcccc where aa=attribute group, cccc=metatile index low bits
         val attributeBits = (metatileVal shr 6) and 0x03u
         val metatileIndex = metatileVal and 0x3Fu
-        val metatile = metatileGraphics[attributeBits][metatileIndex]
+        val group = metatileGraphics[attributeBits.toInt().coerceIn(0, metatileGraphics.lastIndex)]
+        val metatile = group[metatileIndex.toInt().coerceIn(0, group.lastIndex)]
         val metatileUsesLeft = columnSide shr 1 == 0.toByte()
         val tileTop = if(metatileUsesLeft) metatile.topLeft else metatile.topRight
         val tileBottom = if(metatileUsesLeft) metatile.bottomLeft else metatile.bottomRight

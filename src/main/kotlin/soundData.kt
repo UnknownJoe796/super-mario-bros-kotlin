@@ -142,10 +142,34 @@ object SoundData {
     //> ;1 byte - square 1 data offset
     //> ;1 byte - noise data offset (not used by secondary music)
 
+    // SMB2J header offset table: differs from SMB1 at index 2 (GameOver instead of Victory)
+    // and ground music layout at indices 32-33 (GroundLevelPart1 x2 instead of Part4A repeat)
+    //> (sm2main) MusicHeaderData:
+    private val musicHeaderOffsetData_SMB2J = intArrayOf(
+        0xa5, 0x59, 0x59, 0x64, 0x59, 0x3c, 0x31, 0x4b,  // event: [2]=GameOver not Victory
+        0x69, 0x5e, 0x46, 0x4f, 0x36, 0x8d, 0x36, 0x4b,  // area: same
+        0x8d, 0x69, 0x69, 0x6f, 0x75, 0x6f, 0x7b, 0x6f,  // ground layout: same up to index 31
+        0x75, 0x6f, 0x7b, 0x81, 0x87, 0x81, 0x8d,
+        0x69, 0x69,                                         // indices 32-33: Part1 x2 (SMB2J specific)
+        0x93, 0x99, 0x93, 0x9f, 0x93, 0x99, 0x93,
+        0x9f, 0x81, 0x87, 0x81, 0x8d, 0x93, 0x99, 0x93,
+        0x9f
+    )
+
+    // SMB2J headers: same structure, addresses shifted by -$1FC9
+    private val ADDR_DELTA = MUSIC_DATA_BASE_SMB1 - MUSIC_DATA_BASE_SMB2J  // $1FC9
+    private val headersByOffset_SMB2J: Map<Int, MusicHeader> = headersByOffset.mapValues { (_, h) ->
+        val origAddr = ((h.dataAddrHigh and 0xFF) shl 8) or (h.dataAddrLow and 0xFF)
+        val smb2jAddr = origAddr - ADDR_DELTA
+        h.copy(dataAddrLow = smb2jAddr and 0xFF, dataAddrHigh = (smb2jAddr shr 8) and 0xFF)
+    }
+
     /** Look up a music header by index into the offset table. */
-    fun getMusicHeader(index: Int): MusicHeader {
-        val offset = musicHeaderOffsetData[index]
-        return headersByOffset[offset]
+    fun getMusicHeader(index: Int, smb2j: Boolean = false): MusicHeader {
+        val table = if (smb2j) musicHeaderOffsetData_SMB2J else musicHeaderOffsetData
+        val headers = if (smb2j) headersByOffset_SMB2J else headersByOffset
+        val offset = table[index]
+        return headers[offset]
             ?: throw IllegalArgumentException("No music header at offset 0x${offset.toString(16)}")
     }
 
@@ -154,7 +178,10 @@ object SoundData {
     // All song data stored contiguously as it appears in ROM.
     // -----------------------------------------------------------------------
 
-    private const val MUSIC_DATA_BASE = 0xF9B8
+    private const val MUSIC_DATA_BASE_SMB1 = 0xF9B8
+    // SMB2J/FDS loads SM2MAIN at $6000. Music data within SM2MAIN is at the same
+    // relative offset but at a different absolute address: $D9EF instead of $F9B8.
+    private const val MUSIC_DATA_BASE_SMB2J = 0xD9EF
 
     //> ;MUSIC DATA
     //> ;square 2/triangle format
@@ -504,13 +531,12 @@ object SoundData {
      * then reads bytes at base+offset for each channel.
      */
     fun readMusicData(nesAddr: Int): Int {
-        val index = nesAddr - MUSIC_DATA_BASE
+        // Try SMB1 address range first, then SMB2J
+        var index = nesAddr - MUSIC_DATA_BASE_SMB1
         if (index < 0 || index >= musicDataBytes.size) {
-            throw IndexOutOfBoundsException(
-                "Music data address \$${nesAddr.toString(16)} out of range " +
-                "[\$${MUSIC_DATA_BASE.toString(16)}..\$${(MUSIC_DATA_BASE + musicDataBytes.size - 1).toString(16)}]"
-            )
+            index = nesAddr - MUSIC_DATA_BASE_SMB2J
         }
+        if (index < 0 || index >= musicDataBytes.size) return 0
         return musicDataBytes[index].toInt() and 0xFF
     }
 
@@ -613,6 +639,18 @@ object SoundData {
     val brickShatterFreqData = intArrayOf(
         0x01, 0x0E, 0x0E, 0x0D, 0x0B, 0x06, 0x0C, 0x0F,
         0x0A, 0x09, 0x03, 0x0D, 0x08, 0x0D, 0x06, 0x0C
+    )
+
+    //> SkidSfxFreqData: (SMB2J only)
+    val skidSfxFreqData = intArrayOf(
+        0x47, 0x49, 0x42, 0x4A, 0x43, 0x4B
+    )
+
+    //> WindFreqEnvData: (SMB2J only) upper nybble = envelope, lower nybble = frequency
+    val windFreqEnvData = intArrayOf(
+        0x37, 0x46, 0x55, 0x64, 0x74, 0x83, 0x93, 0xA2,
+        0xB1, 0xC0, 0xD0, 0xE0, 0xF1, 0xF1, 0xF2, 0xE2,
+        0xE2, 0xC3, 0xA3, 0x84, 0x64, 0x44, 0x35, 0x25
     )
 
     //> SwimStompEnvelopeData:

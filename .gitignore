@@ -45,6 +45,13 @@ bin/
 .DS_Store
 
 smb.nes
+smb2j.fds
+*.fm2
 tmp/
 .claude/worktrees/
 /data/tas/happylee-warpless-ram.bin
+
+### AI/IDE tool artifacts ###
+.fork/
+.junie/
+.idea/ChatHistory_schema_v3.xml

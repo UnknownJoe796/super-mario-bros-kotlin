@@ -17,6 +17,9 @@ import kotlin.reflect.full.findAnnotation
 annotation class RamLocation(val address: Int, val size: Int = -1)
 
 class GameRam {
+    /** Game variant for address mapping (not stored in NES RAM). */
+    var variant: GameVariant = GameVariant.SMB1
+
     companion object {
         val clean = GameRam()
         val props by lazy {
@@ -338,6 +341,16 @@ class GameRam {
         set(v) { continueWorld = v }
     /** Persistent save: number of times game beaten (FDS save file, no NES RAM address) */
     var gamesBeatenCount: Byte = 0
+
+    // SMB2J self-modifying code targets: InitPiranhaPlant patches EnemyAttributeData[PiranhaPlant]
+    // and ChkPlayerNearPipe's immediate operand at runtime. Computed from world/flag state since
+    // the patched values only change at level transitions (when InitPiranhaPlant is called).
+    /** Whether piranha plants are red (worlds 4-8, A-D) or green (worlds 1-3). SMB2J only. */
+    val isRedPiranhaPlant: Boolean get() = hardWorldFlag || (worldNumber.toInt() and 0xFF) >= 3
+    /** Piranha plant sprite attribute byte ($22=red, $21=green). Derived from world state. */
+    val piranhaPlantAttribute: Int get() = if (isRedPiranhaPlant) 0x22 else 0x21
+    /** Piranha plant player proximity range ($13=red/close, $21=green/far). Derived from world state. */
+    val piranhaPlantNearPipeRange: Int get() = if (isRedPiranhaPlant) 0x13 else 0x21
     @RamLocation(0x6e0) var sprShuffleAmtOffset: Byte = 0
     @RamLocation(0x6e1, size = 0) val sprShuffleAmt = ByteArray(9999)  // size=0: excluded from sync
 

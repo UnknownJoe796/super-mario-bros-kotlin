@@ -353,7 +353,12 @@ private fun System.clearBuffersDrawIcon() {
     ram.reset(0x300..<0x400)
     ram.reset(0x400..<0x500)
     //> jsr DrawMushroomIcon       ;draw player select icon
-    drawMushroomIcon()
+    // SMB2J: draw character select cursor instead of 1P/2P mushroom icon
+    if (variant == GameVariant.SMB2J) {
+        setupMenuCursor()
+    } else {
+        drawMushroomIcon()
+    }
     //> IncSubtask:  inc ScreenRoutineTask      ;move onto next task
     incSubtask()
     //> rts

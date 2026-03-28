@@ -563,8 +563,9 @@ fun System.movePiranhaPlant() {
     if ((highDiff and 0x80) != 0) {
         absDiff = ((lowDiff xor 0xFF) + 1) and 0xFF
     }
-    //> cmp #$21; bcc PutinPipe
-    if (absDiff < 0x21) {
+    //> cmp #$21; bcc PutinPipe  (SMB2J: patched to $13 for red piranha plants)
+    val nearPipeRange = if (variant == GameVariant.SMB2J) ram.piranhaPlantNearPipeRange else 0x21
+    if (absDiff < nearPipeRange) {
         ram.sprAttrib[1 + x] = 0x20 // by Claude - indexed by x
         return
     }
@@ -605,11 +606,16 @@ private fun System.setupToMovePPlant(x: Int) {
     }
 
     //> RiseFallPiranhaPlant:
-    //> adc PiranhaPlant_Y_Speed,x  ;add vertical speed to move up or down
-    //> lda FrameCounter; and #%00000001; beq PutinPipe
-    if ((ram.frameCounter.toInt() and 0x01) == 0) {
-        ram.sprAttrib[1 + x] = 0x20 // by Claude - indexed by x
-        return
+    //> SMB2J: lda EnemyAttributeData+PiranhaPlant; cmp #$22; beq RedPP
+    //> SMB1/green: lda FrameCounter; lsr; bcc PutinPipe (skip every other frame)
+    //> RedPP: lda TimerControl; bne PutinPipe
+    val isRedPiranha = variant == GameVariant.SMB2J && ram.piranhaPlantAttribute == 0x22
+    if (!isRedPiranha) {
+        // Green piranha: only move every other frame (when frameCounter bit 0 is set)
+        if ((ram.frameCounter.toInt() and 0x01) == 0) {
+            ram.sprAttrib[1 + x] = 0x20 // by Claude - indexed by x
+            return
+        }
     }
     //> lda TimerControl; bne PutinPipe
     if (ram.timerControl != 0.toByte()) {

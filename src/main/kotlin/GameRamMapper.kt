@@ -141,13 +141,45 @@ object GameRamMapper {
 
     private val descriptors: List<FieldDescriptor> = buildDescriptors()
 
-    /** All NES addresses covered by at least one descriptor. */
+    // SMB2J uses different NES addresses for some display digit arrays:
+    //   coinDisplay: $07ED -> $07E7
+    //   gameTimerDisplay: $07F8 -> $07EC
+    //   coin2Display ($07F3): excluded (SMB2J has no second player coin display)
+    //   player2ScoreDisplay ($07E3): excluded (SMB2J is single-player, $07E3-$07E8
+    //     overlaps with coinDisplay at $07E7 in the SMB2J memory map)
+    // Also include SMB2J-specific fields that overlap gameTimerDisplay in SMB1.
+    private val smb2jDescriptors: List<FieldDescriptor> = run {
+        val remapAddresses = setOf(0x7ED, 0x7F8)
+        val excludeAddresses = setOf(0x7F3, 0x7E3) // coin2Display, player2ScoreDisplay
+
+        val result = descriptors.filter { it.address !in remapAddresses && it.address !in excludeAddresses }.toMutableList()
+        // Re-add display fields at SMB2J addresses using direct array accessors
+        result.add(ByteArrayField(0x7E7, 2, { it.coinDisplay }))       // CoinDisplay at $07E7
+        result.add(ByteArrayField(0x7EC, 3, { it.gameTimerDisplay }))  // GameTimerDisplay at $07EC
+        // SMB2J-only fields excluded (size=0) in SMB1 but with real addresses in SMB2J.
+        result.add(ByteField(0x7F8, { it.continueMenuSelect }, { r, b -> r.continueMenuSelect = b }))
+        result.add(BooleanField(0x7F9, { it.windFlag }, { r, b -> r.windFlag = b }))
+        result.add(ByteField(0x7FA, { it.completedWorlds }, { r, b -> r.completedWorlds = b }))
+        result.add(BooleanField(0x7FB, { it.hardWorldFlag }, { r, b -> r.hardWorldFlag = b }))
+        result
+    }
+
+    private fun descriptorsFor(variant: GameVariant?): List<FieldDescriptor> =
+        if (variant == GameVariant.SMB2J) smb2jDescriptors else descriptors
+
+    /** All NES addresses covered by at least one descriptor (union of all variants). */
     val coveredAddresses: Set<Int> = buildSet {
         for (desc in descriptors) addAll(desc.address until desc.address + desc.nesSize)
+        for (desc in smb2jDescriptors) addAll(desc.address until desc.address + desc.nesSize)
+    }
+
+    /** Covered addresses for a specific variant. */
+    fun coveredAddresses(variant: GameVariant): Set<Int> = buildSet {
+        for (desc in descriptorsFor(variant)) addAll(desc.address until desc.address + desc.nesSize)
     }
 
     /** Addresses of Boolean-typed fields (for comparison normalization). */
-    val booleanAddresses: Set<Int> = descriptors
+    val booleanAddresses: Set<Int> = (descriptors + smb2jDescriptors)
         .filterIsInstance<BooleanField>()
         .map { it.address }
         .toSet()
@@ -155,13 +187,13 @@ object GameRamMapper {
     /** Extract GameRam state into a flat 2048-byte NES RAM image. */
     fun toFlat(ram: GameRam): ByteArray {
         val flat = ByteArray(2048)
-        for (desc in descriptors) desc.writeToFlat(ram, flat, 0)
+        for (desc in descriptorsFor(ram.variant)) desc.writeToFlat(ram, flat, 0)
         return flat
     }
 
     /** Sync a flat NES RAM image into GameRam. */
     fun fromFlat(ram: GameRam, flat: ByteArray, offset: Int = 0) {
-        for (desc in descriptors) desc.readFromFlat(ram, flat, offset)
+        for (desc in descriptorsFor(ram.variant)) desc.readFromFlat(ram, flat, offset)
     }
 
     /** Sync GameRam → interpreter memory. */

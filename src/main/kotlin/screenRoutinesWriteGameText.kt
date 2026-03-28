@@ -373,6 +373,15 @@ fun System.writeGameText(textNumber: Byte) {
 
 private fun System.checkPlayerName(originalTextNumber: Byte) {
     //> CheckPlayerName:
+    // SMB2J: always show selected player's name (single-player game)
+    if (variant == GameVariant.SMB2J) {
+        if (ram.selectedPlayer.toInt() and 1 != 0) {
+            ram.vRAMBuffer1[0] = (ram.vRAMBuffer1[0] as BufferedPpuUpdate.BackgroundPatternString).copy(
+                patterns = GameTexts.luigiName
+            )
+        }
+        return
+    }
     //> lda NumberOfPlayers    ;check number of players
     //> beq ExitChkName        ;if only 1 player, leave
     if (ram.numberOfPlayers == 0.toByte()) return

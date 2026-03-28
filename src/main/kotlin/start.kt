@@ -156,6 +156,14 @@ fun System.secondaryGameSetup() {
     //> sta DisableScreenFlag     ;enable screen output
     ram.disableScreenFlag = false
 
+    // SMB2J also clears WindFlag and FlagpoleMusicFlag here
+    if (variant == GameVariant.SMB2J) {
+        //> sta WindFlag
+        ram.windFlag = false
+        //> sta FlagpoleMusicFlag
+        ram.flagpoleMusicFlag = false
+    }
+
     //> tay
     //> ClearVRLoop: sta VRAM_Buffer1-1,y      ;clear buffer at $0300-$03ff
     //> iny
@@ -176,16 +184,21 @@ fun System.secondaryGameSetup() {
     //> sta BalPlatformAlignment  ;initialize balance platform assignment flag
     ram.balPlatformAlignment = 0xFF.toByte()
 
-    //> lda ScreenLeft_PageLoc    ;get left side page location
-    //> lsr Mirror_PPU_CTRL_REG1  ;shift LSB of ppu register #1 mirror out
-    //> and #$01                  ;mask out all but LSB of page location
-    //> ror                       ;rotate LSB of page location into carry then onto mirror
-    //> rol Mirror_PPU_CTRL_REG1  ;this is to set the proper PPU name table
-    // High-level: copy the LSB of ScreenLeft_PageLoc into bit 0 of baseNametableAddress,
-    // preserving bit 1.
-    ram.mirrorPPUCTRLREG1 = ram.mirrorPPUCTRLREG1.copy(
-        baseNametableAddress = (ram.mirrorPPUCTRLREG1.baseNametableAddress and 0x2) or (ram.screenLeftPageLoc and 0x1)
-    )
+    if (variant == GameVariant.SMB2J) {
+        //> (SMB2J) lda ScreenLeft_PageLoc; and #$01; sta NameTableSelect
+        ram.nameTableSelect = (ram.screenLeftPageLoc.toInt() and 0x01).toByte()
+    } else {
+        //> (SMB1) lda ScreenLeft_PageLoc
+        //> lsr Mirror_PPU_CTRL_REG1  ;shift LSB of ppu register #1 mirror out
+        //> and #$01                  ;mask out all but LSB of page location
+        //> ror                       ;rotate LSB of page location into carry then onto mirror
+        //> rol Mirror_PPU_CTRL_REG1  ;this is to set the proper PPU name table
+        // High-level: copy the LSB of ScreenLeft_PageLoc into bit 0 of baseNametableAddress,
+        // preserving bit 1.
+        ram.mirrorPPUCTRLREG1 = ram.mirrorPPUCTRLREG1.copy(
+            baseNametableAddress = (ram.mirrorPPUCTRLREG1.baseNametableAddress and 0x2) or (ram.screenLeftPageLoc and 0x1)
+        )
+    }
 
     //> jsr GetAreaMusic          ;load proper music into queue
     getAreaMusic()
@@ -209,18 +222,20 @@ fun System.secondaryGameSetup() {
         ram.sprDataOffsets[i] = DefaultSprOffsets[i]
     }
 
-    //> ldy #$03                  ;set up sprite #0
-    //> ISpr0Loop:   lda Sprite0Data,y
-    //>             sta Sprite_Data,y
-    //>             dey
-    //>             bpl ISpr0Loop
-    // High-level: write sprite #0's Y, tile, attributes, X
-    ram.sprites[0].set(Sprite0Data)
+    if (variant != GameVariant.SMB2J) {
+        //> (SMB1) ldy #$03                  ;set up sprite #0
+        //> ISpr0Loop:   lda Sprite0Data,y
+        //>             sta Sprite_Data,y
+        //>             dey
+        //>             bpl ISpr0Loop
+        // High-level: write sprite #0's Y, tile, attributes, X
+        ram.sprites[0].set(Sprite0Data)
+    }
 
     //> jsr DoNothing2            ;these jsrs doesn't do anything useful
     //> jsr DoNothing1
 
-    //> inc Sprite0HitDetectFlag  ;set sprite #0 check flag
+    //> inc Sprite0HitDetectFlag  ;set sprite #0 check flag (SMB2J: inc IRQUpdateFlag, same address)
     ram.sprite0HitDetectFlag = true
     //> inc OperMode_Task         ;increment to next task
     ram.operModeTask++

@@ -29,13 +29,17 @@ private val powerUpGfxTable = byteArrayOf(
     0x76, 0x77, 0x78, 0x79,       // regular mushroom
     0xd6.toByte(), 0xd6.toByte(), 0xd9.toByte(), 0xd9.toByte(), // fire flower
     0x8d.toByte(), 0x8d.toByte(), 0xe4.toByte(), 0xe4.toByte(), // star
-    0x76, 0x77, 0x78, 0x79        // 1-up mushroom
+    0x76, 0x77, 0x78, 0x79,       // 1-up mushroom
+    // SMB2J: poison mushroom (type $04) — on NES, reads past table into next ROM data.
+    // Uses same tiles as regular mushroom (palette makes it look different).
+    0x76, 0x77, 0x78, 0x79
 )
 
 //> PowerUpAttributes:
 //>       .db $02, $01, $02, $01
-// by Claude
-private val powerUpAttributes = byteArrayOf(0x02, 0x01, 0x02, 0x01)
+// by Claude - SMB2J adds poison mushroom (type $04); on NES it reads the next ROM byte
+// which is $01 (first byte of PowerUpGfxTable). Add that to avoid index-out-of-bounds.
+private val powerUpAttributes = byteArrayOf(0x02, 0x01, 0x02, 0x01, 0x01)
 
 // -------------------------------------------------------------------------------------
 // PowerUpObjHandler
@@ -641,7 +645,7 @@ fun System.vineObjectHandler() {
     val vineHeight = ram.vineHeight.toInt() and 0xFF
     //> cmp VineHeightData,y      ;if vine has reached certain height,
     //> beq RunVSubs              ;branch ahead to skip this part
-    if (vineHeight != vineHeightData[y]) {
+    if (y !in vineHeightData.indices || vineHeight != vineHeightData[y]) {
         //> lda FrameCounter          ;get frame counter
         //> lsr; lsr                  ;shift d1 into carry
         //> bcc RunVSubs              ;if d1 not set (2 frames every 4) skip this part
@@ -893,7 +897,7 @@ fun System.setupVine(enemySlot: Int, blockSlot: Int) {
 
     //> NextVO: txa                      ;store object offset to next available vine slot
     //> sta VineObjOffset,y      ;using vine flag as offset
-    ram.vineObjOffsets[vineFlagOfs] = enemySlot.toByte()
+    if (vineFlagOfs in ram.vineObjOffsets.indices) ram.vineObjOffsets[vineFlagOfs] = enemySlot.toByte()
 
     //> inc VineFlagOffset       ;increment vine flag offset
     ram.vineFlagOffset = ((vineFlagOfs + 1) and 0xFF).toByte()

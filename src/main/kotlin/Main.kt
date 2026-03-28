@@ -41,40 +41,88 @@ fun main() {
         system.shadow?.close()
         audioOutput.stop()
     })
-    var startAction: (() -> Unit)? = { system.start() }
-    val scale = 3
-    val width = 256 * scale
-    val height = 240 * scale
     val pressedKeys: MutableSet<Int> = Collections.newSetFromMap(ConcurrentHashMap<Int, Boolean>())
-    var lastNmiTime = java.lang.System.nanoTime()
-    val nmiIntervalNs = 1_000_000_000L / 60
+
+    // Lock shared between game thread and render thread to protect PPU state access
+    val frameLock = Object()
 
     SwingUtilities.invokeLater {
         val skiaLayer = SkiaLayer()
         skiaLayer.renderDelegate = object : SkikoRenderDelegate {
-            private var frameCount = 0
-            private var lastDisableScreenFlag = true
-            private var lastPpuMask = 0.toByte()
-
             override fun onRender(canvas: Canvas, width: Int, height: Int, nanoTime: Long) {
+                synchronized(frameLock) {
+                    val currentScale = (width.toFloat() / 256f).coerceAtMost(height.toFloat() / 240f)
+                    PpuRenderer.render(canvas, system.ppu, currentScale.toInt(), scrollStartY = 32)
+                }
+            }
+        }
+
+        val frame = JFrame("Super Mario Bros")
+        frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
+        val scale = 3
+        val width = 256 * scale
+        val height = 240 * scale
+        skiaLayer.preferredSize = Dimension(width, height)
+        frame.contentPane.add(skiaLayer)
+        frame.pack()
+        frame.setLocationRelativeTo(null)
+
+        // Use KeyboardFocusManager to capture key events regardless of which
+        // component has focus. A KeyListener on JFrame stops receiving events
+        // once the SkiaLayer (heavyweight component) takes focus.
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(
+            KeyEventDispatcher { e ->
+                when (e.id) {
+                    KeyEvent.KEY_PRESSED -> pressedKeys.add(e.keyCode)
+                    KeyEvent.KEY_RELEASED -> pressedKeys.remove(e.keyCode)
+                }
+                false
+            }
+        )
+
+        frame.isVisible = true
+
+        // Start the dedicated game thread after the window is visible
+        Thread({
+            var startAction: (() -> Unit)? = { system.start() }
+            var frameCount = 0
+            var lastDisableScreenFlag = true
+            var lastPpuMask = 0.toByte()
+            var lastNmiTime = java.lang.System.nanoTime()
+            val nmiIntervalNs = 1_000_000_000L / 60
+
+            while (true) {
                 val now = java.lang.System.nanoTime()
                 val turbo = KeyEvent.VK_TAB in pressedKeys
-                val runFrame = turbo || now - lastNmiTime >= nmiIntervalNs
-                if (runFrame) {
-                    if (!turbo) {
-                        lastNmiTime += nmiIntervalNs
-                        // Catch up but don't spiral — cap to one frame behind
-                        if (now - lastNmiTime > nmiIntervalNs) {
-                            lastNmiTime = now
+
+                if (!turbo) {
+                    // Spin-wait until the next frame is due
+                    val deadline = lastNmiTime + nmiIntervalNs
+                    if (now < deadline) {
+                        // Coarse sleep to avoid burning CPU, then spin for precision
+                        val remaining = deadline - now
+                        if (remaining > 2_000_000L) {
+                            Thread.sleep((remaining - 1_500_000L) / 1_000_000L)
                         }
-                    } else {
-                        lastNmiTime = now
+                        // Spin-wait for the final stretch
+                        @Suppress("ControlFlowWithEmptyBody")
+                        while (java.lang.System.nanoTime() < deadline) { /* spin */ }
                     }
+                    lastNmiTime += nmiIntervalNs
+                    // Catch up but don't spiral -- cap to one frame behind
+                    val afterWait = java.lang.System.nanoTime()
+                    if (afterWait - lastNmiTime > nmiIntervalNs) {
+                        lastNmiTime = afterWait
+                    }
+                } else {
+                    lastNmiTime = now
+                }
 
-                    // Build joypad bits from currently pressed keys.
-                    // readJoypads() inside NMI transfers these into ram.savedJoypadBits.
-                    system.inputs.joypadPort1 = buildJoypadBits(pressedKeys)
+                // Sample input
+                system.inputs.joypadPort1 = buildJoypadBits(pressedKeys)
 
+                // Run game frame under lock so render thread doesn't read partial PPU state
+                synchronized(frameLock) {
                     val action = startAction
                     if (action != null) {
                         try {
@@ -99,38 +147,17 @@ fun main() {
                         lastPpuMask = system.ppu.mask.byte
                         java.lang.System.out.println("PPU Mask changed: backgroundEnabled=${system.ppu.mask.backgroundEnabled}, spriteEnabled=${system.ppu.mask.spriteEnabled}")
                     }
-                    frameCount++
                 }
 
-                val currentScale = (width.toFloat() / 256f).coerceAtMost(height.toFloat() / 240f)
-                PpuRenderer.render(canvas, system.ppu, currentScale.toInt(), scrollStartY = 32)
-                // Always request redraw to keep the timing poll alive
-                skiaLayer.needRedraw()
+                frameCount++
+
+                // Tell Skia to repaint with the new frame
+                SwingUtilities.invokeLater { skiaLayer.needRedraw() }
             }
+        }, "game-loop").apply {
+            isDaemon = true
+            start()
         }
-
-        val frame = JFrame("Super Mario Bros")
-        frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
-        skiaLayer.preferredSize = Dimension(width, height)
-        frame.contentPane.add(skiaLayer)
-        frame.pack()
-        frame.setLocationRelativeTo(null)
-
-        // Use KeyboardFocusManager to capture key events regardless of which
-        // component has focus. A KeyListener on JFrame stops receiving events
-        // once the SkiaLayer (heavyweight component) takes focus.
-        KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(
-            KeyEventDispatcher { e ->
-                when (e.id) {
-                    KeyEvent.KEY_PRESSED -> pressedKeys.add(e.keyCode)
-                    KeyEvent.KEY_RELEASED -> pressedKeys.remove(e.keyCode)
-                }
-                false
-            }
-        )
-
-        frame.isVisible = true
-        skiaLayer.needRedraw()
     }
 }
 

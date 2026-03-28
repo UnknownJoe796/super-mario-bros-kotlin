@@ -568,25 +568,41 @@ val WorldSelectMessage2 = listOf(
     ),
 )
 
-val System.vramAddrTable
-    get() = listOf(
-        ram.vRAMBuffer1,
-        WaterPaletteData,
-        GroundPaletteData,
-        UndergroundPaletteData,
-        CastlePaletteData,
-        ram.vRAMBuffer1,
-        ram.vRAMBuffer2,
-        ram.vRAMBuffer2,
-        BowserPaletteData,
-        DaySnowPaletteData,
-        NightSnowPaletteData,
-        MushroomPaletteData,
-        MarioThanksMessage,
-        LuigiThanksMessage,
-        MushroomRetainerSaved,
-        PrincessSaved1,
-        PrincessSaved2,
-        WorldSelectMessage1,
-        WorldSelectMessage2,
-    )
+val System.vramAddrTable: List<List<BufferedPpuUpdate>>
+    get() = buildList {
+        //> VRAM_AddrTable:
+        add(ram.vRAMBuffer1)                // 0x00: VRAM_Buffer1
+        add(WaterPaletteData)               // 0x01
+        add(GroundPaletteData)              // 0x02
+        add(UndergroundPaletteData)         // 0x03
+        add(CastlePaletteData)             // 0x04
+        add(ram.vRAMBuffer1)               // 0x05: TitleScreenGfxData (uses Buffer1)
+        add(ram.vRAMBuffer2)               // 0x06: VRAM_Buffer2
+        add(ram.vRAMBuffer2)               // 0x07: VRAM_Buffer2 (alt)
+        add(BowserPaletteData)             // 0x08
+        add(DaySnowPaletteData)            // 0x09
+        add(NightSnowPaletteData)          // 0x0A
+        add(MushroomPaletteData)           // 0x0B
+        add(MarioThanksMessage)            // 0x0C: ThankYouMessage
+        add(LuigiThanksMessage)            // 0x0D: MushroomRetainerMsg
+        add(MushroomRetainerSaved)         // 0x0E: UnusedAttribData
+        add(PrincessSaved1)                // 0x0F: FinalRoomPalette
+        add(PrincessSaved2)                // 0x10: ThankYouMessageFinal
+        add(WorldSelectMessage1)           // 0x11: PeaceIsPavedMsg
+        add(WorldSelectMessage2)           // 0x12: WithKingdomSavedMsg
+        // SMB2J additional entries (indices 0x13-0x1E)
+        if (variant == GameVariant.SMB2J) {
+            add(emptyList())               // 0x13: HurrahMsg (stub)
+            add(emptyList())               // 0x14: OurOnlyHeroMsg (stub)
+            add(emptyList())               // 0x15: ThisEndsYourTripMsg (stub)
+            add(emptyList())               // 0x16: OfALongFriendshipMsg (stub)
+            add(emptyList())               // 0x17: PointsAddedMsg (stub)
+            add(emptyList())               // 0x18: ForEachPlayerLeftMsg (stub)
+            add(emptyList())               // 0x19: DiskErrorMainMsg (stub)
+            add(emptyList())               // 0x1A: DiskScreenPalette (stub)
+            add(emptyList())               // 0x1B: PrincessPeachsRoom (stub)
+            add(ram.vRAMBuffer1)           // 0x1C: MenuCursorTemplate (uses Buffer1)
+            add(emptyList())               // 0x1D: FantasyWorld9Msg (stub)
+            add(emptyList())               // 0x1E: SuperPlayerMsg (stub)
+        }
+    }

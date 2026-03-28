@@ -786,6 +786,10 @@ private fun System.continueGrowItems() {
 
 //> NoiseSfxHandler:
 private fun System.noiseSfxHandler() {
+    if (variant == GameVariant.SMB2J) {
+        noiseSfxHandler_smb2j()
+        return
+    }
     val queue = ram.noiseSoundQueue.toInt() and 0xFF
     //> ldy NoiseSoundQueue; beq CheckNoiseBuffer
     if (queue != 0) {
@@ -807,6 +811,93 @@ private fun System.noiseSfxHandler() {
     if (buf and 0x01 != 0) { continueBrickShatter(); return }
     //> lsr; bcs ContinueBowserFlame
     if (buf and 0x02 != 0) { continueBowserFlame(); return }
+}
+
+//> NoiseSfxHandler (SMB2J): interleaved queue/buffer dispatch with skid and wind SFX.
+//> Dispatch priority: skid (bit 7) > brick shatter (bit 0) > bowser flame (bit 1) > wind (bit 2).
+private fun System.noiseSfxHandler_smb2j() {
+    val buf = ram.noiseSoundBuffer.toInt() and 0xFF
+    val queue = ram.noiseSoundQueue.toInt() and 0xFF
+
+    //> lda NoiseSoundBuffer; bmi ContinueSkidSfx
+    if (buf and 0x80 != 0) { continueSkidSfx(); return }
+    //> ldy NoiseSoundQueue; bmi PlaySkidSfx
+    if (queue and 0x80 != 0) { playSkidSfx(queue); return }
+
+    // Interleaved queue/buffer dispatch for bits 0-2
+    //> lsr NoiseSoundQueue; bcs PlayBrickShatter (queue bit 0)
+    if (queue and 0x01 != 0) { ram.noiseSoundBuffer = queue.toByte(); playBrickShatter(); return }
+    //> lsr [A]; bcs ContinueBrickShatter (buffer bit 0)
+    if (buf and 0x01 != 0) { continueBrickShatter(); return }
+    //> lsr NoiseSoundQueue; bcs PlayBowserFlame (queue bit 1)
+    if (queue and 0x02 != 0) { ram.noiseSoundBuffer = queue.toByte(); playBowserFlame(); return }
+    //> lsr [A]; bcs ContinueBowserFlame (buffer bit 1)
+    if (buf and 0x02 != 0) { continueBowserFlame(); return }
+    //> lsr [A]; bcs ContinueWindSfx (buffer bit 2)
+    if (buf and 0x04 != 0) { continueWindSfx(); return }
+    //> lsr NoiseSoundQueue; bcs PlayWindSfx (queue bit 2)
+    if (queue and 0x04 != 0) { playWindSfx(queue); return }
+}
+
+//> PlaySkidSfx: (SMB2J only)
+private fun System.playSkidSfx(queue: Int) {
+    //> sty NoiseSoundBuffer
+    ram.noiseSoundBuffer = queue.toByte()
+    //> lda #$06; sta Noise_SfxLenCounter
+    ram.noiseSfxLenCounter = 0x06
+    continueSkidSfx()
+}
+
+//> ContinueSkidSfx: (SMB2J only) uses triangle channel for skid sound
+private fun System.continueSkidSfx() {
+    val len = ram.noiseSfxLenCounter.toInt() and 0xFF
+    //> lda Noise_SfxLenCounter; tay; lda SkidSfxFreqData-1,y
+    val freqData = SoundData.skidSfxFreqData[len - 1]
+    //> sta SND_TRIANGLE_REG+2
+    writeSndReg(10, freqData)
+    //> lda #$18; sta SND_TRIANGLE_REG; sta SND_TRIANGLE_REG+3
+    writeSndReg(8, 0x18)
+    writeSndReg(11, 0x18)
+    //> bne DecrementSfx3Length
+    decrementSfx3Length()
+}
+
+//> PlayWindSfx: (SMB2J only)
+private fun System.playWindSfx(queue: Int) {
+    //> sty NoiseSoundBuffer
+    ram.noiseSoundBuffer = queue.toByte()
+    //> lda #$c0; sta Noise_SfxLenCounter
+    ram.noiseSfxLenCounter = 0xC0.toByte()
+    // Falls through to ContinueWindSfx. When entering from PlayWindSfx, the queue
+    // has been LSR'd 3 times by the dispatch, so the next LSR (in ContinueWindSfx)
+    // checks original bit 3. Pass the pre-shifted bit count so we check the right bit.
+    continueWindSfx(queueShiftCount = 3)
+}
+
+//> ContinueWindSfx: (SMB2J only) wind must be continuously queued to keep playing.
+//> The assembly does `lsr NoiseSoundQueue` which shifts out the next bit after
+//> the dispatch consumed bits 0..N via prior LSR operations. When entering from
+//> the buffer dispatch path, 2 shifts have occurred (checking original bit 2 = wind).
+//> When entering from PlayWindSfx, 3 shifts have occurred (checking original bit 3).
+private fun System.continueWindSfx(queueShiftCount: Int = 2) {
+    //> lsr NoiseSoundQueue; bcc ExSfx3
+    val queue = ram.noiseSoundQueue.toInt() and 0xFF
+    val checkBit = queueShiftCount  // the bit that the next LSR would shift out
+    if (queue and (1 shl checkBit) == 0) return
+
+    val len = ram.noiseSfxLenCounter.toInt() and 0xFF
+    //> lda Noise_SfxLenCounter; lsr; lsr; lsr; tay
+    val y = len shr 3  // divide by 8
+    //> lda WindFreqEnvData,y; and #$0f; ora #$10; tax
+    val windData = SoundData.windFreqEnvData[y.coerceIn(0, SoundData.windFreqEnvData.lastIndex)]
+    val freqVal = (windData and 0x0F) or 0x10
+    //> lda WindFreqEnvData,y; lsr; lsr; lsr; lsr; ora #$10
+    val envVal = (windData shr 4) or 0x10
+    //> bne PlayNoiseSfx (via WindBranch)
+    writeSndReg(12, envVal)
+    writeSndReg(14, freqVal)
+    writeSndReg(15, 0x18)
+    decrementSfx3Length()
 }
 
 //> PlayBrickShatter:
@@ -841,8 +932,14 @@ private fun System.decrementSfx3Length() {
     //> dec Noise_SfxLenCounter; bne ExSfx3
     //> ExSfx3: rts
     if (newLen == 0) {
-        //> lda #$f0; sta SND_NOISE_REG; lda #$00; sta NoiseSoundBuffer
+        //> lda #$f0; sta SND_NOISE_REG
         writeSndReg(12, 0xF0)
+        //> SMB2J also clears SND_TRIANGLE_REG (skid SFX uses triangle)
+        if (variant == GameVariant.SMB2J) {
+            //> lda #$00; sta SND_TRIANGLE_REG
+            writeSndReg(8, 0x00)
+        }
+        //> lda #$00; sta NoiseSoundBuffer
         ram.noiseSoundBuffer = 0
     }
 }
@@ -983,7 +1080,7 @@ private fun System.loadHeader(y: Int) {
     // an index into musicHeaderOffsetData. The asm uses (MusicHeaderOffsetData,y) where y is 1-based.
     // musicHeaderOffsetData[0] corresponds to MusicHeaderOffsetData[1] (y=1).
     // So we use y-1 as the index.
-    val header = SoundData.getMusicHeader(y - 1)
+    val header = SoundData.getMusicHeader(y - 1, smb2j = variant == GameVariant.SMB2J)
 
     //> lda MusicHeaderData,y -> sta NoteLenLookupTblOfs
     ram.noteLenLookupTblOfs = header.lengthOffset.toByte()
@@ -1358,7 +1455,8 @@ private fun System.handleNoiseMusic() {
 }
 
 //> FetchNoiseBeatData:
-private fun System.fetchNoiseBeatData() {
+private fun System.fetchNoiseBeatData(depth: Int = 0) {
+    if (depth > 1) return // Guard: avoid infinite recursion from invalid loopback data
     //> ldy MusicOffset_Noise; inc MusicOffset_Noise; lda (MusicData),y
     val y = ram.musicOffsetNoise.toInt() and 0xFF
     ram.musicOffsetNoise = ((y + 1) and 0xFF).toByte()
@@ -1370,7 +1468,7 @@ private fun System.fetchNoiseBeatData() {
     }
     //> lda NoiseDataLoopbackOfs; sta MusicOffset_Noise; bne FetchNoiseBeatData
     ram.musicOffsetNoise = ram.noiseDataLoopbackOfs
-    fetchNoiseBeatData()
+    fetchNoiseBeatData(depth + 1)
 }
 
 //> NoiseBeatHandler:

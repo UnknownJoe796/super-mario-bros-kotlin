@@ -266,15 +266,17 @@ fun System.pauseRoutine(): Unit {
     //> lda OperMode           ;are we in victory mode?
     //> cmp #VictoryModeValue  ;if so, go ahead
     //> beq ChkPauseTimer
-    // Pause is only allowed in victory mode, or in game mode when running the game engine (task 3)
+    // Pause is only allowed in victory mode, or in game mode when running the game engine
+    // (SMB1: task 3, SMB2J: task 4 due to GameModeDiskRoutines being task 0)
     if(ram.operMode != OperMode.Victory) {
         //> cmp #GameModeValue     ;are we in game mode?
         //> bne ExitPause          ;if not, leave
         if(ram.operMode != OperMode.Game) return
         //> lda OperMode_Task      ;if we are in game mode, are we running game engine?
-        //> cmp #$03
+        //> cmp #$03 / cmp #$04   ;(SMB1 / SMB2J)
         //> bne ExitPause          ;if not, leave
-        if(ram.operModeTask != 0x03.toByte()) return
+        val gameEngineTask: Byte = if (variant == GameVariant.SMB2J) 0x04 else 0x03
+        if(ram.operModeTask != gameEngineTask) return
     }
 
     //> ChkPauseTimer: lda GamePauseTimer     ;check if pause timer is still counting down

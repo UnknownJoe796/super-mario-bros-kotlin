@@ -19,11 +19,11 @@ fun System.blowPlayerAround() {
 
     //> ldy #$01
     //> lda FrameCounter        ;branch to set d0 if on an odd frame
-    //> asl
-    //> bcs BThr                ;otherwise wind will only blow
-    //> ldy #$03                ;one out of every four frames
+    //> asl                     ;shift bit 7 into carry
+    //> bcs BThr                ;if carry set (bit 7 was 1), use mask $01
+    //> ldy #$03                ;otherwise use mask $03 (wind blows 1 in 4 frames)
     val frame = ram.frameCounter.toInt() and 0xFF
-    val mask = if ((frame and 1) != 0) 0x01 else 0x03
+    val mask = if ((frame and 0x80) != 0) 0x01 else 0x03
     //> BThr: sty $00
     //> lda FrameCounter        ;throttle wind blowing by using the frame counter
     //> and $00                 ;to mask out certain frames
@@ -131,18 +131,39 @@ fun System.smb2jGameOver() {
     //> ContinueOrRetry:
     //> lda ContinueMenuSelect; beq Continue
     if (ram.continueMenuSelect == 0.toByte()) {
-        //> Continue: ldy #$02; sty NumberofLives  ;give 3 lives and resume
+        //> Continue:
+        //> ldy #$02; sty NumberofLives  ;give 3 lives
         ram.numberofLives = 0x02
-        ram.areaNumber = 0x00
+        //> sta LevelNumber; sta AreaNumber  ;put at x-1 of current world
         ram.levelNumber = 0x00
-        ram.operModeTask = 0x00
-        //> Load area pointer for current world
+        ram.areaNumber = 0x00
+        //> sta CoinTally
+        ram.coinTally = 0
+        //> ldy #$0b; ISCont: sta ScoreAndCoinDisplay,y; dey; bpl ISCont
+        ram.playerScoreDisplay.fill(0)
+        // Clear remaining bytes of the 12-byte ScoreAndCoinDisplay region
+        ram.player2ScoreDisplay.fill(0)
+        //> inc Hidden1UpFlag
+        ram.hidden1UpFlag = true
+        //> jmp ContinueGame
+        //> ContinueGame: jsr LoadAreaPointer
         loadAreaPointer()
+        //> lda #$01; sta PlayerSize
+        ram.playerSize = PlayerSize.Small
+        //> inc FetchNewGameTimerFlag
         ram.fetchNewGameTimerFlag = true
+        //> lda #$00
+        //> sta TimerControl; sta PlayerStatus; sta GameEngineSubroutine; sta OperMode_Task
+        ram.timerControl = 0x00
+        ram.playerStatus = PlayerStatus.Small
+        ram.gameEngineSubroutine = GameEngineRoutine.EntranceGameTimerSetup
+        ram.operModeTask = 0x00
+        //> lda #$01; sta OperMode
         ram.operMode = OperMode.Game
     } else {
         //> lda #$00; sta CompletedWorlds  ;reset progress
         ram.completedWorlds = 0
+        //> jmp TerminateGame
         ram.operModeTask = 0
         ram.screenTimer = 0
         ram.operMode = OperMode.TitleScreen

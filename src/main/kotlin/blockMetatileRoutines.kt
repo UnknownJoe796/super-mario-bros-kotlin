@@ -8,8 +8,8 @@ import kotlin.experimental.or
  * Translation of the block-metatile VRAM update helpers around RemoveCoin_Axe and friends.
  *
  * Notes about this port:
- * - The original code writes raw bytes into VRAM_Buffer1 using offsets (e.g., $0341).
- *   Our project models these as high-level BufferedPpuUpdate entries appended to ram.vRAMBuffer1.
+ * - WriteBlockMetatile writes to VRAM_Buffer1 (ram.vRAMBuffer1).
+ *   RemoveCoin_Axe uses Y=$41 to write to $0341 (ram.vRAMBuffer2) and sets ctrl=6.
  * - Address calculations that depended on temporary zero-page scratch (like $02/$03/$04/$05) are expressed
  *   in clear locals and converted into nametable/x/y coordinates via the currentNTAddr registers when needed.
  * - The assembly is preserved line-for-line using //> comments immediately above their Kotlin equivalents.
@@ -40,17 +40,18 @@ private val blockGfxData: List<BlockQuad> = listOf(
 )
 
 /**
- * Emit the two 2-tile rows for a block metatile into vRAMBuffer1 at the given nametable address.
+ * Emit the two 2-tile rows for a block metatile into a VRAM buffer at the given nametable address.
+ * @param buffer target VRAM buffer (vRAMBuffer1 for normal block updates, vRAMBuffer2 for removeCoinOrAxe)
  * @param ntAddr 16-bit NES nametable address ($2000-$27FF) pointing to the top-left tile of the 2x2 block
  */
-private fun System.emitBlockQuad(ntAddr: Int, topLeft: UByte, topRight: UByte, bottomLeft: UByte, bottomRight: UByte) {
+private fun System.emitBlockQuad(buffer: MutableList<BufferedPpuUpdate>, ntAddr: Int, topLeft: UByte, topRight: UByte, bottomLeft: UByte, bottomRight: UByte) {
     val ntIndex = ((ntAddr - 0x2000) / 0x400).coerceIn(0, 3)
     val startInNt = (ntAddr - 0x2000) % 0x400
     val startX = startInNt % 32
     val startY = startInNt / 32
 
     // Top row (two tiles)
-    ram.vRAMBuffer1.add(
+    buffer.add(
         BufferedPpuUpdate.BackgroundPatternString(
             nametable = ntIndex.toByte(),
             x = startX.toByte(),
@@ -63,7 +64,7 @@ private fun System.emitBlockQuad(ntAddr: Int, topLeft: UByte, topRight: UByte, b
         )
     )
     // Bottom row (+1 in Y)
-    ram.vRAMBuffer1.add(
+    buffer.add(
         BufferedPpuUpdate.BackgroundPatternString(
             nametable = ntIndex.toByte(),
             x = startX.toByte(),
@@ -108,6 +109,7 @@ fun computeBlockNTAddr(bbLow: Int, vertOfs: Int): Int {
 fun System.removeCoinOrAxe(bbLow: Int, vertOfs: Int) {
     //> RemoveCoin_Axe:
     //> ldy #$41                 ;set low byte so offset points to $0341
+    // NES writes to $0300+$41 = $0341 = VRAM_Buffer2
     //> lda #$03                 ;load offset for default blank metatile
     var blockIndex = 0x03
     //> ldx AreaType             ;check area type
@@ -117,7 +119,7 @@ fun System.removeCoinOrAxe(bbLow: Int, vertOfs: Int) {
         blockIndex = 0x04
     }
     //> WriteBlankMT: jsr PutBlockMetatile     ;do a sub to write blank metatile to vram buffer
-    putBlockMetatile(blockIndex, bbLow, vertOfs)
+    putBlockMetatile(blockIndex, bbLow, vertOfs, ram.vRAMBuffer2)
     //> lda #$06
     //> sta VRAM_Buffer_AddrCtrl ;set vram address controller to $0341 and leave
     ram.vRAMBufferAddrCtrl = 0x06
@@ -206,30 +208,30 @@ fun System.writeBlockMetatile(metatileId: Int, bbLow: Int, vertOfs: Int) {
 /**
  * Compute nametable address from block buffer pointer ($06) and vertical offset ($02),
  * then write the 2x2 block graphic into the VRAM buffer.
+ * @param buffer target buffer; defaults to vRAMBuffer1 (WriteBlockMetatile path),
+ *               pass vRAMBuffer2 for RemoveCoin_Axe path (NES uses Y=$41 → $0341)
  */
-private fun System.putBlockMetatile(blockGfxIndex: Int, bbLow: Int, vertOfs: Int) {
+private fun System.putBlockMetatile(blockGfxIndex: Int, bbLow: Int, vertOfs: Int, buffer: MutableList<BufferedPpuUpdate> = ram.vRAMBuffer1) {
     //> PutBlockMetatile:
     // Compute nametable address from $06 (bbLow) and $02 (vertOfs), stored into $04/$05
     val ntAddr = computeBlockNTAddr(bbLow, vertOfs)
 
     // Write the 2x2 block graphic
-    remBridge(blockGfxIndex, ntAddr)
+    remBridge(blockGfxIndex, ntAddr, buffer)
 
     //> rts                   ;and leave
 }
 
 /**
- * Extracted routine corresponding to the RemBridge label in the original assembly.
- * Performs the actual VRAM buffer writes for the 2x2 block graphic.
- */
-/**
  * Write a 2x2 block graphic into the VRAM buffer at the given nametable address.
  * @param ntAddr 16-bit NES nametable address ($2000-$27FF) for the top-left tile
+ * @param buffer target VRAM buffer (defaults to vRAMBuffer1)
  */
-fun System.remBridge(blockGfxIndex: Int, ntAddr: Int) {
+fun System.remBridge(blockGfxIndex: Int, ntAddr: Int, buffer: MutableList<BufferedPpuUpdate> = ram.vRAMBuffer1) {
     //> RemBridge:  lda BlockGfxData,x    ;write top left and top right
     val quad = blockGfxData[blockGfxIndex.coerceIn(0, blockGfxData.lastIndex)]
     emitBlockQuad(
+        buffer = buffer,
         ntAddr = ntAddr,
         topLeft = quad.topLeft,
         topRight = quad.topRight,

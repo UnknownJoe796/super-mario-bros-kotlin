@@ -706,9 +706,12 @@ private fun System.parseRow0e(dataY: Int) {
     //> lsr
     //> lsr
     val worldNum = thirdByte ushr 5
+    //> (SMB2J) lda WorldNumber; cmp #World9; beq W9Skip
     //> cmp WorldNumber          ;is it the same world number as we're on?
     //> bne NotUse               ;if not, do not use
-    if (worldNum == (ram.worldNumber.toInt() and 0xFF)) {
+    val worldMatch = (variant == GameVariant.SMB2J && ram.worldNumber == Constants.World9) ||
+            worldNum == (ram.worldNumber.toInt() and 0xFF)
+    if (worldMatch) {
         //> dey
         //> lda (EnemyData),y        ;otherwise, get second byte and use as offset
         //> sta AreaPointer          ;to addresses for level and enemy object data
@@ -1124,11 +1127,18 @@ private fun System.initPodoboo() {
 
 /**
  * Initializes piranha plant: set Y speed, store down/up Y positions, bbox $09.
+ * SMB2J adds world-dependent patching: worlds 4-8 and A-D get red piranha plants
+ * ($22 attribute, $13 range) instead of green ($21 attribute, $21 range).
+ * The original assembly self-modifies EnemyAttributeData and ChkPlayerNearPipe.
  */
 internal fun System.initPiranhaPlant() {
     val x = ram.objectOffset.toInt() and 0xFF
 
     //> InitPiranhaPlant:
+    // SMB2J patches EnemyAttributeData[PiranhaPlant] and ChkPlayerNearPipe range based on
+    // HardWorldFlag/WorldNumber. These are now computed properties on GameRam (isRedPiranhaPlant,
+    // piranhaPlantAttribute, piranhaPlantNearPipeRange) so no explicit patching is needed.
+
     //> lda #$01                     ;set initial speed
     //> sta PiranhaPlant_Y_Speed,x
     ram.sprObjXSpeed[1 + x] = 1  // PiranhaPlant_Y_Speed,x = Enemy_X_Speed,x ($58+x)
@@ -1449,8 +1459,9 @@ private fun System.lakituAndSpinyHandler(x: Int) {
     // --- No lakitu found: try to respawn ---
     //> inc LakituReappearTimer
     ram.lakituReappearTimer = (ram.lakituReappearTimer + 1).toByte()
-    //> lda LakituReappearTimer; cmp #$07; bcc ExLSHand
-    if ((ram.lakituReappearTimer.toInt() and 0xFF) < 0x07) return
+    //> lda LakituReappearTimer; cmp #$07; bcc ExLSHand  (SMB2J: cmp #$03)
+    val reappearThreshold = if (variant == GameVariant.SMB2J) 0x03 else 0x07
+    if ((ram.lakituReappearTimer.toInt() and 0xFF) < reappearThreshold) return
 
     //> ldx #$04
     //> ChkNoEn: lda Enemy_Flag,x; beq CreateL; dex; bpl ChkNoEn
@@ -1478,8 +1489,18 @@ private fun System.lakituAndSpinyHandler(x: Int) {
     initHorizFlySwimEnemy()
     ram.enemyBoundBoxCtrls[emptySlot] = 0x03
 
-    //> lda #$20; jsr PutAtRightExtent
-    putAtRightExtent(emptySlot, 0x20)
+    //> lda #$20
+    var lakituY = 0x20
+    if (variant == GameVariant.SMB2J) {
+        //> ldy HardWorldFlag; bne SetLowLY  (worlds A-D: use $60)
+        //> ldy WorldNumber; cpy #$06; bcc SetLakXY  (worlds 1-6: use $20)
+        //> SetLowLY: lda #$60  (worlds 7-8 or A-D: lower position)
+        if (ram.hardWorldFlag || (ram.worldNumber.toInt() and 0xFF) >= 6) {
+            lakituY = 0x60
+        }
+    }
+    //> jsr PutAtRightExtent
+    putAtRightExtent(emptySlot, lakituY)
 
     //> RetEOfs: ldx ObjectOffset
     //> ExLSHand: rts
