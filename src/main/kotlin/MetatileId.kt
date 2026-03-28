@@ -35,7 +35,7 @@ object MetatileId {
 
     // Hidden blocks (invisible until hit from below)
     const val HIDDEN_COIN_BLOCK: Int = 0x5f
-    const val HIDDEN_1UP_BLOCK: Int = 0x60
+    const val HIDDEN_1UP_BLOCK: Int = 0x60  // SMB2J: also used as hidden poison mushroom block
 
     // Jumpspring
     const val JUMPSPRING_TOP: Int = 0x67

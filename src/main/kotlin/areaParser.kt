@@ -1040,16 +1040,28 @@ private val SidePipeBottomPart = ubyteArrayOf(0x15u, 0x21u, 0x20u, 0x1fu)
 
 // VerticalPipeData moved to areaparser/shared.kt (shared with verticalPipe.kt)
 
-//> BrickQBlockMetatiles:
+//> BrickQBlockMetatiles: (SMB1)
 //>   .db $c1, $c0, $5f, $60          ;used by question blocks
-//> ;these two sets are functionally identical, but look different
 //>   .db $55, $56, $57, $58, $59     ;used by ground level types
 //>   .db $5a, $5b, $5c, $5d, $5e     ;used by other level types
-private val BrickQBlockMetatiles = ubyteArrayOf(
+private val BrickQBlockMetatiles_SMB1 = ubyteArrayOf(
     0xc1u, 0xc0u, 0x5fu, 0x60u,
     0x55u, 0x56u, 0x57u, 0x58u, 0x59u,
     0x5au, 0x5bu, 0x5cu, 0x5du, 0x5eu,
 )
+
+//> BrickQBlockMetatiles: (SMB2J, sm2main line 6351)
+//>   .db $c1, $c2, $c0, $5e, $5f, $60, $61  ;used by question blocks (7 entries)
+//>   .db $52, $53, $54, $55, $56, $57         ;used by ground level bricks
+//>   .db $58, $59, $5a, $5b, $5c, $5d         ;used by other level bricks
+private val BrickQBlockMetatiles_SMB2J = ubyteArrayOf(
+    0xc1u, 0xc2u, 0xc0u, 0x5eu, 0x5fu, 0x60u, 0x61u,
+    0x52u, 0x53u, 0x54u, 0x55u, 0x56u, 0x57u,
+    0x58u, 0x59u, 0x5au, 0x5bu, 0x5cu, 0x5du,
+)
+
+private fun System.brickQBlockMetatiles() =
+    if (variant == GameVariant.SMB2J) BrickQBlockMetatiles_SMB2J else BrickQBlockMetatiles_SMB1
 
 // by Claude - area parser object routines
 
@@ -2029,7 +2041,7 @@ private fun System.getAreaObjectID(): Int {
 private fun System.drawQBlk(metatileIdx: Int) {
     val x = ram.objectOffset
     //> DrawQBlk: lda BrickQBlockMetatiles,y  ;get appropriate metatile for brick/question block
-    val metatile = BrickQBlockMetatiles[metatileIdx]
+    val metatile = brickQBlockMetatiles()[metatileIdx]
     //> pha                         ;save
     //> jsr GetLrgObjAttrib         ;get row from location byte
     val attrib = getLrgObjAttrib(x)
