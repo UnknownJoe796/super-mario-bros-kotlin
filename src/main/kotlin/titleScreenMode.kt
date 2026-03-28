@@ -533,9 +533,14 @@ fun System.loadAreaPointer() {
     //> jsr FindAreaPointer  ;find it and store it here
 
     // --- FindAreaPointer inlined ---
-    val worldOffset = RomData.worldAddrOffsets[ram.worldNumber.toInt() and 0xFF]
+    // SMB2J worlds A-D use a separate set of lookup tables (sm2data4.asm overlay)
+    val useAD = variant == GameVariant.SMB2J && ram.hardWorldFlag
+    val activeRomData = romData
+    val worldOffsets = if (useAD) (activeRomData as? Smb2jRomData)?.worldAddrOffsets_AD ?: activeRomData.worldAddrOffsets else activeRomData.worldAddrOffsets
+    val areaOffsets = if (useAD) (activeRomData as? Smb2jRomData)?.areaAddrOffsets_AD ?: activeRomData.areaAddrOffsets else activeRomData.areaAddrOffsets
+    val worldOffset = worldOffsets[ram.worldNumber.toInt() and 0xFF]
     val areaIdx = (worldOffset + (ram.areaNumber.toInt() and 0xFF)) and 0xFF
-    val pointer = AreaPointer(RomData.areaAddrOffsets[areaIdx])
+    val pointer = AreaPointer(areaOffsets[areaIdx])
 
     //> sta AreaPointer
     ram.areaPointer = pointer.raw
@@ -562,24 +567,36 @@ private fun System.getAreaDataAddrs() {
     ram.areaAddrsLOffset = pointer.lowOffset.toByte()
 
     // --- Look up enemy data array ---
-    val enemyIdx = (RomData.enemyAddrHOffsets[pointer.areaType] + pointer.lowOffset) and 0xFF
-    val enemyRomAddr = RomData.enemyDataAddresses[enemyIdx]
+    // SMB2J worlds A-D use separate lookup tables (sm2data4.asm overlay)
+    val useAD = variant == GameVariant.SMB2J && ram.hardWorldFlag
+    val smb2j = romData as? Smb2jRomData
+    val enemyHOffsets = if (useAD) smb2j?.enemyAddrHOffsets_AD ?: romData.enemyAddrHOffsets else romData.enemyAddrHOffsets
+    val enemyAddrs = if (useAD) smb2j?.enemyDataAddresses_AD ?: romData.enemyDataAddresses else romData.enemyDataAddresses
+    val enemyArrays = if (useAD) smb2j?.enemyDataArrays_AD ?: romData.enemyDataArrays else romData.enemyDataArrays
+    val enemyOverflow = if (useAD) smb2j?.enemyDataWithOverflow_AD ?: romData.enemyDataWithOverflow else romData.enemyDataWithOverflow
+
+    val enemyIdx = (enemyHOffsets[pointer.areaType] + pointer.lowOffset) and 0xFF
+    val enemyRomAddr = enemyAddrs[enemyIdx]
     // Use overflow-safe slice so reads past this area's data return actual
     // following ROM bytes (needed for W8-4 castle loops where offset > array size).
-    ram.enemyDataBytes = RomData.enemyDataWithOverflow[enemyRomAddr]
-        ?: RomData.enemyDataArrays[enemyIdx]
+    ram.enemyDataBytes = enemyOverflow[enemyRomAddr]
+        ?: enemyArrays[enemyIdx]
     // Store the actual ROM addresses so the shadow validator's interpreter can
     // use the (EnemyData),y indirect addressing mode correctly.
     ram.enemyDataLow = (enemyRomAddr and 0xFF).toByte()
     ram.enemyDataHigh = ((enemyRomAddr shr 8) and 0xFF).toByte()
 
     // --- Look up area (level) data array ---
-    val areaDataIdx = (RomData.areaDataHOffsets[pointer.areaType] + pointer.lowOffset) and 0xFF
-    val levelData = RomData.areaDataArrays[areaDataIdx]
+    val areaHOffsets = if (useAD) smb2j?.areaDataHOffsets_AD ?: romData.areaDataHOffsets else romData.areaDataHOffsets
+    val areaArrays = if (useAD) smb2j?.areaDataArrays_AD ?: romData.areaDataArrays else romData.areaDataArrays
+    val areaAddrs = if (useAD) smb2j?.areaDataAddresses_AD ?: romData.areaDataAddresses else romData.areaDataAddresses
+
+    val areaDataIdx = (areaHOffsets[pointer.areaType] + pointer.lowOffset) and 0xFF
+    val levelData = areaArrays[areaDataIdx]
     ram.areaData = levelData
     // Store the actual ROM addresses so the shadow validator's interpreter can
     // use the (AreaData),y indirect addressing mode correctly.
-    val areaRomAddr = RomData.areaDataAddresses[areaDataIdx]
+    val areaRomAddr = areaAddrs[areaDataIdx]
     ram.areaDataLow = (areaRomAddr and 0xFF).toByte()
     ram.areaDataHigh = ((areaRomAddr shr 8) and 0xFF).toByte()
 

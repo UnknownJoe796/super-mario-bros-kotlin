@@ -829,61 +829,12 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
         //> .dw FlagBalls_Residual
         0x15 -> flagBalls_Residual()
 
-        //> ;small objects (rows $00-$0b or 00-11, d6-d4 all clear)
-        //> .dw QuestionBlock     ;power-up
-        0x16 -> questionBlock()
-        //> .dw QuestionBlock     ;coin
-        0x17 -> questionBlock()
-        //> .dw QuestionBlock     ;hidden, coin
-        0x18 -> questionBlock()
-        //> .dw Hidden1UpBlock    ;hidden, 1-up
-        0x19 -> hidden1UpBlock()
-        //> .dw BrickWithItem     ;brick, power-up
-        0x1A -> brickWithItem()
-        //> .dw BrickWithItem     ;brick, vine
-        0x1B -> brickWithItem()
-        //> .dw BrickWithItem     ;brick, star
-        0x1C -> brickWithItem()
-        //> .dw BrickWithCoins    ;brick, coins
-        0x1D -> brickWithCoins()
-        //> .dw BrickWithItem     ;brick, 1-up
-        0x1E -> brickWithItem()
-        //> .dw WaterPipe
-        0x1F -> waterPipe()
-        //> .dw EmptyBlock
-        0x20 -> emptyBlock()
-        //> .dw Jumpspring
-        0x21 -> jumpspring()
-
-        //> ;objects for special row $0d or 13 (d6 set)
-        //> .dw IntroPipe
-        0x22 -> introPipe()
-        //> .dw FlagpoleObject
-        0x23 -> flagpoleObject()
-        //> .dw AxeObj              ;$00=2
-        0x24 -> { axeObj(); chainObjWithIndex(0) }
-        //> .dw ChainObj            ;$00=3
-        0x25 -> chainObjWithIndex(1)
-        //> .dw CastleBridgeObj     ;$00=4
-        0x26 -> castleBridgeObj()
-        //> .dw ScrollLockObject_Warp
-        0x27 -> scrollLockObject_Warp()
-        //> .dw ScrollLockObject
-        0x28 -> scrollLockObject()
-        //> .dw ScrollLockObject
-        0x29 -> scrollLockObject()
-        //> .dw AreaFrenzy            ;flying cheep-cheeps ($00=8)
-        0x2A -> areaFrenzy(0)
-        //> .dw AreaFrenzy            ;bullet bills or swimming cheep-cheeps ($00=9)
-        0x2B -> areaFrenzy(1)
-        //> .dw AreaFrenzy            ;stop frenzy ($00=10)
-        0x2C -> areaFrenzy(2)
-        //> .dw LoopCmdE
-        0x2D -> loopCmdE()
-
-        //> ;object for special row $0e or 14
-        //> .dw AlterAreaAttributes
-        0x2E -> alterAreaAttributes()
+        else -> if (variant == GameVariant.SMB2J) {
+            // SMB2J dispatch: 2 extra entries at 0x16-0x17 shift all small objects by 2
+            smb2jAreaObjectDispatch(objId + temp07)
+        } else {
+            smb1AreaObjectDispatch(objId + temp07)
+        }
     }
 }
 private fun System.incAreaObjOffset() {
@@ -903,6 +854,103 @@ private val Bitmasks = ubyteArrayOf(
 private val BlockBuffLowBounds = ubyteArrayOf(
     0x10u, 0x51u, 0x88u, 0xC0u
 )
+
+/** SMB1 area object dispatch for indices >= 0x16. */
+private fun System.smb1AreaObjectDispatch(index: Int) {
+    when (index) {
+        //> ;small objects (rows $00-$0b, d6-d4 all clear)
+        0x16 -> questionBlock()          //> .dw QuestionBlock     ;power-up
+        0x17 -> questionBlock()          //> .dw QuestionBlock     ;coin
+        0x18 -> questionBlock()          //> .dw QuestionBlock     ;hidden, coin
+        0x19 -> hidden1UpBlock()         //> .dw Hidden1UpBlock    ;hidden, 1-up
+        0x1A -> brickWithItem()          //> .dw BrickWithItem     ;brick, power-up
+        0x1B -> brickWithItem()          //> .dw BrickWithItem     ;brick, vine
+        0x1C -> brickWithItem()          //> .dw BrickWithItem     ;brick, star
+        0x1D -> brickWithCoins()         //> .dw BrickWithCoins    ;brick, coins
+        0x1E -> brickWithItem()          //> .dw BrickWithItem     ;brick, 1-up
+        0x1F -> waterPipe()              //> .dw WaterPipe
+        0x20 -> emptyBlock()             //> .dw EmptyBlock
+        0x21 -> jumpspring()             //> .dw Jumpspring
+        //> ;objects for special row $0d (d6 set)
+        0x22 -> introPipe()              //> .dw IntroPipe
+        0x23 -> flagpoleObject()         //> .dw FlagpoleObject
+        0x24 -> { axeObj(); chainObjWithIndex(0) } //> .dw AxeObj
+        0x25 -> chainObjWithIndex(1)     //> .dw ChainObj
+        0x26 -> castleBridgeObj()        //> .dw CastleBridgeObj
+        0x27 -> scrollLockObject_Warp()  //> .dw ScrollLockObject_Warp
+        0x28 -> scrollLockObject()       //> .dw ScrollLockObject
+        0x29 -> scrollLockObject()       //> .dw ScrollLockObject
+        0x2A -> areaFrenzy(0)            //> .dw AreaFrenzy
+        0x2B -> areaFrenzy(1)            //> .dw AreaFrenzy
+        0x2C -> areaFrenzy(2)            //> .dw AreaFrenzy
+        0x2D -> loopCmdE()               //> .dw LoopCmdE
+        //> ;object for special row $0e
+        0x2E -> alterAreaAttributes()    //> .dw AlterAreaAttributes
+    }
+}
+
+/** SMB2J area object dispatch for indices >= 0x16. Two extra entries shift small objects by 2. */
+private fun System.smb2jAreaObjectDispatch(index: Int) {
+    when (index) {
+        //> .dw UpsideDownPipe_High   ;(sm2main) NEW in SMB2J
+        0x16 -> upsideDownPipe(high = true)
+        //> .dw UpsideDownPipe_Low    ;(sm2main) NEW in SMB2J
+        0x17 -> upsideDownPipe(high = false)
+        //> ;small objects (shifted +2 from SMB1)
+        0x18 -> questionBlock()          //> .dw QuestionBlock     ;power-up
+        0x19 -> questionBlock()          //> .dw QuestionBlock     ;coin
+        0x1A -> questionBlock()          //> .dw QuestionBlock     ;hidden, coin
+        0x1B -> questionBlock()          //> .dw QuestionBlock     ;hidden, poison mushroom (NEW)
+        0x1C -> hidden1UpBlock()         //> .dw Hidden1UpBlock    ;hidden, 1-up
+        0x1D -> questionBlock()          //> .dw QuestionBlock     ;(NEW extra)
+        0x1E -> questionBlock()          //> .dw QuestionBlock     ;(NEW extra)
+        0x1F -> brickWithItem()          //> .dw BrickWithItem     ;brick, power-up
+        0x20 -> brickWithItem()          //> .dw BrickWithItem     ;brick, vine
+        0x21 -> brickWithItem()          //> .dw BrickWithItem     ;brick, star
+        0x22 -> brickWithItem()          //> .dw BrickWithItem     ;(NEW extra brick)
+        0x23 -> brickWithCoins()         //> .dw BrickWithCoins    ;brick, coins
+        0x24 -> brickWithItem()          //> .dw BrickWithItem     ;brick, 1-up
+        0x25 -> waterPipe()              //> .dw WaterPipe
+        0x26 -> emptyBlock()             //> .dw EmptyBlock
+        0x27 -> jumpspring()             //> .dw Jumpspring
+        //> ;objects for special row $0d (d6 set)
+        0x28 -> introPipe()              //> .dw IntroPipe
+        0x29 -> flagpoleObject()         //> .dw FlagpoleObject
+        0x2A -> { axeObj(); chainObjWithIndex(0) } //> .dw AxeObj
+        0x2B -> chainObjWithIndex(1)     //> .dw ChainObj
+        0x2C -> castleBridgeObj()        //> .dw CastleBridgeObj
+        0x2D -> scrollLockObject_Warp()  //> .dw ScrollLockObject_Warp
+        0x2E -> scrollLockObject()       //> .dw ScrollLockObject
+        0x2F -> scrollLockObject()       //> .dw ScrollLockObject
+        0x30 -> areaFrenzy(0)            //> .dw AreaFrenzy
+        0x31 -> areaFrenzy(1)            //> .dw AreaFrenzy
+        0x32 -> areaFrenzy(2)            //> .dw AreaFrenzy
+        0x33 -> loopCmdE()               //> .dw LoopCmdE
+        0x34 -> windOn()                 //> .dw WindOn  (sm2data2/sm2data4)
+        0x35 -> windOff()                //> .dw WindOff (sm2data2/sm2data4)
+        //> ;object for special row $0e
+        0x36 -> alterAreaAttributes()    //> .dw AlterAreaAttributes
+    }
+}
+
+/** Stub for upside-down pipe area object (sets up piranha plant enemy). */
+private fun System.upsideDownPipe(high: Boolean) {
+    // TODO: Full implementation needs pipe metatile rendering + SetupPiranhaPlant($04)
+    // For now, delegate to regular vertical pipe rendering
+    verticalPipe()
+}
+
+//> WindOn: (sm2data2/sm2data4)
+//> lda #$01; sta WindFlag; rts
+private fun System.windOn() {
+    ram.windFlag = true
+}
+
+//> WindOff: (sm2data2/sm2data4)
+//> lda #$00; sta WindFlag; rts
+private fun System.windOff() {
+    ram.windFlag = false
+}
 
 // by Claude - data tables for area parser object routines
 
@@ -992,16 +1040,28 @@ private val SidePipeBottomPart = ubyteArrayOf(0x15u, 0x21u, 0x20u, 0x1fu)
 
 // VerticalPipeData moved to areaparser/shared.kt (shared with verticalPipe.kt)
 
-//> BrickQBlockMetatiles:
+//> BrickQBlockMetatiles: (SMB1)
 //>   .db $c1, $c0, $5f, $60          ;used by question blocks
-//> ;these two sets are functionally identical, but look different
 //>   .db $55, $56, $57, $58, $59     ;used by ground level types
 //>   .db $5a, $5b, $5c, $5d, $5e     ;used by other level types
-private val BrickQBlockMetatiles = ubyteArrayOf(
+private val BrickQBlockMetatiles_SMB1 = ubyteArrayOf(
     0xc1u, 0xc0u, 0x5fu, 0x60u,
     0x55u, 0x56u, 0x57u, 0x58u, 0x59u,
     0x5au, 0x5bu, 0x5cu, 0x5du, 0x5eu,
 )
+
+//> BrickQBlockMetatiles: (SMB2J, sm2main line 6351)
+//>   .db $c1, $c2, $c0, $5e, $5f, $60, $61  ;used by question blocks (7 entries)
+//>   .db $52, $53, $54, $55, $56, $57         ;used by ground level bricks
+//>   .db $58, $59, $5a, $5b, $5c, $5d         ;used by other level bricks
+private val BrickQBlockMetatiles_SMB2J = ubyteArrayOf(
+    0xc1u, 0xc2u, 0xc0u, 0x5eu, 0x5fu, 0x60u, 0x61u,
+    0x52u, 0x53u, 0x54u, 0x55u, 0x56u, 0x57u,
+    0x58u, 0x59u, 0x5au, 0x5bu, 0x5cu, 0x5du,
+)
+
+private fun System.brickQBlockMetatiles() =
+    if (variant == GameVariant.SMB2J) BrickQBlockMetatiles_SMB2J else BrickQBlockMetatiles_SMB1
 
 // by Claude - area parser object routines
 
@@ -1981,7 +2041,7 @@ private fun System.getAreaObjectID(): Int {
 private fun System.drawQBlk(metatileIdx: Int) {
     val x = ram.objectOffset
     //> DrawQBlk: lda BrickQBlockMetatiles,y  ;get appropriate metatile for brick/question block
-    val metatile = BrickQBlockMetatiles[metatileIdx]
+    val metatile = brickQBlockMetatiles()[metatileIdx]
     //> pha                         ;save
     //> jsr GetLrgObjAttrib         ;get row from location byte
     val attrib = getLrgObjAttrib(x)

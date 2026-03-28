@@ -7,19 +7,51 @@ import com.ivieleague.smbtranslation.utils.*
 import kotlin.experimental.and
 import kotlin.experimental.xor
 
-// ---- Data tables ----
+// ---- Data tables (Mario) ----
 
 //> JumpMForceData:
 //> .db $20, $20, $1e, $28, $28, $0d, $04
-private val JumpMForceData: ByteArray = byteArrayOf(
+private val JumpMForceData_Mario: ByteArray = byteArrayOf(
     0x20, 0x20, 0x1e, 0x28, 0x28, 0x0d, 0x04
 )
 
 //> FallMForceData:
 //> .db $70, $70, $60, $90, $90, $0a, $09
-private val FallMForceData: ByteArray = byteArrayOf(
+private val FallMForceData_Mario: ByteArray = byteArrayOf(
     0x70, 0x70, 0x60, 0x90.toByte(), 0x90.toByte(), 0x0a, 0x09
 )
+
+//> FrictionData:
+//> .db $e4, $98, $d0
+private val FrictionData_Mario: ByteArray = byteArrayOf(
+    0xe4.toByte(), 0x98.toByte(), 0xd0.toByte()
+)
+
+// ---- Data tables (Luigi — from sm2main.asm JumpFrictionData offset $11) ----
+// In the NES, LoadPhysicsData copies these over the Mario tables at boot based on SelectedPlayer.
+// In Kotlin, we select at runtime via character field.
+
+//> .byte $18, $18, $18, $22, $22, $0d, $04   ;luigi jump force
+private val JumpMForceData_Luigi: ByteArray = byteArrayOf(
+    0x18, 0x18, 0x18, 0x22, 0x22, 0x0d, 0x04
+)
+
+//> .byte $42, $42, $3e, $5d, $5d, $0a, $09   ;luigi fall force
+private val FallMForceData_Luigi: ByteArray = byteArrayOf(
+    0x42, 0x42, 0x3e, 0x5d, 0x5d, 0x0a, 0x09
+)
+
+//> .byte $b4, $68, $a0                        ;luigi friction
+private val FrictionData_Luigi: ByteArray = byteArrayOf(
+    0xb4.toByte(), 0x68, 0xa0.toByte()
+)
+
+// ---- Data tables (shared) ----
+
+/** Select physics tables based on character. */
+private fun System.jumpMForceData() = if (character == Character.Luigi) JumpMForceData_Luigi else JumpMForceData_Mario
+private fun System.fallMForceData() = if (character == Character.Luigi) FallMForceData_Luigi else FallMForceData_Mario
+private fun System.frictionData() = if (character == Character.Luigi) FrictionData_Luigi else FrictionData_Mario
 
 //> PlayerYSpdData:
 //> .db $fc, $fc, $fc, $fb, $fb, $fe, $ff
@@ -44,12 +76,6 @@ private val MaxLeftXSpdData: ByteArray = byteArrayOf(
 //> .db $0c ;used for pipe intros
 private val MaxRightXSpdData: ByteArray = byteArrayOf(
     0x28, 0x18, 0x10, 0x0c
-)
-
-//> FrictionData:
-//> .db $e4, $98, $d0
-private val FrictionData: ByteArray = byteArrayOf(
-    0xe4.toByte(), 0x98.toByte(), 0xd0.toByte()
 )
 
 //> Climb_Y_SpeedData:
@@ -723,10 +749,10 @@ private fun System.checkForJumping() {
 
     //> GetYPhy: lda JumpMForceData,y       ;store appropriate jump/swim
     //> sta VerticalForce          ;data here
-    ram.verticalForce = JumpMForceData[jumpY]
+    ram.verticalForce = jumpMForceData()[jumpY]
     //> lda FallMForceData,y
     //> sta VerticalForceDown
-    ram.verticalForceDown = FallMForceData[jumpY]
+    ram.verticalForceDown = fallMForceData()[jumpY]
     //> lda InitMForceData,y
     //> sta Player_Y_MoveForce
     ram.playerYMoveForce = InitMForceData[jumpY]
@@ -894,7 +920,7 @@ private fun System.xPhysics() {
     //> ldy $00                    ;get other value in memory
     //> lda FrictionData,y         ;get value using value in memory as offset
     //> sta FrictionAdderLow
-    ram.frictionAdderLow = FrictionData[frictionOffset]
+    ram.frictionAdderLow = frictionData()[frictionOffset]
     //> lda #$00
     //> sta FrictionAdderHigh      ;init something here
     ram.frictionAdderHigh = 0x00
@@ -902,7 +928,8 @@ private fun System.xPhysics() {
     //> lda PlayerFacingDir
     //> cmp Player_MovingDir       ;check facing direction against moving direction
     //> beq ExitPhy                ;if the same, branch to leave
-    if (ram.playerFacingDir != ram.playerMovingDir) {
+    // SMB2J Luigi: self-modifying code patches ASL→RTS to skip friction doubling
+    if (ram.playerFacingDir != ram.playerMovingDir && character != Character.Luigi) {
         //> asl FrictionAdderLow       ;otherwise shift d7 of friction adder low into carry
         //> rol FrictionAdderHigh      ;then rotate carry onto d0 of friction adder high
         val shiftResult = (ram.frictionAdderLow.toInt() and 0xFF) shl 1

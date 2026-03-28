@@ -864,8 +864,9 @@ fun System.checkpointEnemyID() {
         EnemyId.BuzzyBeetle.id -> initNormalEnemy()
         //> .dw InitRedKoopa     ;for object $03
         EnemyId.RedKoopa.id -> initRedKoopa()
-        //> .dw NoInitCode        ;for object $04
-        EnemyId.GreenKoopaVar.id -> {} // NoInitCode
+        //> .dw NoInitCode        ;for object $04 (SMB1: GreenKoopaVar)
+        //> .dw InitPiranhaPlant  ;for object $04 (SMB2J: UpsideDownPiranhaP)
+        EnemyId.GreenKoopaVar.id -> if (variant == GameVariant.SMB2J) initPiranhaPlant() else {}
         //> .dw InitHammerBro     ;for object $05
         EnemyId.HammerBro.id -> initHammerBro()
         //> .dw InitGoomba        ;for object $06

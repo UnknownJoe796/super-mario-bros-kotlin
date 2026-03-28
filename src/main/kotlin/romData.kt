@@ -2,29 +2,50 @@
 package com.ivieleague.smbtranslation
 
 /**
- * Contains ROM-resident data tables used by LoadAreaPointer and GetAreaDataAddrs
+ * ROM-resident data tables used by LoadAreaPointer and GetAreaDataAddrs
  * to look up level and enemy data arrays by world/area number.
  */
-object RomData {
+interface RomData {
+    val worldAddrOffsets: IntArray
+    val areaAddrOffsets: IntArray
+    val enemyAddrHOffsets: IntArray
+    val areaDataHOffsets: IntArray
+    val enemyDataAddresses: IntArray
+    val enemyDataArrays: Array<ByteArray>
+    val areaDataAddresses: IntArray
+    val areaDataArrays: Array<ByteArray>
+    val enemyDataWithOverflow: Map<Int, ByteArray>
+}
+
+/** Builds overflow-safe enemy data slices from address/array tables. */
+fun buildEnemyDataWithOverflow(
+    enemyDataAddresses: IntArray,
+    enemyDataArrays: Array<ByteArray>,
+): Map<Int, ByteArray> {
+    val romBase = enemyDataAddresses.first()
+    val lastAddr = enemyDataAddresses.last()
+    val lastArray = enemyDataArrays.last()
+    val totalSize = (lastAddr + lastArray.size) - romBase
+    val contiguous = ByteArray(totalSize) { 0xFF.toByte() }.also { rom ->
+        for (i in enemyDataAddresses.indices) {
+            val offset = enemyDataAddresses[i] - romBase
+            enemyDataArrays[i].copyInto(rom, offset)
+        }
+    }
+    return enemyDataAddresses.associate { addr ->
+        val offset = addr - romBase
+        addr to contiguous.copyOfRange(offset, contiguous.size)
+    }
+}
+
+object Smb1RomData : RomData {
 
     //> WorldAddrOffsets:
-    //> .db World1Areas-AreaAddrOffsets, World2Areas-AreaAddrOffsets
-    //> .db World3Areas-AreaAddrOffsets, World4Areas-AreaAddrOffsets
-    //> .db World5Areas-AreaAddrOffsets, World6Areas-AreaAddrOffsets
-    //> .db World7Areas-AreaAddrOffsets, World8Areas-AreaAddrOffsets
     // World1=0, World2=5, World3=10, World4=14, World5=19, World6=23, World7=27, World8=32
-    val worldAddrOffsets = intArrayOf(0, 5, 10, 14, 19, 23, 27, 32)
+    override val worldAddrOffsets = intArrayOf(0, 5, 10, 14, 19, 23, 27, 32)
 
     //> AreaAddrOffsets:
-    //> World1Areas: .db $25, $29, $c0, $26, $60
-    //> World2Areas: .db $28, $29, $01, $27, $62
-    //> World3Areas: .db $24, $35, $20, $63
-    //> World4Areas: .db $22, $29, $41, $2c, $61
-    //> World5Areas: .db $2a, $31, $26, $62
-    //> World6Areas: .db $2e, $23, $2d, $60
-    //> World7Areas: .db $33, $29, $01, $27, $64
-    //> World8Areas: .db $30, $32, $21, $65
-    val areaAddrOffsets = intArrayOf(
+    override val areaAddrOffsets = intArrayOf(
         // World 1
         0x25, 0x29, 0xc0, 0x26, 0x60,
         // World 2
@@ -44,17 +65,13 @@ object RomData {
     )
 
     //> EnemyAddrHOffsets:
-    //> .db $1f, $06, $1c, $00
-    val enemyAddrHOffsets = intArrayOf(0x1f, 0x06, 0x1c, 0x00)
+    override val enemyAddrHOffsets = intArrayOf(0x1f, 0x06, 0x1c, 0x00)
 
     //> AreaDataHOffsets:
-    //> .db $00, $03, $19, $1c
-    val areaDataHOffsets = intArrayOf(0x00, 0x03, 0x19, 0x1c)
+    override val areaDataHOffsets = intArrayOf(0x00, 0x03, 0x19, 0x1c)
 
     //> EnemyDataAddrLow/High: ROM addresses for each enemy data array.
-    // Used to set $E9/$EA (the indirect pointer the assembly uses for (EnemyData),y).
-    // Indexed 0-33, matching enemyDataArrays order.
-    val enemyDataAddresses = intArrayOf(
+    override val enemyDataAddresses = intArrayOf(
         0x9D70, 0x9D97, 0x9DB0, 0x9DDF, 0x9E0A, 0x9E1F,  // CastleArea1-6
         0x9E59, 0x9E7E, 0x9E9B, 0x9EA9, 0x9ED0, 0x9F01,  // GroundArea1-6
         0x9F1F, 0x9F3C, 0x9F51, 0x9F7B, 0x9F7C, 0x9FA0,  // GroundArea7-12
@@ -64,9 +81,8 @@ object RomData {
         0xA160, 0xA171, 0xA19B,                             // WaterArea1-3
     )
 
-    // Enemy data arrays indexed 0-33, ordered as in EnemyDataAddrLow/High tables:
     // 0-5: CastleArea1-6, 6-27: GroundArea1-22, 28-30: UndergroundArea1-3, 31-33: WaterArea1-3
-    val enemyDataArrays: Array<ByteArray> = arrayOf(
+    override val enemyDataArrays: Array<ByteArray> = arrayOf(
         E_CastleArea1, E_CastleArea2, E_CastleArea3, E_CastleArea4, E_CastleArea5, E_CastleArea6,
         E_GroundArea1, E_GroundArea2, E_GroundArea3, E_GroundArea4, E_GroundArea5, E_GroundArea6,
         E_GroundArea7, E_GroundArea8, E_GroundArea9, E_GroundArea10, E_GroundArea11, E_GroundArea12,
@@ -75,33 +91,12 @@ object RomData {
         E_UndergroundArea2, E_UndergroundArea3, E_WaterArea1, E_WaterArea2, E_WaterArea3,
     )
 
-    // Contiguous ROM image for enemy data region, so overflow reads (e.g. when
-    // EnemyDataOffset exceeds a single area's length, as in W8-4 castle loops)
-    // correctly read the following ROM bytes instead of returning $FF.
-    private val enemyDataRomBase = enemyDataAddresses.first()
-    private val contiguousEnemyData: ByteArray = run {
-        val lastAddr = enemyDataAddresses.last()
-        val lastArray = enemyDataArrays.last()
-        val totalSize = (lastAddr + lastArray.size) - enemyDataRomBase
-        ByteArray(totalSize) { 0xFF.toByte() }.also { rom ->
-            for (i in enemyDataAddresses.indices) {
-                val offset = enemyDataAddresses[i] - enemyDataRomBase
-                enemyDataArrays[i].copyInto(rom, offset)
-            }
-        }
-    }
-
-    // Pre-built slices: each starts at the area's ROM address and extends to the end
-    // of the contiguous data. This allows NES-accurate overflow reads via normal indexing.
-    val enemyDataWithOverflow: Map<Int, ByteArray> = enemyDataAddresses.associate { addr ->
-        val offset = addr - enemyDataRomBase
-        addr to contiguousEnemyData.copyOfRange(offset, contiguousEnemyData.size)
-    }
+    // Pre-built slices for NES-accurate overflow reads (needed for W8-4 castle loops).
+    override val enemyDataWithOverflow: Map<Int, ByteArray> =
+        buildEnemyDataWithOverflow(enemyDataAddresses, enemyDataArrays)
 
     //> AreaDataAddrLow/High: ROM addresses for each area data array.
-    // Used to set $E7/$E8 (the indirect pointer the assembly uses for (AreaData),y).
-    // Indexed 0-33, matching areaDataArrays order.
-    val areaDataAddresses = intArrayOf(
+    override val areaDataAddresses = intArrayOf(
         0xAE06, 0xAE45, 0xAEC0,                             // WaterArea1-3
         0xA46B, 0xA4CE, 0xA537, 0xA58A, 0xA619, 0xA68E,  // GroundArea1-6
         0xA6F3, 0xA748, 0xA7CD, 0xA832, 0xA83B, 0xA87A,  // GroundArea7-12
@@ -111,9 +106,8 @@ object RomData {
         0xA1AF, 0xA210, 0xA28F, 0xA302, 0xA36F, 0xA3FA,  // CastleArea1-6
     )
 
-    // Area (level) data arrays indexed 0-33, ordered as in AreaDataAddrLow/High tables:
     // 0-2: WaterArea1-3, 3-24: GroundArea1-22, 25-27: UndergroundArea1-3, 28-33: CastleArea1-6
-    val areaDataArrays: Array<ByteArray> = arrayOf(
+    override val areaDataArrays: Array<ByteArray> = arrayOf(
         L_WaterArea1, L_WaterArea2, L_WaterArea3, L_GroundArea1, L_GroundArea2, L_GroundArea3,
         L_GroundArea4, L_GroundArea5, L_GroundArea6, L_GroundArea7, L_GroundArea8, L_GroundArea9,
         L_GroundArea10, L_GroundArea11, L_GroundArea12, L_GroundArea13, L_GroundArea14, L_GroundArea15,
@@ -952,5 +946,5 @@ private val L_WaterArea3 = byteArrayOfUnsigned(
 // ---- Utility ----
 
 /** Convenience to create a ByteArray from unsigned int literals. */
-private fun byteArrayOfUnsigned(vararg values: Int): ByteArray =
+internal fun byteArrayOfUnsigned(vararg values: Int): ByteArray =
     ByteArray(values.size) { values[it].toByte() }

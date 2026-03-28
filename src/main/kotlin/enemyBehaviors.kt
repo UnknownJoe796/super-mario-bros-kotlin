@@ -109,7 +109,8 @@ fun System.enemyMovementSubs() {
         EnemyId.RedKoopaShell.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy
         EnemyId.BuzzyBeetle.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;BuzzyBeetle
         EnemyId.RedKoopa.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;RedKoopa
-        EnemyId.GreenKoopaVar.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy
+        //> .dw MoveNormalEnemy (SMB1) / .dw MovePiranhaPlant (SMB2J: UpsideDownPiranhaP)
+        EnemyId.GreenKoopaVar.id -> if (variant == GameVariant.SMB2J) moveUpsideDownPiranhaP() else moveNormalEnemy()
         EnemyId.HammerBro.id -> procHammerBro()     //> .dw ProcHammerBro        ;HammerBro
         EnemyId.Goomba.id -> moveNormalEnemy()   //> .dw MoveNormalEnemy      ;Goomba
         EnemyId.Bloober.id -> moveBloober()       //> .dw MoveBloober          ;Bloober
@@ -649,6 +650,8 @@ fun System.enemiesCollision() {
     //> cmp #PiranhaPlant           ;if piranha plant, branch to leave
     //> beq ExitECRoutine
     if (enemyId == EnemyId.PiranhaPlant.id) return
+    // SMB2J: upside-down piranha (ID $04) also exempt from enemy-to-enemy collision
+    if (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.id) return
     //> lda EnemyOffscrBitsMasked,x ;if masked offscreen bits nonzero, branch to leave
     //> bne ExitECRoutine
     if (ram.enemyOffscrBitsMaskeds[x] != 0.toByte()) return

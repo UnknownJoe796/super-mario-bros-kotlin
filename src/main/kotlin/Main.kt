@@ -17,6 +17,16 @@ import javax.swing.SwingUtilities
 
 fun main() {
     val system = System()
+    // Select game variant: -Dsmb.variant=smb2j for The Lost Levels
+    if (java.lang.System.getProperty("smb.variant") == "smb2j") {
+        system.variant = GameVariant.SMB2J
+        system.romData = Smb2jRomData
+    }
+    // Select character: -Dsmb.character=luigi
+    if (java.lang.System.getProperty("smb.character") == "luigi") {
+        system.character = Character.Luigi
+        system.ram.selectedPlayer = 1
+    }
     if (java.lang.System.getProperty("smb.shadow") == "true") {
         system.shadow = com.ivieleague.smbtranslation.interpreter.ShadowValidator.create("smb.nes")
     }

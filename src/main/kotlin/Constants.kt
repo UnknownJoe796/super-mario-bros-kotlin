@@ -56,6 +56,7 @@ object Constants {
     const val World6: Byte = 5
     const val World7: Byte = 6
     const val World8: Byte = 7
+    const val World9: Byte = 8  // SMB2J only
     const val Level1: Byte = 0
     const val Level2: Byte = 1
     const val Level3: Byte = 2
@@ -83,6 +84,9 @@ object Constants {
     const val VictoryModeValue: Byte      = 2
     const val GameOverModeValue: Byte     = 3
 }
+
+enum class GameVariant { SMB1, SMB2J }
+enum class Character { Mario, Luigi }
 
 enum class OperMode {
     TitleScreen, Game, Victory, GameOver

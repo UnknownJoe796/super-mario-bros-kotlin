@@ -245,7 +245,11 @@ class GameRam {
 
     @RamLocation(0x773) var vRAMBufferAddrCtrl: Byte = 0
 
+    // SMB1: sprite0HitDetectFlag. SMB2J: IRQ update flag. Neither functionally used in Kotlin.
     @RamLocation(0x722) var sprite0HitDetectFlag: Boolean = false
+    var irqUpdateFlag: Boolean // alias (same NES address $722)
+        get() = sprite0HitDetectFlag
+        set(v) { sprite0HitDetectFlag = v }
     @RamLocation(0x774) var disableScreenFlag: Boolean = false
     @RamLocation(0x769) var disableIntermediate: Boolean = false
     @RamLocation(0x6d4) var colorRotateOffset: Byte = 0
@@ -262,7 +266,11 @@ class GameRam {
     @RamLocation(0x715) var gameTimerSetting: Byte = 0
     @RamLocation(0x752) var altEntranceControl: Byte = 0
     @RamLocation(0x751) var entrancePage: Byte = 0
+    // SMB1: number of players (0/1). SMB2J: nametable select.
     @RamLocation(0x77a) var numberOfPlayers: Byte = 0
+    var nameTableSelect: Byte // alias for numberOfPlayers (same NES address $77A)
+        get() = numberOfPlayers
+        set(v) { numberOfPlayers = v }
     @RamLocation(0x6d6) var warpZoneControl: Byte = 0
     @RamLocation(0x6de) var changeAreaTimer: Byte = 0
     @RamLocation(0x6d9) var multiLoopCorrectCntr: Byte = 0
@@ -274,7 +282,11 @@ class GameRam {
     @RamLocation(0x76b) var worldSelectNumber: Byte = 0
     @RamLocation(0x7fc) var worldSelectEnableFlag: Boolean = false
     @RamLocation(0x7fd) var continueWorld: Byte = 0
-    @RamLocation(0x753) var currentPlayer: Byte = 0
+    // SMB1: alternates players (0/1). SMB2J: Mario/Luigi selection (0=Mario, 1=Luigi).
+    @RamLocation(0x753) var selectedPlayer: Byte = 0
+    var currentPlayer: Byte // legacy alias
+        get() = selectedPlayer
+        set(v) { selectedPlayer = v }
     @RamLocation(0x754, size = 0) var playerSize: PlayerSize = PlayerSize.Big
     @RamLocation(0x756, size = 0) var playerStatus: PlayerStatus = PlayerStatus.Small
     @RamLocation(0x75a) var onscreenPlayerInfo: Byte = 0
@@ -307,6 +319,25 @@ class GameRam {
     @RamLocation(0x746) var starFlagTaskControl: Byte = 0
     @RamLocation(0x7a7) val pseudoRandomBitReg = ByteArray(8)
     @RamLocation(0x7ff) var warmBootValidation: Boolean = false // by BooleanAccess(, trueValue = 0xa5.toByte())
+
+    // ---- SMB2J-specific fields (unused/zero in SMB1) ----
+    @RamLocation(0x7f5) var fantasyW9MsgFlag: Boolean = false
+    @RamLocation(0x7f6) var flagpoleMusicFlag: Boolean = false
+    @RamLocation(0x7f7) var fileListNumber: Byte = 0
+    // Note: $07f8 overlaps gameTimerDisplay in SMB1. In SMB2J, gameTimerDisplay moves to $07ec.
+    // size=0 excludes from GameRamMapper overlap detection (variant-specific address).
+    @RamLocation(0x7f8, size = 0) var continueMenuSelect: Byte = 0
+    // size=0: overlaps gameTimerDisplay in SMB1 (variant-specific addresses)
+    @RamLocation(0x7f9, size = 0) var windFlag: Boolean = false
+    @RamLocation(0x7fa, size = 0) var completedWorlds: Byte = 0
+    @RamLocation(0x7fb, size = 0) var hardWorldFlag: Boolean = false
+    // $07fc: SMB1=worldSelectEnableFlag, SMB2J=diskIOTask (already defined above)
+    // $07fd: SMB1=continueWorld, SMB2J=notColdFlag (already defined above)
+    var notColdFlag: Byte // alias for continueWorld (same NES address $7FD)
+        get() = continueWorld
+        set(v) { continueWorld = v }
+    /** Persistent save: number of times game beaten (FDS save file, no NES RAM address) */
+    var gamesBeatenCount: Byte = 0
     @RamLocation(0x6e0) var sprShuffleAmtOffset: Byte = 0
     @RamLocation(0x6e1, size = 0) val sprShuffleAmt = ByteArray(9999)  // size=0: excluded from sync
 

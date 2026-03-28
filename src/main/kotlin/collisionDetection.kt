@@ -524,31 +524,28 @@ private fun System.checkForCoinMTiles(metatile: Int): Boolean {
  * Checks for hidden coin or 1-up blocks.
  * @return true (zero flag set in asm) if either found, meaning we should skip
  */
-private fun chkInvisibleMTiles(metatile: Int): Boolean {
+private fun System.chkInvisibleMTiles(metatile: Int): Boolean {
     //> ChkInvisibleMTiles:
-    //> cmp #$5f       ;check for hidden coin block
-    //> beq ExCInvT    ;branch to leave if found
-    //> cmp #$60       ;check for hidden 1-up block
-    //> ExCInvT: rts   ;leave with zero flag set if either found
-    //> ;$00 - used as flag by ImpedePlayerMove to restrict specific movement
-    //> ;$00-$01 - used to hold bottom right and bottom left metatiles (in that order)
     val mt = metatile and 0xFF
-    return mt == MetatileId.HIDDEN_COIN_BLOCK || mt == MetatileId.HIDDEN_1UP_BLOCK
+    // SMB1: $5f (hidden coin), $60 (hidden 1-up)
+    if (mt == MetatileId.HIDDEN_COIN_BLOCK || mt == MetatileId.HIDDEN_1UP_BLOCK) return true
+    // SMB2J adds: $5e (hidden coin), $61 (hidden power-up)
+    if (variant == GameVariant.SMB2J && (mt == 0x5e || mt == 0x61)) return true
+    return false
 }
 
 /**
  * Checks for non-solid metatiles (vine blank, coins, hidden blocks).
  * @return true (zero flag set in asm) if non-solid found
  */
-private fun chkForNonSolids(metatile: Int): Boolean {
+private fun System.chkForNonSolids(metatile: Int): Boolean {
     //> ChkForNonSolids:
     val mt = metatile and 0xFF
-    //> beq NSFnd
-    //> beq NSFnd
-    //> beq NSFnd
-    //> beq NSFnd
-    //> NSFnd: rts
-    return mt == MetatileId.VINE_METATILE || mt == MetatileId.COIN || mt == MetatileId.UNDERWATER_COIN || mt == MetatileId.HIDDEN_COIN_BLOCK || mt == MetatileId.HIDDEN_1UP_BLOCK
+    if (mt == MetatileId.VINE_METATILE || mt == MetatileId.COIN || mt == MetatileId.UNDERWATER_COIN) return true
+    if (mt == MetatileId.HIDDEN_COIN_BLOCK || mt == MetatileId.HIDDEN_1UP_BLOCK) return true
+    // SMB2J adds $5e (hidden coin) and $61 (hidden power-up) as non-solid
+    if (variant == GameVariant.SMB2J && (mt == 0x5e || mt == 0x61)) return true
+    return false
 }
 
 /**
@@ -1405,6 +1402,16 @@ private fun System.handlePowerUpCollision(x: Int) {
     //> HandlePowerUpCollision:
     //> jsr EraseEnemyObject
     eraseEnemyObject(x)
+
+    //> lda PowerUpType          ;(sm2main) check power-up type
+    //> cmp #$04                ;if poison mushroom, injure player
+    //> bne Safe
+    //> jmp InjurePlayer
+    if ((ram.powerUpType.toInt() and 0xFF) == 0x04) {
+        forceInjury()
+        return
+    }
+
     //> lda #$06; jsr SetupFloateyNumber
     val savedOfs = ram.objectOffset
     ram.objectOffset = x.toByte()

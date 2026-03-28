@@ -143,5 +143,105 @@ class NESLoader {
                 else -> error("Unexpected PRG-ROM size: ${rom.prgRom.size}")
             }
         }
+
+        // ---- FDS (Famicom Disk System) support ----
+
+        data class FDSFile(val id: Int, val name: String, val loadAddress: Int, val data: ByteArray) {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (other !is FDSFile) return false
+                return id == other.id && loadAddress == other.loadAddress && data.contentEquals(other.data)
+            }
+            override fun hashCode(): Int = 31 * id + data.contentHashCode()
+        }
+
+        data class FDSDisk(val files: List<FDSFile>)
+
+        private const val FDS_HEADER_SIZE = 16
+        private const val FDS_SIDE_SIZE = 65500
+        private const val FDS_DISK_INFO_SIZE = 56   // Block type 1
+        private const val FDS_FILE_COUNT_SIZE = 2    // Block type 2
+        private const val FDS_FILE_HEADER_SIZE = 16  // Block type 3
+
+        /**
+         * Parse an FDS disk image (.fds file).
+         * Supports both FWNES-headered (16-byte header + side data) and raw formats.
+         */
+        fun loadFDS(file: File): FDSDisk {
+            val data = file.readBytes()
+            return loadFDS(data)
+        }
+
+        fun loadFDS(data: ByteArray): FDSDisk {
+            // Check for FWNES header: "FDS\x1A"
+            val hasHeader = data.size >= 4 &&
+                data[0].toInt() == 0x46 && data[1].toInt() == 0x44 &&
+                data[2].toInt() == 0x53 && data[3].toInt() == 0x1A
+            val sideStart = if (hasHeader) FDS_HEADER_SIZE else 0
+
+            require(data.size >= sideStart + FDS_SIDE_SIZE) {
+                "FDS image too small: ${data.size} bytes (expected >= ${sideStart + FDS_SIDE_SIZE})"
+            }
+
+            // Parse side 1 (SMB2J is single-sided)
+            val files = mutableListOf<FDSFile>()
+            var offset = sideStart
+
+            // Block 1: Disk info (56 bytes, starts with $01)
+            require(data[offset].toInt() and 0xFF == 0x01) { "Expected block type 1, got ${data[offset]}" }
+            offset += FDS_DISK_INFO_SIZE
+
+            // Block 2: File count (2 bytes, starts with $02)
+            require(data[offset].toInt() and 0xFF == 0x02) { "Expected block type 2, got ${data[offset]}" }
+            val fileCount = data[offset + 1].toInt() and 0xFF
+            offset += FDS_FILE_COUNT_SIZE
+
+            // Block 3+4 pairs: file header + file data
+            for (i in 0 until fileCount) {
+                if (offset >= data.size) break
+                // Block 3: File header (16 bytes, starts with $03)
+                if (data[offset].toInt() and 0xFF != 0x03) break
+                val fileId = data[offset + 1].toInt() and 0xFF
+                val fileName = String(data, offset + 2, 8).trimEnd('\u0000')
+                val loadAddr = (data[offset + 11].toInt() and 0xFF) or
+                    ((data[offset + 12].toInt() and 0xFF) shl 8)
+                val fileSize = (data[offset + 13].toInt() and 0xFF) or
+                    ((data[offset + 14].toInt() and 0xFF) shl 8)
+                offset += FDS_FILE_HEADER_SIZE
+
+                // Block 4: File data (starts with $04, then fileSize bytes)
+                if (offset >= data.size || data[offset].toInt() and 0xFF != 0x04) break
+                offset++ // skip $04 marker
+                val fileData = if (offset + fileSize <= data.size) {
+                    data.copyOfRange(offset, offset + fileSize)
+                } else {
+                    data.copyOfRange(offset, data.size) // truncated
+                }
+                offset += fileSize
+
+                files.add(FDSFile(fileId, fileName, loadAddr, fileData))
+            }
+
+            return FDSDisk(files)
+        }
+
+        /**
+         * Load FDS disk files into interpreter memory.
+         * Loads all PRG files at their specified load addresses.
+         * @param fileIndices Which file indices to load (null = load all PRG files)
+         */
+        fun loadFDSIntoMemory(disk: FDSDisk, memory: Memory6502, fileIndices: Set<Int>? = null) {
+            for (fdsFile in disk.files) {
+                if (fileIndices != null && fdsFile.id !in fileIndices) continue
+                // Skip CHR/VRAM files (load address < $6000 are PPU addresses)
+                if (fdsFile.loadAddress < 0x6000) continue
+                for (i in fdsFile.data.indices) {
+                    val addr = fdsFile.loadAddress + i
+                    if (addr in 0x6000..0xFFFF) {
+                        memory.writeByte(addr, fdsFile.data[i].toUByte())
+                    }
+                }
+            }
+        }
     }
 }
