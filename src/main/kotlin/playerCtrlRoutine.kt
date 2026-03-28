@@ -120,6 +120,23 @@ private val PlayerAnimTmrData: ByteArray = byteArrayOf(
 // scrollHandler() moved to scrollHandler.kt
 // playerBGCollision() moved to collisionDetection.kt
 
+/**
+ * JmpMove: shared subroutine for horizontal player movement + scroll + wind.
+ * In SMB2J, this corresponds to the JmpMove label (sm2main.asm line 4848) which
+ * is called from both OnGroundStateSub and JSMove (air movement). The wind check
+ * only runs for worlds 5-9/A-D (FileListNumber != 0).
+ */
+private fun System.jmpMove() {
+    //> JmpMove: jsr MovePlayerHorizontally
+    val scrollVal = movePlayerHorizontally()
+    //> sta Player_X_Scroll
+    ram.playerXScroll = scrollVal
+    //> (SMB2J only) lda FileListNumber; beq ExOGSS; jsr BlowPlayerAround
+    if (variant == GameVariant.SMB2J && ram.fileListNumber != 0.toByte()) {
+        blowPlayerAround()
+    }
+}
+
 
 // ---- PlayerCtrlRoutine ----
 
@@ -404,10 +421,8 @@ private fun System.onGroundStateSub() {
     }
     //> GndMove: jsr ImposeFriction         ;do a sub to impose friction on player's walk/run
     imposeFriction()
-    //> jsr MovePlayerHorizontally ;do another sub to move player horizontally
-    val scrollVal = movePlayerHorizontally()
-    //> sta Player_X_Scroll        ;set returned value as player's movement speed for scroll
-    ram.playerXScroll = scrollVal
+    //> (SMB2J: jsr JmpMove; SMB1: jsr MovePlayerHorizontally; sta Player_X_Scroll)
+    jmpMove()
     //> rts
 }
 
@@ -489,10 +504,8 @@ private fun System.lrAir() {
         //> jsr ImposeFriction         ;otherwise process horizontal movement
         imposeFriction()
     }
-    //> JSMove: jsr MovePlayerHorizontally ;do a sub to move player horizontally
-    val scrollVal = movePlayerHorizontally()
-    //> sta Player_X_Scroll        ;set player's speed here, to be used for scroll later
-    ram.playerXScroll = scrollVal
+    //> JSMove: (SMB2J: jsr JmpMove; SMB1: jsr MovePlayerHorizontally; sta Player_X_Scroll)
+    jmpMove()
 
     //> lda GameEngineSubroutine
     //> cmp #$0b                   ;check for specific routine selected

@@ -25,8 +25,6 @@ fun System.gameCoreRoutine() {
         println("[GCR-pre] pX=${ram.playerXPosition.toInt() and 0xFF} pP=${ram.playerPageLoc.toInt() and 0xFF}")
     }
     shadow?.validated("gameroutines", this) { gameRoutines() } ?: gameRoutines()
-    // SMB2J: Wind blows player rightward on certain frames
-    if (variant == GameVariant.SMB2J) blowPlayerAround()
     if (debugEnemyTrace) {
         println("[GCR-post] pX=${ram.playerXPosition.toInt() and 0xFF} pP=${ram.playerPageLoc.toInt() and 0xFF}")
     }
