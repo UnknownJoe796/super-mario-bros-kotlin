@@ -2,7 +2,7 @@
 
 A complete, accurate translation of Super Mario Bros from 6502 assembly into readable, modifiable Kotlin. Every line of the original disassembly is preserved as comments alongside its Kotlin equivalent.
 
-The game is fully playable and verified against the original ROM via TAS replay across 103,000+ frames (zero divergences on two TAS scenarios; 12 remaining on the full warpless playthrough — see [Known Inaccuracies](#known-inaccuracies)).
+The game is fully playable and verified against the original ROM via TAS replay across 103,000+ frames (zero divergences on two TAS scenarios; 8 remaining on the full warpless playthrough — see [Known Inaccuracies](#known-inaccuracies)).
 
 ## Running
 
@@ -70,7 +70,7 @@ The translation was validated at multiple levels:
 | Tier 2 | 17 composite subroutines | All passing |
 | Tier 3 | 12 frame-level scenarios | Zero diffs |
 | TAS: happylee-warps | 17,859 frames, warp route to W8-4 victory | **0 divergent frames** |
-| TAS: happylee-warpless | 67,108 frames, full W1-1 through W8-4 | **12 divergent frames** (0.018%) |
+| TAS: happylee-warpless | 67,108 frames, full W1-1 through W8-4 | **8 divergent frames** (0.012%) |
 | TAS: smb-0-full-playthrough | 18,307 frames | **0 divergent frames** |
 
 Each TAS frame starts from FCEUX-synced state, so divergences are independent per-frame issues — they do not cascade.
@@ -106,13 +106,13 @@ The `GameRamMapper` provides bidirectional mapping between Kotlin properties and
 
 ## Known Inaccuracies
 
-The 12 remaining warpless divergences fall into two categories:
+The 8 remaining warpless divergences are NES cycle-level timing artifacts. The NES CPU has a limited cycle budget per frame; when the NMI handler runs long (e.g. uploading a large VRAM buffer), execution timing shifts in ways that cannot be reproduced without a cycle-accurate CPU emulator. These affect area parser task scheduling (off by one rendering step), color rotation offsets, or transient enemy positions for a single frame each. None affect gameplay.
 
-**NES timing artifacts (7 frames):** The NES CPU has limited cycles per frame. When the NMI handler runs long (e.g. uploading a large VRAM buffer), the game logic may not execute at all — a "partial lag frame" where only the NMI preamble runs. Kotlin has no cycle budget and always runs game logic. These frames produce correct game logic output; the NES simply skipped it. Confirmed by running the same input state through the 6502 interpreter, which matches Kotlin's output.
-
-**Cycle-level edge cases (5 frames):** A handful of single-frame divergences in enemy positions, collision bits, or palette offsets where the NES behavior depends on cycle-level timing that cannot be reproduced without a cycle-accurate CPU emulator. These affect individual bytes for one frame each and self-correct on the next frame.
-
-None of these inaccuracies affect gameplay — they involve rendering timing (area parser task scheduling), cosmetic state (color rotation offset), or transient enemy state that resets within a frame.
+Previously there were 12 divergences; 4 were real translation bugs that have since been fixed:
+- `initPlatformFall`: 6502 register propagation through `GetEnemyOffscreenBits` (X restored to ObjectOffset, Y left at 1) was not modeled — writes went to wrong enemy slots
+- `checkPlayerVertical`: `dey` does not affect carry flag, so `bne` after `cmp` returns with carry clear — Kotlin incorrectly returned true (skip collision)
+- `mushroomLedgeHalfLen`: NES uses `MushroomLedgeHalfLen,x` (3-byte array indexed by object slot) but Kotlin used a scalar
+- `posPlatform`: table values were sign-extended before addition, causing incorrect carry/borrow in page location calculation
 
 ## Design Decisions
 

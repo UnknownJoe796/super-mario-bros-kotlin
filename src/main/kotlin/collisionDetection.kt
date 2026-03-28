@@ -256,8 +256,10 @@ private fun System.checkPlayerVertical(): Boolean {
     //> ldy Player_Y_HighPos      ;if player high vertical byte is not
     //> dey                       ;within the screen, leave this routine
     //> bne ExCPV
+    // bne branches with carry still CLEAR from the cmp #$f0 that didn't branch.
+    // dey does not affect carry. So return false (carry clear = no skip).
     val yHigh = ram.playerYHighPos.toInt() and 0xFF
-    if (yHigh != 1) return true
+    if (yHigh != 1) return false
     //> lda Player_Y_Position     ;if on the screen, check to see how far down
     //> cmp #$d0                  ;the player is vertically
     val yPos = ram.playerYPosition.toInt() and 0xFF

@@ -202,7 +202,7 @@ class GameRam {
     @RamLocation(0x730) val areaObjectLength = ByteArray(3)
     @RamLocation(0x734) var staircaseControl: Byte = 0
     @RamLocation(0x735) var areaObjectHeight: Byte = 0
-    @RamLocation(0x736) var mushroomLedgeHalfLen: Byte = 0
+    @RamLocation(0x736, size = 3) val mushroomLedgeHalfLen = ByteArray(3)
     @RamLocation(0x739) var enemyDataOffset: Byte = 0
     @RamLocation(0x73a) var enemyObjectPageLoc: Byte = 0
     @RamLocation(0x73b) var enemyObjectPageSel: Byte = 0
