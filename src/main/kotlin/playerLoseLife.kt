@@ -15,10 +15,10 @@ import kotlin.experimental.xor
 //> .db $65, $70
 //> .db $00, $00
 /**
- * The halfway checkpoint page numbers for each level, organized by world then level.
- * For example, HalfwayPageNybbles[3][2] would get the halfway page of level 4-3.
+ * SMB1 halfway checkpoint page numbers for each level, organized by world then level.
+ * For example, smb1HalfwayPageNybbles[3][2] would get the halfway page of level 4-3.
  */
-private val HalfwayPageNybbles = listOf(
+private val smb1HalfwayPageNybbles = listOf(
     listOf<Byte>(0x5, 0x6, 0x4, 0x0),
     listOf<Byte>(0x6, 0x5, 0x7, 0x0),
     listOf<Byte>(0x6, 0x6, 0x4, 0x0),
@@ -27,6 +27,34 @@ private val HalfwayPageNybbles = listOf(
     listOf<Byte>(0x6, 0x6, 0x6, 0x0),
     listOf<Byte>(0x6, 0x5, 0x7, 0x0),
     listOf<Byte>(0x0, 0x0, 0x0, 0x0),
+)
+
+// SMB2J base halfway page nybbles (from sm2main HalfwayPageNybbles).
+// Worlds 1-9 have different checkpoint pages than SMB1.
+private val smb2jHalfwayPageNybbles = listOf(
+    listOf<Byte>(0x6, 0x6, 0x6, 0x0), // W1
+    listOf<Byte>(0x8, 0x8, 0x6, 0x0), // W2
+    listOf<Byte>(0x6, 0x6, 0x7, 0x0), // W3
+    listOf<Byte>(0x7, 0x7, 0x6, 0x0), // W4
+    listOf<Byte>(0xd, 0x6, 0x0, 0x0), // W5
+    listOf<Byte>(0x7, 0x7, 0x8, 0x0), // W6
+    listOf<Byte>(0x7, 0x0, 0xb, 0x0), // W7
+    listOf<Byte>(0x0, 0x0, 0x0, 0x0), // W8
+    listOf<Byte>(0x0, 0x0, 0x0, 0x0), // W9
+)
+
+// SMB2J with hardWorldFlag: worlds A-D replace indices 0-3
+// (from sm2data4 AtoDHalfwayPages / ChangeHalfwayPages), rest unchanged.
+private val smb2jHalfwayPageNybbles_HardMode = listOf(
+    listOf<Byte>(0x7, 0x6, 0x5, 0x0), // WA (replaces W1)
+    listOf<Byte>(0x6, 0x5, 0x5, 0x0), // WB (replaces W2)
+    listOf<Byte>(0x7, 0x5, 0xb, 0x0), // WC (replaces W3)
+    listOf<Byte>(0x0, 0x0, 0x0, 0x0), // WD (replaces W4)
+    listOf<Byte>(0xd, 0x6, 0x0, 0x0), // W5 (unchanged)
+    listOf<Byte>(0x7, 0x7, 0x8, 0x0), // W6 (unchanged)
+    listOf<Byte>(0x7, 0x0, 0xb, 0x0), // W7 (unchanged)
+    listOf<Byte>(0x0, 0x0, 0x0, 0x0), // W8 (unchanged)
+    listOf<Byte>(0x0, 0x0, 0x0, 0x0), // W9 (unchanged)
 )
 
 /**
@@ -74,7 +102,14 @@ fun System.playerLoseLife() {
     //> lsr
     //> lsr
     //> MaskHPNyb:   and #%00001111           ;mask out all but lower nybble
-    val halfNyb = HalfwayPageNybbles[ram.worldNumber][ram.levelNumber]
+    val halfwayTable = when {
+        variant != GameVariant.SMB2J -> smb1HalfwayPageNybbles
+        // On NES, ChangeHalfwayPages overwrites the first 4 world entries in RAM
+        // when hardWorldFlag is set (worlds A-D reuse world indices 0-3).
+        ram.hardWorldFlag -> smb2jHalfwayPageNybbles_HardMode
+        else -> smb2jHalfwayPageNybbles
+    }
+    val halfNyb = halfwayTable[ram.worldNumber][ram.levelNumber]
 
     //> cmp ScreenLeft_PageLoc
     //> beq SetHalfway           ;left side of screen must be at the halfway page,

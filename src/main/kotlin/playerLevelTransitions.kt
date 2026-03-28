@@ -227,15 +227,26 @@ fun System.playerEndLevel() {
     //> cmp #$ae
     //> bcc ChkStop               ;if player is not yet off the flagpole, skip this part
     if ((ram.playerYPosition.toInt() and 0xFF) >= 0xAE) {
-        //> lda ScrollLock            ;if scroll lock not set, branch ahead to next part
-        //> beq ChkStop               ;because we only need to do this part once
-        if (ram.scrollLock) {
-            //> lda #EndOfLevelMusic
-            //> sta EventMusicQueue       ;load win level music in event music queue
-            ram.eventMusicQueue = Constants.EndOfLevelMusic
-            //> lda #$00
-            //> sta ScrollLock            ;turn off scroll lock to skip this part later
+        if (variant == GameVariant.SMB2J) {
+            //> SMB2J: unconditionally clear scroll lock, use FlagpoleMusicFlag as guard
+            //> lda #$00; sta ScrollLock
             ram.scrollLock = false
+            //> lda FlagpoleMusicFlag; bne ChkStop
+            if (!ram.flagpoleMusicFlag) {
+                //> lda #EndOfLevelMusic; sta EventMusicQueue
+                ram.eventMusicQueue = Constants.EndOfLevelMusic
+                //> inc FlagpoleMusicFlag
+                ram.flagpoleMusicFlag = true
+            }
+        } else {
+            //> SMB1: use ScrollLock as one-shot guard
+            //> lda ScrollLock; beq ChkStop
+            if (ram.scrollLock) {
+                //> lda #EndOfLevelMusic; sta EventMusicQueue
+                ram.eventMusicQueue = Constants.EndOfLevelMusic
+                //> lda #$00; sta ScrollLock
+                ram.scrollLock = false
+            }
         }
     }
 

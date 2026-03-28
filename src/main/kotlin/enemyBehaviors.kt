@@ -243,26 +243,30 @@ private fun System.fireworksSoundScore(x: Int) {
  */
 fun System.endAreaPoints() {
     //> EndAreaPoints:
-    //> ldy #$0b               ;load offset for mario's score by default
-    //> lda CurrentPlayer      ;check player on the screen
-    //> beq ELPGive            ;if mario, do not change
-    //> ldy #$11               ;otherwise load offset for luigi's score
-    val scoreDisplay = if (ram.currentPlayer == 0.toByte()) {
+    // SMB2J: single-player, always uses player 1's score (ldy #$0b hardcoded)
+    // then falls through to WriteDigits with A=$02 (updates score + game timer)
+    // SMB1: indexes by CurrentPlayer to select player 1 or 2's score
+    val scoreDisplay = if (variant == GameVariant.SMB2J) {
+        ram.playerScoreDisplay
+    } else if (ram.currentPlayer == 0.toByte()) {
         ram.playerScoreDisplay
     } else {
         ram.player2ScoreDisplay
     }
     //> ELPGive: jsr DigitsMathRoutine  ;award 50 points per game timer interval
     digitsMathRoutine(scoreDisplay)
-    //> lda CurrentPlayer      ;get player on the screen
-    //> asl                    ;(or 500 points per fireworks explosion if branched here from there)
-    //> asl                    ;shift to high nybble
-    //> asl
-    //> asl
-    //> ora #%00000100         ;add four to set nybble for game timer
-    val playerShifted = ((ram.currentPlayer.toInt() and 0xFF) shl 4) or 0x04
-    //> jmp UpdateNumber       ;jump to print the new score and game timer
-    updateNumber(playerShifted.toByte())
+
+    if (variant == GameVariant.SMB2J) {
+        //> lda #$02; jmp WriteDigits
+        updateNumber(0x02)
+    } else {
+        //> lda CurrentPlayer      ;get player on the screen
+        //> asl; asl; asl; asl    ;shift to high nybble
+        //> ora #%00000100         ;add four to set nybble for game timer
+        val playerShifted = ((ram.currentPlayer.toInt() and 0xFF) shl 4) or 0x04
+        //> jmp UpdateNumber       ;jump to print the new score and game timer
+        updateNumber(playerShifted.toByte())
+    }
 }
 
 // ---- Star Flag Object (end-of-level star) ----

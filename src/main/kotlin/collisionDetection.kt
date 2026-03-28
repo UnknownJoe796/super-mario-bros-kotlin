@@ -2090,20 +2090,23 @@ private fun System.handlePipeEntry(rightFootMT: Int, leftFootMT: Int) {
     val warpCtrl = ram.warpZoneControl.toInt() and 0xFF
     if (warpCtrl == 0) return
 
-    //> and #%00000011; asl; asl; tax
-    var warpOfs = (warpCtrl and 0x03) shl 2
-    //> lda Player_X_Position; cmp #$60; bcc GetWNum
-    val playerX = ram.playerXPosition.toInt() and 0xFF
-    if (playerX >= 0x60) {
-        warpOfs++
-        if (playerX >= 0xa0) {
+    if (variant == GameVariant.SMB2J) {
+        //> SMB2J: and #%00001111; tax; lda WarpZoneNumbers,x
+        handleWarpZone_Smb2j(warpCtrl and 0x0F)
+    } else {
+        //> SMB1: and #%00000011; asl; asl; tax
+        var warpOfs = (warpCtrl and 0x03) shl 2
+        //> lda Player_X_Position; cmp #$60; bcc GetWNum
+        val playerX = ram.playerXPosition.toInt() and 0xFF
+        if (playerX >= 0x60) {
             warpOfs++
+            if (playerX >= 0xa0) {
+                warpOfs++
+            }
         }
+        //> GetWNum: ldy WarpZoneNumbers,x; dey; sty WorldNumber
+        handleWarpZone(warpOfs)
     }
-
-    //> GetWNum: ldy WarpZoneNumbers,x; dey; sty WorldNumber
-    // WarpZoneNumbers is a ROM data table. We use a stub here.
-    handleWarpZone(warpOfs)
 }
 
 private fun System.chkForLandJumpSpring(metatile: Int) {

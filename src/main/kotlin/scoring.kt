@@ -46,11 +46,15 @@ fun System.giveOneCoin() {
     //> lda #$01               ;set digit modifier to add 1 coin
     //> sta DigitModifier+5    ;to the current player's coin tally
     ram.digitModifier[5] = 1
-    //> ldx CurrentPlayer      ;get current player on the screen
-    val playerIndex = ram.currentPlayer.toInt() and 0xFF
-    //> ldy CoinTallyOffsets,x ;get offset for player's coin tally
+    // SMB2J: single-player, always uses player 1's coin tally (ldy #$11 hardcoded)
+    // SMB1: indexes by CurrentPlayer to select player 1 or 2's coin tally
+    val coinDisplay = if (variant == GameVariant.SMB2J) {
+        ram.coinDisplay
+    } else {
+        val playerIndex = ram.currentPlayer.toInt() and 0xFF
+        CoinTallyDisplays[playerIndex](ram)
+    }
     //> jsr DigitsMathRoutine  ;update the coin tally
-    val coinDisplay = CoinTallyDisplays[playerIndex](ram)
     digitsMathRoutine(coinDisplay)
     //> inc CoinTally          ;increment onscreen player's coin amount
     ram.coinTally = (ram.coinTally + 1).toByte()
@@ -84,15 +88,35 @@ fun System.giveOneCoin() {
  */
 fun System.addToScore() {
     //> AddToScore:
-    //> ldx CurrentPlayer      ;get current player
-    val playerIndex = ram.currentPlayer.toInt() and 0xFF
-    //> ldy ScoreOffsets,x     ;get offset for player's score
+    // SMB2J: single-player, always uses player 1's score (ldy #$0b hardcoded)
+    // SMB1: indexes by CurrentPlayer to select player 1 or 2's score
+    val scoreDisplay = if (variant == GameVariant.SMB2J) {
+        ram.playerScoreDisplay
+    } else {
+        val playerIndex = ram.currentPlayer.toInt() and 0xFF
+        ScoreDisplays[playerIndex](ram)
+    }
     //> jsr DigitsMathRoutine  ;update the score internally with value in digit modifier
-    val scoreDisplay = ScoreDisplays[playerIndex](ram)
     digitsMathRoutine(scoreDisplay)
 
-    // Fall through to GetSBNybbles
-    getSBNybbles()
+    // SMB2J: falls through to WriteScoreAndCoinTally (lda #$01; jsr PrintStatusBarNumbers)
+    // SMB1: falls through to GetSBNybbles (indexes by CurrentPlayer)
+    if (variant == GameVariant.SMB2J) {
+        writeScoreAndCoinTally()
+    } else {
+        getSBNybbles()
+    }
+}
+
+/**
+ * SMB2J-specific: updates score and coin tally display with fixed nybble $01.
+ * This replaces GetSBNybbles/UpdateNumber for SMB2J's single-player mode.
+ */
+private fun System.writeScoreAndCoinTally() {
+    //> WriteScoreAndCoinTally:
+    //> lda #$01
+    //> jsr PrintStatusBarNumbers
+    updateNumber(0x01)
 }
 
 /**

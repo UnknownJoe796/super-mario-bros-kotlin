@@ -1202,6 +1202,14 @@ private fun System.alterAreaAttributes() {
 
 //> ScrollLockObject_Warp:
 private fun System.scrollLockObject_Warp() {
+    if (variant == GameVariant.SMB2J) {
+        scrollLockObject_Warp_Smb2j()
+    } else {
+        scrollLockObject_Warp_Smb1()
+    }
+}
+
+private fun System.scrollLockObject_Warp_Smb1() {
     //> ldx #$04            ;load value of 4 for game text routine as default
     var textNum = 4
     //> lda WorldNumber     ;warp zone (4-3-2), then check world number
@@ -1224,6 +1232,78 @@ private fun System.scrollLockObject_Warp() {
     writeGameText(textNum.toByte())
     //> lda #PiranhaPlant
     //> jsr KillEnemies     ;load identifier for piranha plants and do sub
+    killEnemies(EnemyId.PiranhaPlant.byte)
+    //> (falls through to ScrollLockObject)
+    scrollLockObject()
+}
+
+/**
+ * SMB2J ScrollLockObject_Warp: completely different warp zone control logic.
+ * Uses $80+ base values with bit 7 set to prevent zero condition in pipe entry code.
+ * Warp destinations vary by world, area type, area offset, and level number.
+ *
+ * Assembly reference (sm2main.asm lines 3425-3469):
+ *   World 1: base $80, +1 for ground, +2 for non-first underground
+ *   Worlds A-D: $87 + LevelNumber
+ *   World 3: $83
+ *   World 5: $84 base, +1 for non-ground non-5-1, +2 for ground
+ *   Others: $84 + 3 (falls through W678Warp/W5Warp3/W5Warp2)
+ */
+private fun System.scrollLockObject_Warp_Smb2j() {
+    val worldNum = ram.worldNumber.toInt() and 0xFF
+    val warpCtrl: Int
+
+    if (ram.hardWorldFlag) {
+        //> WarpWorldsAThruD:
+        //> lda #$87; clc; adc LevelNumber; bne DumpWarpCtrl
+        warpCtrl = 0x87 + (ram.levelNumber.toInt() and 0xFF)
+    } else if (worldNum == 0) {
+        //> World 1: ldx #$80
+        var x = 0x80
+        if (ram.areaType == AreaType.Ground) {
+            //> dey; beq W1Warp2 -> inx -> W1Warp1 -> BaseW
+            x++ // $81
+        } else if ((ram.areaAddrsLOffset.toInt() and 0xFF) != 0) {
+            //> lda AreaAddrsLOffset; beq W1Warp1 (skip if first underground)
+            //> inx -> W1Warp2: inx -> W1Warp1 -> BaseW
+            x += 2 // $82
+        }
+        // else: AreaAddrsLOffset==0 -> W1Warp1 -> BaseW = $80
+        warpCtrl = x
+    } else {
+        //> WarpWorlds2Thru8: ldx #$83
+        var x = 0x83
+        if (worldNum == 2) {
+            //> cmp #World3; beq BaseW -> $83
+        } else {
+            //> inx -> $84
+            x++
+            if (worldNum != 4) {
+                //> cmp #World5; bne W678Warp
+                //> W678Warp: inx -> W5Warp3: inx -> W5Warp2: inx -> BaseW
+                x += 3 // $87
+            } else {
+                //> World 5 paths:
+                val areaOfs = ram.areaAddrsLOffset.toInt() and 0xFF
+                if (areaOfs == 0x0b) {
+                    //> cmp #$0b; beq BaseW -> $84
+                } else if (ram.areaType == AreaType.Ground) {
+                    //> dey; beq W5Warp3: inx -> W5Warp2: inx -> BaseW
+                    x += 2 // $86
+                } else {
+                    //> jmp W5Warp2: inx -> BaseW
+                    x++ // $85
+                }
+            }
+        }
+        warpCtrl = x
+    }
+
+    //> DumpWarpCtrl: sta WarpZoneControl
+    ram.warpZoneControl = warpCtrl.toByte()
+    //> jsr WriteGameText    ;SMB2J uses same text routine for warp zones
+    writeGameText(0x04.toByte()) // warp zone text
+    //> lda #$0d; jsr KillEnemies
     killEnemies(EnemyId.PiranhaPlant.byte)
     //> (falls through to ScrollLockObject)
     scrollLockObject()

@@ -729,19 +729,38 @@ fun System.initializeArea() {
     //> jsr GetAreaDataAddrs     ;get enemy and level addresses and load header
     getAreaDataAddrs()
 
-    //> lda PrimaryHardMode      ;check to see if primary hard mode has been activated
-    //> bne SetSecHard           ;if so, activate the secondary no matter where we're at
-    val secHard = if (ram.primaryHardMode) true else when {
-        //> lda WorldNumber          ;otherwise check world number
-        //> cmp #World5              ;if less than 5, do not activate secondary
-        //> bcc CheckHalfway
-        ram.worldNumber.toUByte() < Constants.World5.toUByte() -> false
-        //> bne SetSecHard           ;if not equal to, then world > 5, thus activate
-        ram.worldNumber != Constants.World5 -> true
-        //> lda LevelNumber          ;otherwise, world 5, so check level number
-        //> cmp #Level3              ;if 1 or 2, do not set secondary hard mode flag
-        //> bcc CheckHalfway
-        else -> ram.levelNumber >= Constants.Level3
+    // SMB2J: checks HardWorldFlag first, then uses World4/Level4 threshold
+    // SMB1: checks PrimaryHardMode first, then uses World5/Level3 threshold
+    val secHard = if (variant == GameVariant.SMB2J) {
+        //> lda HardWorldFlag        ;check to see if we're in worlds A-D
+        //> bne SetSecHard           ;if so, activate the secondary no matter where we're at
+        if (ram.hardWorldFlag) true else when {
+            //> lda WorldNumber          ;otherwise check world number
+            //> cmp #World4              ;if less than 4, do not activate secondary
+            //> bcc CheckHalfway
+            ram.worldNumber.toUByte() < Constants.World4.toUByte() -> false
+            //> bne SetSecHard           ;if not equal to, then world > 4, thus activate
+            ram.worldNumber != Constants.World4 -> true
+            //> lda LevelNumber          ;otherwise, world 4, so check level number
+            //> cmp #Level4              ;if not 4, do not set secondary hard mode flag
+            //> bcc CheckHalfway
+            else -> ram.levelNumber >= Constants.Level4
+        }
+    } else {
+        //> lda PrimaryHardMode      ;check to see if primary hard mode has been activated
+        //> bne SetSecHard           ;if so, activate the secondary no matter where we're at
+        if (ram.primaryHardMode) true else when {
+            //> lda WorldNumber          ;otherwise check world number
+            //> cmp #World5              ;if less than 5, do not activate secondary
+            //> bcc CheckHalfway
+            ram.worldNumber.toUByte() < Constants.World5.toUByte() -> false
+            //> bne SetSecHard           ;if not equal to, then world > 5, thus activate
+            ram.worldNumber != Constants.World5 -> true
+            //> lda LevelNumber          ;otherwise, world 5, so check level number
+            //> cmp #Level3              ;if 1 or 2, do not set secondary hard mode flag
+            //> bcc CheckHalfway
+            else -> ram.levelNumber >= Constants.Level3
+        }
     }
     //> SetSecHard:    inc SecondaryHardMode    ;set secondary hard mode flag for areas 5-3 and beyond
     if (secHard) ram.secondaryHardMode = (ram.secondaryHardMode + 1).toByte()

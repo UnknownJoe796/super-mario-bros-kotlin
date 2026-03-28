@@ -17,23 +17,23 @@ import com.ivieleague.smbtranslation.utils.getEnemyState
 private var setupVineBlockY: Int = 0
 
 //> ;loop command data
-// Loop command ROM data tables
+// SMB1 loop command ROM data tables (11 entries)
 //> LoopCmdWorldNumber:
 //>       .db $03, $03, $06, $06, $06, $06, $06, $06, $07, $07, $07
-private val loopCmdWorldNumber = intArrayOf(0x03, 0x03, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x07, 0x07, 0x07)
+private val smb1LoopCmdWorldNumber = intArrayOf(0x03, 0x03, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x07, 0x07, 0x07)
 
 //> LoopCmdPageNumber:
 //>       .db $05, $09, $04, $05, $06, $08, $09, $0a, $06, $0b, $10
-private val loopCmdPageNumber = intArrayOf(0x05, 0x09, 0x04, 0x05, 0x06, 0x08, 0x09, 0x0a, 0x06, 0x0b, 0x10)
+private val smb1LoopCmdPageNumber = intArrayOf(0x05, 0x09, 0x04, 0x05, 0x06, 0x08, 0x09, 0x0a, 0x06, 0x0b, 0x10)
 
 //> LoopCmdYPosition:
 //>       .db $40, $b0, $b0, $80, $40, $40, $80, $40, $f0, $f0, $f0
-private val loopCmdYPosition = intArrayOf(0x40, 0xb0, 0xb0, 0x80, 0x40, 0x40, 0x80, 0x40, 0xf0, 0xf0, 0xf0)
+private val smb1LoopCmdYPosition = intArrayOf(0x40, 0xb0, 0xb0, 0x80, 0x40, 0x40, 0x80, 0x40, 0xf0, 0xf0, 0xf0)
 
-// Area data offsets for loop-back positions
+// SMB1 area data offsets for loop-back positions (11 entries)
 //> AreaDataOfsLoopback:
 //>       .db $12, $36, $0e, $0e, $0e, $32, $32, $32, $0a, $26, $40
-private val areaDataOfsLoopback = intArrayOf(0x12, 0x36, 0x0e, 0x0e, 0x0e, 0x32, 0x32, 0x32, 0x0a, 0x26, 0x40)
+private val smb1AreaDataOfsLoopback = intArrayOf(0x12, 0x36, 0x0e, 0x0e, 0x0e, 0x32, 0x32, 0x32, 0x0a, 0x26, 0x40)
 
 // by Claude - ROM data tables for enemy init routines
 //> NormalXSpdData:
@@ -243,6 +243,70 @@ fun System.runEnemyObjectsCore() {
  * Falls through to ChkEnemyFrenzy and ProcessEnemyData.
  */
 private fun System.procLoopCommand() {
+    if (variant == GameVariant.SMB2J) {
+        procLoopCommandSmb2j()
+    } else {
+        procLoopCommandSmb1()
+    }
+
+    //> ChkEnemyFrenzy:
+    chkEnemyFrenzy()
+}
+
+/**
+ * SMB2J loop command processing: uses per-entry MultiLoopCount table for all worlds.
+ * Every entry can be a multi-part loop (not just World 7 as in SMB1).
+ */
+private fun System.procLoopCommandSmb2j() {
+    val data = Smb2jRomData
+    //> lda LoopCommand           ;check if loop command was found
+    //> beq ChkEnemyFrenzy
+    if (ram.loopCommand == 0.toByte()) return
+    //> lda CurrentColumnPos      ;check to see if we're still on the first page
+    //> bne ChkEnemyFrenzy
+    if (ram.currentColumnPos != 0.toUByte()) return
+
+    //> ldy #$0c
+    //> FindLoop: dey
+    //> bmi ChkEnemyFrenzy
+    var matchIndex = -1
+    for (y in (data.loopCmdWorldNumber.size - 1) downTo 0) {
+        if ((ram.worldNumber.toInt() and 0xFF) != data.loopCmdWorldNumber[y]) continue
+        if ((ram.currentPageLoc.toInt() and 0xFF) != data.loopCmdPageNumber[y]) continue
+        matchIndex = y
+        break
+    }
+    if (matchIndex < 0) return
+
+    val y = matchIndex
+    val playerY = ram.playerYPosition.toInt() and 0xFF
+    val correctY = playerY == data.loopCmdYPosition[y]
+    val onGround = ram.playerState == PlayerState.OnGround
+
+    if (correctY && onGround) {
+        //> inc MultiLoopCorrectCntr
+        ram.multiLoopCorrectCntr++
+    }
+    //> WrongChk: inc MultiLoopPassCntr
+    ram.multiLoopPassCntr++
+    val requiredCount = data.multiLoopCount[y]
+    //> lda MultiLoopPassCntr; cmp MultiLoopCount,y; bne InitLCmd
+    if ((ram.multiLoopPassCntr.toInt() and 0xFF) == requiredCount) {
+        //> lda MultiLoopCorrectCntr; cmp MultiLoopCount,y; beq InitMLp
+        if ((ram.multiLoopCorrectCntr.toInt() and 0xFF) != requiredCount) {
+            execGameLoopback(y)
+            killAllEnemies()
+        }
+        //> InitMLp:
+        ram.multiLoopPassCntr = 0
+        ram.multiLoopCorrectCntr = 0
+    }
+    //> InitLCmd:
+    ram.loopCommand = 0
+}
+
+/** SMB1 loop command processing: hardcoded World 7 multi-part check with count of 3. */
+private fun System.procLoopCommandSmb1() {
     //> ProcLoopCommand:
     //> lda LoopCommand           ;check if loop command was found
     //> beq ChkEnemyFrenzy
@@ -254,15 +318,15 @@ private fun System.procLoopCommand() {
             //> FindLoop: dey
             //> bmi ChkEnemyFrenzy        ;if all data is checked and not match, do not loop
             var matchIndex = -1
-            for (y in 0x0a downTo 0) {
+            for (y in (smb1LoopCmdWorldNumber.size - 1) downTo 0) {
                 //> lda WorldNumber           ;check to see if one of the world numbers
                 //> cmp LoopCmdWorldNumber,y  ;matches our current world number
                 //> bne FindLoop
-                if ((ram.worldNumber.toInt() and 0xFF) != loopCmdWorldNumber[y]) continue
+                if ((ram.worldNumber.toInt() and 0xFF) != smb1LoopCmdWorldNumber[y]) continue
                 //> lda CurrentPageLoc        ;check to see if one of the page numbers
                 //> cmp LoopCmdPageNumber,y   ;matches the page we're currently on
                 //> bne FindLoop
-                if ((ram.currentPageLoc.toInt() and 0xFF) != loopCmdPageNumber[y]) continue
+                if ((ram.currentPageLoc.toInt() and 0xFF) != smb1LoopCmdPageNumber[y]) continue
                 matchIndex = y
                 break
             }
@@ -273,7 +337,7 @@ private fun System.procLoopCommand() {
                 //> cmp LoopCmdYPosition,y    ;if not, branch to check for world 7
                 //> bne WrongChk
                 val playerY = ram.playerYPosition.toInt() and 0xFF
-                val correctY = playerY == loopCmdYPosition[y]
+                val correctY = playerY == smb1LoopCmdYPosition[y]
                 //> lda Player_State          ;check to see if the player is
                 //> cmp #$00                  ;on solid ground (i.e. not jumping or falling)
                 //> bne WrongChk              ;if not, player fails to pass loop, and loopback
@@ -356,9 +420,6 @@ private fun System.procLoopCommand() {
             }
         }
     }
-
-    //> ChkEnemyFrenzy:
-    chkEnemyFrenzy()
 }
 
 /**
@@ -440,7 +501,8 @@ private fun System.execGameLoopback(loopDataIndex: Int) {
     ram.enemyObjectPageLoc = 0
     //> lda AreaDataOfsLoopback,y ;adjust area object offset based on
     //> sta AreaDataOffset        ;which loop command we encountered
-    ram.areaDataOffset = areaDataOfsLoopback[loopDataIndex].toByte()
+    val loopbackTable = if (variant == GameVariant.SMB2J) Smb2jRomData.areaDataOfsLoopback else smb1AreaDataOfsLoopback
+    ram.areaDataOffset = loopbackTable[loopDataIndex].toByte()
 }
 
 /**

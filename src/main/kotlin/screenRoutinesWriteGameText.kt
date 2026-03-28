@@ -355,11 +355,9 @@ fun System.writeGameText(textNumber: Byte) {
     // by Claude - entry 1 is the "WORLD  - " string (9 tiles), not entry 0 (7 tiles)
     ram.vRAMBuffer1[1] = (ram.vRAMBuffer1[1] as BufferedPpuUpdate.BackgroundPatternString).let { original ->
         original.copy(patterns = original.patterns.toMutableList().apply {
-            //> ldy WorldNumber          ;write world and level numbers (incremented for display)
-            //> iny                      ;to the buffer in the spaces surrounding the dash
-            //> sty VRAM_Buffer1+19
+            //> (SMB2J: jsr GetWorldNumForDisplay; SMB1: ldy WorldNumber; iny)
             // Entry 1 tile data starts at VRAM_Buffer1 offset 13 (10 header + 3 entry header)
-            this[19-13] = OriginalRom.backgrounds[ram.worldNumber + 1]
+            this[19-13] = OriginalRom.backgrounds[getWorldNumForDisplay()]
 
             //> ldy LevelNumber
             //> iny
@@ -410,6 +408,21 @@ private fun System.checkPlayerName(originalTextNumber: Byte) {
     //> ExitChkName: rts
 }
 
+/**
+ * Returns the tile number for displaying the current world number.
+ * SMB1: WorldNumber + 1 (digits 1-8).
+ * SMB2J: same for worlds 1-9, but for worlds A-D maps to tile $0A-$0D.
+ */
+fun System.getWorldNumForDisplay(): Int {
+    val worldNum = ram.worldNumber.toInt() and 0xFF
+    if (variant == GameVariant.SMB2J && ram.hardWorldFlag) {
+        //> tya; and #$03; clc; adc #$09; tay; iny
+        return ((worldNum and 0x03) + 0x09) + 1
+    }
+    //> iny; tya
+    return worldNum + 1
+}
+
 private fun System.printWarpZoneNumbers(originalTextNumber: Byte) {
     //> PrintWarpZoneNumbers:
     //> sbc #$04               ;subtract 4 and then shift to the left
@@ -434,4 +447,27 @@ private fun System.printWarpZoneNumbers(originalTextNumber: Byte) {
             patterns = listOf(warpZoneNumbers[it])
         )
     }
+}
+
+// SMB2J WarpZoneNumbers: indexed by (warpZoneControl - $80)
+// Values are tile numbers: $02-$08 are digits 2-8, $0b-$0d are letters A-C
+private val smb2jWarpZoneNumbers = intArrayOf(0x02, 0x03, 0x04, 0x01, 0x06, 0x07, 0x08, 0x05, 0x0b, 0x0c, 0x0d)
+
+/**
+ * SMB2J WriteWarpZoneMessage: writes "WELCOME TO WARP ZONE!" with a single
+ * destination world number, unlike SMB1 which shows 3 pipe numbers.
+ */
+fun System.writeWarpZoneMessage(warpCtrl: Int) {
+    //> WriteWarpZoneMessage:
+    //> pha; (write WarpZone message to VRAM_Buffer1)
+    ram.vRAMBuffer1.clear()
+    ram.vRAMBuffer1.addAll(GameTexts.WarpZoneWelcome)
+    //> pla; sec; sbc #$80; tax
+    val index = (warpCtrl - 0x80).coerceIn(0, smb2jWarpZoneNumbers.size - 1)
+    //> lda WarpZoneNumbers,x; sta VRAM_Buffer1+27
+    // Replace the single blank tile placeholder (entry 1) with the warp destination
+    val destTile = smb2jWarpZoneNumbers[index]
+    ram.vRAMBuffer1[1] = (ram.vRAMBuffer1[1] as BufferedPpuUpdate.BackgroundPatternString).copy(
+        patterns = listOf(OriginalRom.backgrounds[destTile])
+    )
 }

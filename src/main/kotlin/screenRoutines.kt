@@ -127,11 +127,9 @@ private fun System.writeBottomStatusLine() {
     // Compute nametable coordinates for $2073 ($2000 base + row*32 + col).
     val x = 0x73 % 32
     val y = 0x73 / 32
-    //> ldy WorldNumber         ;first the world number
-    //> iny
-    //> tya
+    //> (SMB2J: jsr GetWorldNumForDisplay; SMB1: ldy WorldNumber; iny; tya)
     //> sta VRAM_Buffer1+3,x
-    val worldDigitTile = ((ram.worldNumber) + 1).coerceIn(0, 255)
+    val worldDigitTile = getWorldNumForDisplay()
     //> lda #$28                ;next the dash
     //> sta VRAM_Buffer1+4,x
     val dashTile = 0x28.toByte()

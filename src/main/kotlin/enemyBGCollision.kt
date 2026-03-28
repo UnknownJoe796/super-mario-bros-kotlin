@@ -1312,6 +1312,42 @@ fun System.handleWarpZone(warpOfs: Int) {
     ram.fetchNewGameTimerFlag = true
 }
 
+// SMB2J WarpZoneNumbers: flat 11-entry table indexed by (warpZoneControl and $0F)
+private val smb2jWarpZoneNumbers = intArrayOf(0x02, 0x03, 0x04, 0x01, 0x06, 0x07, 0x08, 0x05, 0x0b, 0x0c, 0x0d)
+
+/**
+ * SMB2J warp zone pipe entry. Uses a flat index into the SMB2J WarpZoneNumbers table.
+ * Handles worlds A-D by subtracting 9 from the table value when HardWorldFlag is set.
+ */
+fun System.handleWarpZone_Smb2j(warpIdx: Int) {
+    //> lda WarpZoneNumbers,x
+    val warpNum = smb2jWarpZoneNumbers[warpIdx.coerceIn(0, smb2jWarpZoneNumbers.size - 1)]
+    //> ldy HardWorldFlag; beq SetWDest
+    val adjustedNum = if (ram.hardWorldFlag) {
+        //> sec; sbc #$09 (subtract 9 for worlds A-D internal numbering)
+        warpNum - 9
+    } else {
+        warpNum
+    }
+    //> SetWDest: tay; dey; sty WorldNumber
+    val worldNum = (adjustedNum - 1) and 0xFF
+    ram.worldNumber = worldNum.toByte()
+    //> ldx WorldAddrOffsets,y
+    val worldOfs = romData.worldAddrOffsets[worldNum.coerceIn(0, romData.worldAddrOffsets.size - 1)]
+    //> lda AreaAddrOffsets,x; sta AreaPointer
+    ram.areaPointer = romData.areaAddrOffsets[worldOfs.coerceIn(0, romData.areaAddrOffsets.size - 1)].toByte()
+    //> lda #Silence; sta EventMusicQueue
+    ram.eventMusicQueue = Constants.Silence
+    //> lda #$00; sta EntrancePage; sta AreaNumber; sta LevelNumber; sta AltEntranceControl
+    ram.entrancePage = 0
+    ram.areaNumber = 0
+    ram.levelNumber = 0
+    ram.altEntranceControl = AltEntrance.NONE
+    //> inc Hidden1UpFlag; inc FetchNewGameTimerFlag
+    ram.hidden1UpFlag = true
+    ram.fetchNewGameTimerFlag = true
+}
+
 //> ;$00 - used in WhirlpoolActivate to store whirlpool length / 2, page location of center of whirlpool
 //> ;and also to store movement force exerted on player
 //> ;$01 - used in ProcessWhirlpools to store page location of right extent of whirlpool
@@ -1346,8 +1382,10 @@ fun System.warpZoneObject() {
 
     //> sta ScrollLock
     ram.scrollLock = false
-    //> inc WarpZoneControl
-    ram.warpZoneControl = (ram.warpZoneControl + 1).toByte()
+    //> inc WarpZoneControl (SMB1 only -- SMB2J does not increment)
+    if (variant != GameVariant.SMB2J) {
+        ram.warpZoneControl = (ram.warpZoneControl + 1).toByte()
+    }
     //> jmp EraseEnemyObject
     eraseEnemyObject(x)
 }
