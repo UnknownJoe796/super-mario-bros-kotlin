@@ -49,11 +49,15 @@ fun System.colorRotation() {
     //> bcs ExitColorRot         ;if offset over 48 bytes, branch to leave
     // Estimate raw NES byte count of current vRAMBuffer1 contents.
     // Each entry: 3-byte header (addr_hi, addr_lo, length) + data bytes.
+    // Compute exact NES byte count: each entry is 3-byte header + data payload.
     val estimatedOffset = ram.vRAMBuffer1.sumOf { entry ->
         when (entry) {
             is BufferedPpuUpdate.BackgroundPatternString -> 3 + entry.patterns.size
-            is BufferedPpuUpdate.BackgroundSetPalette -> 7
-            else -> 8 // conservative estimate for other types
+            is BufferedPpuUpdate.BackgroundPatternRepeat -> 4  // 3 header + 1 repeated byte
+            is BufferedPpuUpdate.BackgroundSetPalette -> 7     // 3 header + 4 color bytes
+            is BufferedPpuUpdate.SpriteSetPalette -> 7         // 3 header + 4 color bytes
+            is BufferedPpuUpdate.BackgroundAttributeString -> 3 + entry.values.size
+            is BufferedPpuUpdate.BackgroundAttributeRepeat -> 4  // 3 header + 1 repeated byte
         }
     }
     if (estimatedOffset >= 0x31) return

@@ -1242,7 +1242,7 @@ private fun System.mushroomLedge() {
         //> lda AreaObjectLength,x     ;divide length by 2 and store elsewhere
         //> lsr
         //> sta MushroomLedgeHalfLen,x
-        ram.mushroomLedgeHalfLen = ((ram.areaObjectLength[x].toInt() and 0xFF) shr 1).toByte()
+        ram.mushroomLedgeHalfLen[x] = ((ram.areaObjectLength[x].toInt() and 0xFF) shr 1).toByte()
         //> lda #$19                   ;render start of mushroom
         //> jmp NoUnder
         renderUnderPart(0x19.toUByte(), row, 0)
@@ -1259,7 +1259,7 @@ private fun System.mushroomLedge() {
     }
     //> lda MushroomLedgeHalfLen,x ;get divided length and store where length
     //> sta $06                    ;was stored originally
-    zp06 = ram.mushroomLedgeHalfLen.toInt() and 0xFF
+    zp06 = ram.mushroomLedgeHalfLen[x].toInt() and 0xFF
     //> ldx $07
     //> lda #$1a
     //> sta MetatileBuffer,x       ;render middle of mushroom

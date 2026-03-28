@@ -462,8 +462,10 @@ private fun System.checkPlayerVertical(): Boolean {
     //> ldy Player_Y_HighPos      ;if player high vertical byte is not
     //> dey                       ;within the screen, leave this routine
     //> bne ExCPV
+    // bne branches with carry still CLEAR from the cmp #$f0 that didn't branch.
+    // dey does not affect carry. So return false (carry clear = no skip).
     val yHigh = (ram.playerYHighPos.toInt() and 0xFF) - 1
-    if (yHigh != 0) return true
+    if (yHigh != 0) return false
     //> lda Player_Y_Position     ;if on the screen, check to see how far down
     //> cmp #$d0                  ;the player is vertically
     val playerY = ram.playerYPosition.toInt() and 0xFF
@@ -842,26 +844,34 @@ private fun System.initPlatformFall(x: Int, otherPlatOfs: Int) {
     //> InitPlatformFall:
     //> tya                        ;move offset of other platform from Y to X
     //> tax
+    // NES only sets X register to otherPlatOfs, does NOT change ObjectOffset RAM.
+    // GetEnemyOffscreenBits restores X = ObjectOffset (unchanged) and sets Y = 1.
     val savedObjectOffset = ram.objectOffset
     ram.objectOffset = otherPlatOfs.toByte()
     //> jsr GetEnemyOffscreenBits  ;get offscreen bits
     getEnemyOffscreenBits()
-    //> lda #$06
-    //> jsr SetupFloateyNumber     ;award 1000 points to player
-    setupFloateyNumber(otherPlatOfs, 0x06)
-    //> lda Player_Rel_XPos
-    //> sta FloateyNum_X_Pos,x     ;put floatey number coordinates where player is
-    ram.floateyNumXPos[otherPlatOfs] = ram.playerRelXPos.toUByte()
-    //> lda Player_Y_Position
-    //> sta FloateyNum_Y_Pos,x
-    ram.floateyNumYPos[otherPlatOfs] = ram.playerYPosition
-    //> lda #$01                   ;set moving direction as flag for
-    //> sta Enemy_MovingDir,x      ;falling platforms
-    ram.enemyMovingDirs[otherPlatOfs] = 0x01
+    // Restore objectOffset: NES never changed it, GetEnemyOffscreenBits restores X from it
     ram.objectOffset = savedObjectOffset
 
+    // After GetEnemyOffscreenBits: NES has X = ObjectOffset (= x), Y = 1.
+    // All subsequent writes use X (the current platform), not otherPlatOfs.
+    //> lda #$06
+    //> jsr SetupFloateyNumber     ;award 1000 points to player
+    setupFloateyNumber(x, 0x06)
+    //> lda Player_Rel_XPos
+    //> sta FloateyNum_X_Pos,x     ;put floatey number coordinates where player is
+    ram.floateyNumXPos[x] = ram.playerRelXPos.toUByte()
+    //> lda Player_Y_Position
+    //> sta FloateyNum_Y_Pos,x
+    ram.floateyNumYPos[x] = ram.playerYPosition
+    //> lda #$01                   ;set moving direction as flag for
+    //> sta Enemy_MovingDir,x      ;falling platforms
+    ram.enemyMovingDirs[x] = 0x01
+
     //> (falls through to StopPlatforms)
-    stopPlatforms(x, otherPlatOfs)
+    // NES: X = ObjectOffset (= x), Y = 1 (from GetEnemyOffscreenBits).
+    // InitVStf zeros Enemy_Y_Speed[X], then sta Enemy_Y_Speed,y zeros [Y=1].
+    stopPlatforms(x, 1)
 }
 
 /**

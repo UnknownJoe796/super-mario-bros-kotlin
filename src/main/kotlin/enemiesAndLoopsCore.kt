@@ -2312,7 +2312,7 @@ private fun System.posPlatform(y: Int) {
     //> adc PlatPosDataLow,y    ;add or subtract pixels depending on offset
     //> sta Enemy_X_Position,x  ;store as new horizontal coordinate
     val curX = ram.sprObjXPos[1 + x].toInt() and 0xFF
-    val addend = platPosDataLow[y].toByte().toInt()  // sign-extend for $f8 = -8
+    val addend = platPosDataLow[y] and 0xFF  // unsigned: 6502 ADC treats all as unsigned
     val newX = curX + addend
     ram.sprObjXPos[1 + x] = (newX and 0xFF).toByte()
 
@@ -2320,8 +2320,8 @@ private fun System.posPlatform(y: Int) {
     //> adc PlatPosDataHigh,y   ;add or subtract page location depending on offset
     //> sta Enemy_PageLoc,x     ;store as new page location
     val curPage = ram.sprObjPageLoc[1 + x].toInt() and 0xFF
-    val pageAddend = platPosDataHigh[y].toByte().toInt()  // sign-extend for $ff = -1
-    val carry = if (newX > 0xFF) 1 else if (newX < 0) -1 else 0
+    val pageAddend = platPosDataHigh[y] and 0xFF  // unsigned: 6502 ADC treats all as unsigned
+    val carry = if (newX > 0xFF) 1 else 0  // standard unsigned carry from ADC
     ram.sprObjPageLoc[1 + x] = ((curPage + pageAddend + carry) and 0xFF).toByte()
 }
 
