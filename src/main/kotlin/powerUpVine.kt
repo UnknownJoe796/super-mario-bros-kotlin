@@ -749,7 +749,7 @@ private fun System.writeVineClimbingMetatile() {
     if (result.blockBuffer[result.blockBufferBase + result.vertOffset] != 0.toByte()) return
     //> lda #$26
     //> sta ($06),y               ;write climbing metatile to block buffer
-    result.blockBuffer[result.blockBufferBase + result.vertOffset] = 0x26
+    result.blockBuffer[result.blockBufferBase + result.vertOffset] = metatileId.VINE_METATILE.toByte()
 }
 
 // -------------------------------------------------------------------------------------

@@ -419,7 +419,8 @@ private fun System.areaParserCore() {
             if (ram.areaType == AreaType.Underground && x == 0x0B.toByte()) {
                 //> lda #$54                   ;old terrain type with ground level terrain type
                 //> sta $07
-                zp07 = 0x54.toUByte()
+                val terrainMTs = if (variant == GameVariant.SMB2J) TerrainMetatiles_SMB2J else TerrainMetatiles_SMB1
+                zp07 = terrainMTs[AreaType.Ground.ordinal]
             }
             //> EndUChk:  iny                        ;increment bitmasks offset in Y
             bitY++
@@ -1703,7 +1704,7 @@ private fun System.castleObject() {
     if (areaLen == 0x01) {
         //> PlayerStop: ldy #$52                 ;put brick at floor to stop player at end of level
         //> sty MetatileBuffer+10    ;this is only done if we're on the second column
-        ram.metatileBuffer[10] = 0x52.toUByte()
+        ram.metatileBuffer[10] = metatileId.BREAKABLE_BRICK_WITHOUT_LINE.toUByte()
         //> ExitCastle: rts
         return
     }
@@ -1713,7 +1714,7 @@ private fun System.castleObject() {
         //> cmp #$03                 ;if found, then check to see if we're at the second column
         //> beq PlayerStop
         if (areaLen == 0x03) {
-            ram.metatileBuffer[10] = 0x52.toUByte()
+            ram.metatileBuffer[10] = metatileId.BREAKABLE_BRICK_WITHOUT_LINE.toUByte()
             return
         }
     }
@@ -1849,11 +1850,13 @@ private fun System.renderSidewaysPipe(objOffset: Byte, inputLength: Int): Boolea
     //> lda SidePipeTopPart,y
     //> sta MetatileBuffer,x      ;note that the pipe parts are stored
     val sidePipeTopPart = if (variant == GameVariant.SMB2J) SidePipeTopPart_SMB2J else SidePipeTopPart_SMB1
-    ram.metatileBuffer[bufX] = sidePipeTopPart[horizOffset]
+    val sidePipeBottomPart = if (variant == GameVariant.SMB2J) SidePipeBottomPart_SMB2J else SidePipeBottomPart_SMB1
+    // NES reads past array end when horizOffset > 3 (reads ROM garbage); coerce to valid range
+    val safeHorizOffset = horizOffset.coerceIn(sidePipeTopPart.indices)
+    if (bufX in ram.metatileBuffer.indices) ram.metatileBuffer[bufX] = sidePipeTopPart[safeHorizOffset]
     //> lda SidePipeBottomPart,y  ;backwards horizontally
     //> sta MetatileBuffer+1,x
-    val sidePipeBottomPart = if (variant == GameVariant.SMB2J) SidePipeBottomPart_SMB2J else SidePipeBottomPart_SMB1
-    ram.metatileBuffer[bufX + 1] = sidePipeBottomPart[horizOffset]
+    if (bufX + 1 in ram.metatileBuffer.indices) ram.metatileBuffer[bufX + 1] = sidePipeBottomPart[safeHorizOffset]
     //> rts
     return carrySet
 }
@@ -1873,15 +1876,15 @@ private fun System.flagBalls_Residual() {
 private fun System.flagpoleObject() {
     //> lda #$24                 ;render flagpole ball on top
     //> sta MetatileBuffer
-    ram.metatileBuffer[0] = 0x24.toUByte()
+    ram.metatileBuffer[0] = metatileId.FLAGPOLE_BALL.toUByte()
     //> ldx #$01                 ;now render the flagpole shaft
     //> ldy #$08
     //> lda #$25
     //> jsr RenderUnderPart
-    renderUnderPart(0x25.toUByte(), 0x01, 0x08)
+    renderUnderPart(metatileId.FLAGPOLE_SHAFT.toUByte(), 0x01, 0x08)
     //> lda #$61                 ;render solid block at the bottom
     //> sta MetatileBuffer+10
-    ram.metatileBuffer[10] = 0x61.toUByte()
+    ram.metatileBuffer[10] = metatileId.SOLID_BLOCK.toUByte()
     //> jsr GetAreaObjXPosition
     val xPos = getAreaObjXPosition().toInt() and 0xFF
     //> sec
@@ -2119,7 +2122,7 @@ private fun System.staircaseObject() {
     val height = StaircaseHeightData.getOrElse(step) { 0x00 }.toInt() and 0xFF
     //> lda #$61                  ;now render solid block staircase
     //> jmp RenderUnderPart
-    renderUnderPart(0x61.toUByte(), startRow, height)
+    renderUnderPart(metatileId.SOLID_BLOCK.toUByte(), startRow, height)
 }
 
 //> Jumpspring:
@@ -2154,10 +2157,10 @@ private fun System.jumpspring() {
     //> ldx $07
     //> lda #$67                    ;draw metatiles in two rows where jumpspring is
     //> sta MetatileBuffer,x
-    if (row in ram.metatileBuffer.indices) ram.metatileBuffer[row] = 0x67.toUByte()
+    if (row in ram.metatileBuffer.indices) ram.metatileBuffer[row] = metatileId.JUMPSPRING_TOP.toUByte()
     //> lda #$68
     //> sta MetatileBuffer+1,x
-    if (row + 1 in ram.metatileBuffer.indices) ram.metatileBuffer[row + 1] = 0x68.toUByte()
+    if (row + 1 in ram.metatileBuffer.indices) ram.metatileBuffer[row + 1] = metatileId.JUMPSPRING_BOTTOM.toUByte()
     //> rts
 }
 

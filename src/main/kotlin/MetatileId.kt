@@ -36,6 +36,12 @@ class MetatileId private constructor(val variant: GameVariant) {
     // Hidden blocks (invisible until hit from below)
     val HIDDEN_COIN_BLOCK: Int = if (variant == GameVariant.SMB2J) 0x5e else 0x5f
     val HIDDEN_1UP_BLOCK: Int = if (variant == GameVariant.SMB2J) 0x5f else 0x60
+    // SMB2J-only hidden blocks (not present in SMB1)
+    val HIDDEN_POISON_BLOCK: Int = if (variant == GameVariant.SMB2J) 0x60 else -1
+    val HIDDEN_POWERUP_BLOCK: Int = if (variant == GameVariant.SMB2J) 0x61 else -1
+
+    // Solid block (3-D block used in stairs, flagpole base, etc.)
+    val SOLID_BLOCK: Int = if (variant == GameVariant.SMB2J) 0x62 else 0x61
 
     // Jumpspring
     val JUMPSPRING_TOP: Int = if (variant == GameVariant.SMB2J) 0x65 else 0x67

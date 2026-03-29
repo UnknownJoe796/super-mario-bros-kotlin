@@ -120,15 +120,20 @@ fun System.scrollScreen(scrollValue: Int) {
     ram.screenLeftPageLoc = newPageLoc.toByte()
 
     //> and #$01                  ;get LSB of page location
-    //> sta $00                   ;save as temp variable for PPU register 1 mirror
     val pageLocLSB = newPageLoc and 0x01
 
-    //> lda Mirror_PPU_CTRL_REG1  ;get PPU register 1 mirror
-    //> and #%11111110            ;save all bits except d0
-    //> ora $00                   ;get saved bit here and save in PPU register 1
-    //> sta Mirror_PPU_CTRL_REG1  ;mirror to be used to set name table later
-    val ppuBits = (ram.mirrorPPUCTRLREG1.byte.toInt() and 0xFE) or pageLocLSB
-    ram.mirrorPPUCTRLREG1 = PpuControl(ppuBits.toByte())
+    if (variant == GameVariant.SMB2J) {
+        //> (SMB2J) sta NameTableSelect  ;save as name table select for later use
+        ram.nameTableSelect = pageLocLSB.toByte()
+    } else {
+        //> (SMB1) sta $00               ;save as temp variable for PPU register 1 mirror
+        //> lda Mirror_PPU_CTRL_REG1     ;get PPU register 1 mirror
+        //> and #%11111110               ;save all bits except d0
+        //> ora $00                      ;get saved bit here and save in PPU register 1
+        //> sta Mirror_PPU_CTRL_REG1     ;mirror to be used to set name table later
+        val ppuBits = (ram.mirrorPPUCTRLREG1.byte.toInt() and 0xFE) or pageLocLSB
+        ram.mirrorPPUCTRLREG1 = PpuControl(ppuBits.toByte())
+    }
 
     //> jsr GetScreenPosition     ;figure out where the right side is
     getScreenPosition()

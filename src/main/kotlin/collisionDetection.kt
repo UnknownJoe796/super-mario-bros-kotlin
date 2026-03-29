@@ -539,10 +539,9 @@ private fun System.checkForCoinMTiles(metatile: Int): Boolean {
 private fun System.chkInvisibleMTiles(metatile: Int): Boolean {
     //> ChkInvisibleMTiles:
     val mt = metatile and 0xFF
-    // SMB1: $5f (hidden coin), $60 (hidden 1-up)
     if (mt == metatileId.HIDDEN_COIN_BLOCK || mt == metatileId.HIDDEN_1UP_BLOCK) return true
-    // SMB2J adds: $5e (hidden coin), $61 (hidden power-up)
-    if (variant == GameVariant.SMB2J && (mt == 0x5e || mt == 0x61)) return true
+    // SMB2J has two additional hidden block types (poison mushroom, power-up)
+    if (mt == metatileId.HIDDEN_POISON_BLOCK || mt == metatileId.HIDDEN_POWERUP_BLOCK) return true
     return false
 }
 
@@ -555,8 +554,8 @@ private fun System.chkForNonSolids(metatile: Int): Boolean {
     val mt = metatile and 0xFF
     if (mt == metatileId.VINE_METATILE || mt == metatileId.COIN || mt == metatileId.UNDERWATER_COIN) return true
     if (mt == metatileId.HIDDEN_COIN_BLOCK || mt == metatileId.HIDDEN_1UP_BLOCK) return true
-    // SMB2J adds $5e (hidden coin) and $61 (hidden power-up) as non-solid
-    if (variant == GameVariant.SMB2J && (mt == 0x5e || mt == 0x61)) return true
+    // SMB2J has two additional hidden block types (poison mushroom, power-up) that are non-solid
+    if (mt == metatileId.HIDDEN_POISON_BLOCK || mt == metatileId.HIDDEN_POWERUP_BLOCK) return true
     return false
 }
 
@@ -2086,7 +2085,7 @@ private fun System.putPlayerOnVine(result: BlockBufferResult) {
     // The assembly multiplies it by 16 and adds an adder based on facing direction.
     // This positions the player horizontally on the vine/flagpole.
     val shiftedBBLow = (bbLow shl 4) and 0xFF
-    val xPosAdder = climbXPosAdder[facingDir].toInt()
+    val xPosAdder = climbXPosAdder[facingDir.coerceIn(climbXPosAdder.indices)].toInt()
     //> clc; adc ClimbXPosAdder-1,y; sta Player_X_Position
     // by Claude - use named scalar, not flat array (coherence fix)
     ram.playerXPosition = ((shiftedBBLow + xPosAdder) and 0xFF).toUByte()

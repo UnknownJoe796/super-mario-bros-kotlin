@@ -45,14 +45,25 @@ private val areaAddrOffsets = byteArrayOf(
 )
 
 //> BrickQBlockMetatiles:
-//>   .db $c1, $c0, $5f, $60          ;used by question blocks
-//>   .db $55, $56, $57, $58, $59     ;used by ground level types
-//>   .db $5a, $5b, $5c, $5d, $5e     ;used by other level types
-private val brickQBlockMetatiles = byteArrayOf(
+//>   SMB1: .db $c1, $c0, $5f, $60          ;used by question blocks
+//>         .db $55, $56, $57, $58, $59     ;used by ground level types
+//>         .db $5a, $5b, $5c, $5d, $5e     ;used by other level types
+private val brickQBlockMetatiles_SMB1 = byteArrayOf(
     0xc1.toByte(), 0xc0.toByte(), 0x5f, 0x60,
     0x55, 0x56, 0x57, 0x58, 0x59,
     0x5a, 0x5b, 0x5c, 0x5d, 0x5e
 )
+//>   SMB2J: .db $c1, $c2, $c0, $5e, $5f, $60, $61  ;used by question blocks (7 entries)
+//>          .db $52, $53, $54, $55, $56, $57         ;used by ground level bricks
+//>          .db $58, $59, $5a, $5b, $5c, $5d         ;used by other level bricks
+private val brickQBlockMetatiles_SMB2J = byteArrayOf(
+    0xc1.toByte(), 0xc2.toByte(), 0xc0.toByte(), 0x5e, 0x5f, 0x60, 0x61,
+    0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+    0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d
+)
+
+private fun brickQBlockMetatiles(variant: GameVariant) =
+    if (variant == GameVariant.SMB2J) brickQBlockMetatiles_SMB2J else brickQBlockMetatiles_SMB1
 
 //> EnemyBGCStateData:
 //>   .db $01, $01, $02, $02, $02, $05
@@ -350,7 +361,10 @@ private fun System.handleEToBGCollision(x: Int, underResult: BlockBufferResult) 
 internal fun chkForNonSolidsLocal(metatile: Int, mtId: MetatileId): Boolean {
     //> ChkForNonSolids:
     val mt = metatile and 0xFF
-    return mt == mtId.VINE_METATILE || mt == mtId.COIN || mt == mtId.UNDERWATER_COIN || mt == mtId.HIDDEN_COIN_BLOCK || mt == mtId.HIDDEN_1UP_BLOCK
+    return mt == mtId.VINE_METATILE || mt == mtId.COIN || mt == mtId.UNDERWATER_COIN ||
+        mt == mtId.HIDDEN_COIN_BLOCK || mt == mtId.HIDDEN_1UP_BLOCK ||
+        // SMB2J has two additional hidden block types that enemies fall through
+        mt == mtId.HIDDEN_POISON_BLOCK || mt == mtId.HIDDEN_POWERUP_BLOCK
 }
 
 /**
@@ -933,7 +947,8 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
     }
 
     //> jsr BlockBumpedChk
-    val (bumpMatch, _) = blockBumpedChk(blockBufferContents)
+    val bqmTable = brickQBlockMetatiles(variant)
+    val (bumpMatch, _) = blockBumpedChk(blockBufferContents, bqmTable)
     //> sta $00
     val storedMetatile = blockBufferContents
 
@@ -1035,15 +1050,14 @@ private fun System.initBlockXYPos(x: Int) {
 // BlockBumpedChk
 // ---------------------------------------------------------------------------
 
-private fun blockBumpedChk(metatile: Int): Pair<Boolean, Int> {
+private fun blockBumpedChk(metatile: Int, table: ByteArray): Pair<Boolean, Int> {
     //> BlockBumpedChk:
-    //> MatchBump:   rts                         ;note carry is set if found match
-    //> BumpChkLoop: cmp BrickQBlockMetatiles,y  ;check to see if current metatile matches
-    //> ldy #$0d; BumpChkLoop: cmp BrickQBlockMetatiles,y
+    //> ldy #$0d (SMB1) / #$12 (SMB2J) ;start at end of metatile data
+    //> BumpChkLoop: cmp BrickQBlockMetatiles,y
     //> beq MatchBump; dey; bpl BumpChkLoop; clc; MatchBump: rts
     val mt = (metatile and 0xFF).toByte()
-    for (i in 0x0d downTo 0) {
-        if (brickQBlockMetatiles[i] == mt) return Pair(true, i)
+    for (i in table.lastIndex downTo 0) {
+        if (table[i] == mt) return Pair(true, i)
     }
     return Pair(false, -1)
 }
@@ -1066,24 +1080,45 @@ private fun System.bumpBlock(x: Int, originalMT: Int) {
     ram.sprObjYSpeed[9 + x] = 0xfe.toByte()
 
     //> lda $05; jsr BlockBumpedChk; bcc ExitBlockChk
-    val (found, bumpIdx) = blockBumpedChk(originalMT)
+    val bqmTable = brickQBlockMetatiles(variant)
+    val (found, bumpIdx) = blockBumpedChk(originalMT, bqmTable)
     //> ExitBlockChk:
     if (!found) return
 
-    //> tya; cmp #$09; bcc BlockCode; sbc #$05
-    val blockCode = if (bumpIdx >= 0x09) bumpIdx - 0x05 else bumpIdx
-
-    //> BlockCode: jsr JumpEngine
-    when (blockCode) {
-        0 -> mushFlowerBlock(x)
-        1 -> coinBlock(x)
-        2 -> coinBlock(x)
-        3 -> extraLifeMushBlock(x)
-        4 -> mushFlowerBlock(x)
-        5 -> vineBlock(x)
-        6 -> starBlock(x)
-        7 -> coinBlock(x)
-        8 -> extraLifeMushBlock(x)
+    if (variant == GameVariant.SMB2J) {
+        //> (SMB2J) tya; cmp #$0d; bcc BlockCode; sbc #$06
+        val blockCode = if (bumpIdx >= 0x0d) bumpIdx - 0x06 else bumpIdx
+        //> BlockCode: jsr JumpEngine
+        when (blockCode) {
+            0 -> mushFlowerBlock(x)
+            1 -> poisonMushBlock(x)
+            2 -> coinBlock(x)
+            3 -> coinBlock(x)
+            4 -> extraLifeMushBlock(x)
+            5 -> poisonMushBlock(x)
+            6 -> mushFlowerBlock(x)
+            7 -> mushFlowerBlock(x)
+            8 -> poisonMushBlock(x)
+            9 -> vineBlock(x)
+            10 -> starBlock(x)
+            11 -> coinBlock(x)
+            12 -> extraLifeMushBlock(x)
+        }
+    } else {
+        //> (SMB1) tya; cmp #$09; bcc BlockCode; sbc #$05
+        val blockCode = if (bumpIdx >= 0x09) bumpIdx - 0x05 else bumpIdx
+        //> BlockCode: jsr JumpEngine
+        when (blockCode) {
+            0 -> mushFlowerBlock(x)
+            1 -> coinBlock(x)
+            2 -> coinBlock(x)
+            3 -> extraLifeMushBlock(x)
+            4 -> mushFlowerBlock(x)
+            5 -> vineBlock(x)
+            6 -> starBlock(x)
+            7 -> coinBlock(x)
+            8 -> extraLifeMushBlock(x)
+        }
     }
 }
 
@@ -1100,6 +1135,12 @@ private fun System.mushFlowerBlock(x: Int) {
 private fun System.starBlock(x: Int) {
     //> StarBlock: lda #$02
     ram.powerUpType = 0x02
+    setupPowerUp(x)
+}
+
+private fun System.poisonMushBlock(x: Int) {
+    //> PoisonMushBlock: lda #$04 ;load poison mushroom type
+    ram.powerUpType = 0x04
     setupPowerUp(x)
 }
 
