@@ -646,9 +646,14 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
     if (objByte1.isEndOfData) return
     //> Determine jump table offset based on row:
     //> row 15 → offset 0x10, row 12 → offset 0x08, rows 0-11/13/14 → offset 0x00
-    // SMB2J inserts UpsideDownPipe_High/Low at indices $16-$17, shifting all subsequent
-    // dispatch entries (small objects, row 13, row 14) by 2 in the jump table.
-    val smb2jShift: Byte = if (variant == GameVariant.SMB2J) 2 else 0
+    // SMB2J inserts UpsideDownPipe_High/Low at indices $16-$17, adds extra Q-block/brick
+    // entries, and adds WindOn/WindOff, shifting dispatch entries by varying amounts:
+    //   Small objects (temp07): +2 (upside-down pipe entries)
+    //   Row $0D (temp07):       +6 (upside-down pipes + 4 extra small object entries)
+    //   Row $0E (objId):        +8 (above + 2 wind command entries in row $0D)
+    val smb2jSmallShift: Byte = if (variant == GameVariant.SMB2J) 2 else 0
+    val smb2jRow0DShift: Byte = if (variant == GameVariant.SMB2J) 6 else 0
+    val smb2jRow0EShift: Byte = if (variant == GameVariant.SMB2J) 8 else 0
     var temp07: Byte = when {
         objByte1.isSpecialRow15 -> 0x10
         objByte1.isSpecialRow12 -> 0x08
@@ -661,7 +666,7 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
         //> sta $07
         temp07 = 0x00
         //> lda #$2e                   ;and load A with another value (SMB2J: #$36)
-        a = (0x2E + smb2jShift).toByte()
+        a = (0x2E + smb2jRow0EShift).toByte()
         //> bne NormObj                ;unconditional branch
         // jump to NormObj
     } else if (objByte1.isSpecialRow13) {
@@ -669,7 +674,7 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
         //> bne ChkSRows
         //> lda #$22                   ;if so, load offset with 34 (SMB2J: 40/$28)
         //> sta $07
-        temp07 = (0x22 + smb2jShift).toByte()
+        temp07 = (0x22 + smb2jRow0DShift).toByte()
         //> iny                        ;get next byte
         y++
         //> lda (AreaData),y
@@ -705,7 +710,7 @@ private fun System.decodeAreaData(objectOffset: Byte, areaDataOffset: Byte): Uni
                 // small object
                 //> lda #$16
                 //> sta $07                    ;otherwise set offset of 24 for small object (SMB2J: #$18)
-                temp07 = (0x16 + smb2jShift).toByte()
+                temp07 = (0x16 + smb2jSmallShift).toByte()
                 //> lda (AreaData),y           ;reload second byte of level object
                 a = ram.areaData!![y]
                 //> and #%00001111             ;mask out higher nybble and jump
@@ -1366,12 +1371,11 @@ private fun System.loopCmdE() {
 private fun System.areaStyleObject() {
     //> lda AreaStyle        ;load level object style and jump to the right sub
     //> jsr JumpEngine
-    //> .dw TreeLedge        ;also used for cloud type levels
-    //> .dw MushroomLedge
-    //> .dw BulletBillCannon
+    // SMB1: TreeLedge, MushroomLedge, BulletBillCannon
+    // SMB2J: TreeLedge, CloudLedge, BulletBillCannon
     when (ram.areaStyle.toInt() and 0xFF) {
         0 -> treeLedge()
-        1 -> mushroomLedge()
+        1 -> if (variant == GameVariant.SMB2J) cloudLedge() else mushroomLedge()
         2 -> bulletBillCannon()
     }
 }
@@ -1476,6 +1480,44 @@ private fun System.mushroomLedge() {
         renderUnderPart(0x50.toUByte(), row + 2, 0x0f)
     }
     //> MushLExit: rts
+}
+
+//> CloudLedge: (SMB2J only — replaces MushroomLedge for area style 1)
+// Uses metatiles $8a (start), $8b (middle), $8c (end). No stem underneath.
+private fun System.cloudLedge() {
+    val x = ram.objectOffset
+    //> jsr ChkLrgObjLength        ;get cloud dimensions
+    val (attrib, fixedLen) = chkLrgObjLength(x)
+    val row = attrib.row.toInt() and 0xFF
+    //> sty $06                    ;store length here for now
+    var zp06 = attrib.length.toInt() and 0xFF
+    //> bcc EndCloud
+    if (fixedLen.justStarting) {
+        //> lda AreaObjectLength,x     ;divide length by 2 and store elsewhere
+        //> lsr
+        //> sta MushroomLedgeHalfLen,x
+        ram.mushroomLedgeHalfLen[x] = ((ram.areaObjectLength[x].toInt() and 0xFF) shr 1).toByte()
+        //> lda #$8a                   ;render start of cloud
+        //> jmp NoUnder
+        renderUnderPart(0x8a.toUByte(), row, 0)
+        return
+    }
+    //> EndCloud: lda #$8c                   ;if at the end, render end of cloud
+    //> ldy AreaObjectLength,x
+    //> beq NoUnder
+    val areaLen = ram.areaObjectLength[x].toInt() and 0xFF
+    if (areaLen == 0) {
+        renderUnderPart(0x8c.toUByte(), row, 0)
+        return
+    }
+    //> lda MushroomLedgeHalfLen,x ;get divided length and store where length
+    //> sta $06                    ;was stored originally
+    zp06 = ram.mushroomLedgeHalfLen[x].toInt() and 0xFF
+    //> ldx $07
+    //> lda #$8b
+    //> sta MetatileBuffer,x       ;render middle of cloud
+    ram.metatileBuffer[row] = 0x8b.toUByte()
+    //> rts                        ;cloud ledge middle just returns (no stem)
 }
 
 //> PulleyRopeObject:
@@ -2204,10 +2246,11 @@ private fun System.brickWithItem() {
     var adder = 0
     //> ldy AreaType                ;check level type for ground level
     //> dey
-    //> beq BWithL                  ;if ground type, do not start with 5
+    //> beq BWithL                  ;if ground type, do not start with 5 (SMB2J: 6)
     if (ram.areaType != AreaType.Ground) {
         //> lda #$05                    ;otherwise use adder for bricks without lines
-        adder = 5
+        // SMB2J has 6 ground brick entries instead of 5, so the "other" section starts 1 later.
+        adder = if (variant == GameVariant.SMB2J) 6 else 5
     }
     //> BWithL: clc                         ;add object ID to adder
     //> adc $07

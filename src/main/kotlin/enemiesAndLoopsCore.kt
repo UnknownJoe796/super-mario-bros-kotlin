@@ -1070,6 +1070,7 @@ private fun System.initRedKoopa() {
 
 /**
  * Sets up hammer bro: zero speed, walking timer based on hard mode, bbox $0b.
+ * SMB2J: worlds 7-9 skip the walking delay entirely.
  */
 private fun System.initHammerBro() {
     val x = ram.objectOffset.toInt() and 0xFF
@@ -1082,13 +1083,16 @@ private fun System.initHammerBro() {
     //> sta Enemy_X_Speed,x
     ram.sprObjXSpeed[1 + x] = 0
 
-    //> ldy SecondaryHardMode       ;get secondary hard mode flag
-    //> lda HBroWalkingTimerData,y
-    //> sta EnemyIntervalTimer,x    ;set value as delay for hammer bro to walk left
-    val hardIdx = if (ram.secondaryHardMode != 0.toByte()) 1 else 0
-    ram.timers[0x16 + x] = hBroWalkingTimerData[hardIdx].toByte()
+    // SMB2J: lda WorldNumber; cmp #World7; bcs NoHBI — skip walk delay for worlds 7-9
+    if (!(variant == GameVariant.SMB2J && (ram.worldNumber.toInt() and 0xFF) >= Constants.World7.toInt())) {
+        //> ldy SecondaryHardMode       ;get secondary hard mode flag
+        //> lda HBroWalkingTimerData,y
+        //> sta EnemyIntervalTimer,x    ;set value as delay for hammer bro to walk left
+        val hardIdx = if (ram.secondaryHardMode != 0.toByte()) 1 else 0
+        ram.timers[0x16 + x] = hBroWalkingTimerData[hardIdx].toByte()
+    }
 
-    //> lda #$0b                    ;set specific value for bounding box size control
+    //> NoHBI: lda #$0b             ;set specific value for bounding box size control
     //> jmp SetBBox
     setBBox(0x0b)
 }

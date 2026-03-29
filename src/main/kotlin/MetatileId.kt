@@ -43,9 +43,9 @@ class MetatileId private constructor(val variant: GameVariant) {
     // Solid block (3-D block used in stairs, flagpole base, etc.)
     val SOLID_BLOCK: Int = if (variant == GameVariant.SMB2J) 0x62 else 0x61
 
-    // Jumpspring
-    val JUMPSPRING_TOP: Int = if (variant == GameVariant.SMB2J) 0x65 else 0x67
-    val JUMPSPRING_BOTTOM: Int = if (variant == GameVariant.SMB2J) 0x66 else 0x68
+    // Jumpspring (SMB2J uses $68/$69 per sm2main lines 4054 and 11306)
+    val JUMPSPRING_TOP: Int = if (variant == GameVariant.SMB2J) 0x68 else 0x67
+    val JUMPSPRING_BOTTOM: Int = if (variant == GameVariant.SMB2J) 0x69 else 0x68
 
     // Water pipe (vertical, in water areas)
     val WATER_PIPE_TOP: Int = if (variant == GameVariant.SMB2J) 0x6d else 0x6b

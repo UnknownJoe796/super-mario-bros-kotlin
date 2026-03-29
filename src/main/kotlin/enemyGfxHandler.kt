@@ -649,7 +649,9 @@ fun System.enemyGfxHandler() {
         //> beq FlipEnemyVertically    ;branch for hammer bro or lakitu
         //> cmp #$15
         //> bcs FlipEnemyVertically    ;also branch if enemy object => $15
+        //> SMB2J: cmp #UpsideDownPiranhaP; beq FlipEnemyVertically
         val isSpecialFlip = (enemyCode == EnemyId.HammerBro.id) ||
+                (variant == GameVariant.SMB2J && enemyCode == EnemyId.GreenKoopaVar.id) ||
                 (enemyCode == EnemyId.Lakitu.id) ||
                 (enemyCode >= 0x15)
         if (!isSpecialFlip) {

@@ -2260,13 +2260,13 @@ class TASReplayTest {
                 val loc = if (frame0 != null) "${frame0.fileName}:${frame0.lineNumber}"
                     else "${runError!!::class.simpleName}: ${runError!!.message?.take(40)}"
                 errorLocations[loc] = (errorLocations[loc] ?: 0) + 1
-                if (nmiErrorCount <= 10 || frame % 2000 == 0) {
-                    println("Frame $frame ERROR #$nmiErrorCount: ${runError!!::class.simpleName}: ${runError!!.message}")
-                    println(runError!!.stackTraceToString().lines().take(15).joinToString("\n"))
+                if (nmiErrorCount <= 5) {
+                    println("Frame $frame ERROR #$nmiErrorCount: ${runError!!::class.simpleName}: ${runError!!.message?.take(80)}")
+                    println(runError!!.stackTraceToString().lines().take(5).joinToString("\n"))
                 }
             }
 
-            if (frame % 2000 == 0) {
+            if (frame % 10000 == 0) {
                 println("Frame $frame: World=${system.ram.worldNumber + 1}-${system.ram.levelNumber + 1}, Mode=${system.ram.operMode}, Task=${system.ram.operModeTask}")
             }
 

@@ -686,6 +686,8 @@ fun System.enemiesCollision() {
                 secondEnemyId != EnemyId.Lakitu.id &&
                 //> cmp #PiranhaPlant; beq ReadyNextEnemy
                 secondEnemyId != EnemyId.PiranhaPlant.id &&
+                //> SMB2J: cmp #UpsideDownPiranhaP; beq ReadyNextEnemy
+                !(variant == GameVariant.SMB2J && secondEnemyId == EnemyId.GreenKoopaVar.id) &&
                 //> lda EnemyOffscrBitsMasked,x; bne ReadyNextEnemy
                 ram.enemyOffscrBitsMaskeds[secondIdx] == 0.toByte()
             ) {

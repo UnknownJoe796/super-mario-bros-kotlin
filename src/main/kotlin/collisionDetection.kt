@@ -650,6 +650,8 @@ fun System.enemyTurnAround(x: Int) {
     val enemyId = ram.enemyID[x].toInt() and 0xFF
     //> cmp #PiranhaPlant; beq ExTA
     if (enemyId == EnemyId.PiranhaPlant.id) return
+    //> SMB2J: cmp #UpsideDownPiranhaP; beq ExTA
+    if (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.id) return
     //> cmp #Lakitu; beq ExTA
     if (enemyId == EnemyId.Lakitu.id) return
     //> cmp #HammerBro; beq ExTA
@@ -939,16 +941,27 @@ fun System.shellOrBlockDefeat(x: Int) {
     ram.objectOffset = x.toByte()
 
     val enemyId = ram.enemyID[x].toInt() and 0xFF
-    //> cmp #PiranhaPlant; bne StnE
-    // NES A register: after cmp, A still = enemy ID. But for PiranhaPlant path,
+    // SMB2J checks for both PiranhaPlant and UpsideDownPiranhaP
+    // SMB1 only checks for PiranhaPlant
+    val isPiranha = enemyId == EnemyId.PiranhaPlant.id ||
+        (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.id)
+    // NES A register: after cmp, A still = enemy ID. But for piranha path,
     // A gets overwritten with (modified Y position). ChkToStunEnemies uses A for
-    // its comparisons, not enemy ID directly.
+    // its comparisons in SMB1 (not enemy ID directly).
+    // SMB2J's ChkToStunEnemies does `lda Enemy_ID,x` first, so A from caller is ignored.
     var aRegister = enemyId  // A = enemy ID from lda Enemy_ID,x
-    if (enemyId == EnemyId.PiranhaPlant.id) {
-        //> lda Enemy_Y_Position,x; adc #$18; sta Enemy_Y_Position,x
-        // carry=1 from cmp #PiranhaPlant (equal), so adc adds $18 + 1 = $19
+    if (isPiranha) {
+        //> DinP: tay; lda Enemy_Y_Position,x; adc #$18
+        // carry=1 from last cmp (equal), so adc adds $18 + 1 = $19
         val yPos = ram.sprObjYPos[x + 1].toInt() and 0xFF
-        val newY = (yPos + 0x19) and 0xFF
+        var newY = (yPos + 0x19) and 0xFF
+        //> SMB2J: cpy #UpsideDownPiranhaP; bne SetDY; sbc #$31
+        // For UpsideDownPiranhaP, subtract $31 to put it back in pipe (upward)
+        if (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.id) {
+            // carry=1 from cpy (equal), so sbc subtracts exactly $31
+            newY = (newY - 0x31) and 0xFF
+        }
+        //> SetDY: sta Enemy_Y_Position,x
         ram.sprObjYPos[x + 1] = newY.toByte()
         aRegister = newY  // A now holds modified Y position, not enemy ID
     }
@@ -980,30 +993,47 @@ fun System.shellOrBlockDefeat(x: Int) {
 /**
  * Stun enemies: demote koopa variants, set stunned state, apply knockback.
  * @param aValue NES A register value — normally the enemy ID, but for PiranhaPlant
- *              it holds the modified Y position from shellOrBlockDefeat.
+ *              it holds the modified Y position from shellOrBlockDefeat (SMB1 only;
+ *              SMB2J loads Enemy_ID fresh so this parameter is ignored).
  */
 private fun System.chkToStunEnemies(x: Int, aValue: Int = ram.enemyID[x].toInt() and 0xFF) {
     //> ChkToStunEnemies:
-    // NES uses A register for comparisons. A may differ from actual enemy ID
-    // when called from shellOrBlockDefeat for PiranhaPlant (A = Y position).
-    val a = aValue and 0xFF
+    // SMB2J does `lda Enemy_ID,x` first, always using the actual enemy ID.
+    // SMB1 uses whatever is in A from the caller (which may be modified Y for piranhas).
+    val a = if (variant == GameVariant.SMB2J) {
+        ram.enemyID[x].toInt() and 0xFF
+    } else {
+        aValue and 0xFF
+    }
 
-    //> cmp #$09; bcc SetStun
-    //> cmp #$11; bcs SetStun
+    //> cmp #$09; bcc SetStun/NoDemote
+    //> cmp #$11; bcs SetStun/NoDemote
     //> cmp #$0a; bcc Demote
-    //> cmp #PiranhaPlant; bcc SetStun
+    //> cmp #PiranhaPlant; bcc SetStun/NoDemote
+    //> SMB2J: cmp #UpsideDownPiranhaP; beq NoDemote
     if (a >= EnemyId.TallEnemy.id && a < EnemyId.Lakitu.id) {
-        if (a < EnemyId.GreyCheepCheep.id || a >= EnemyId.PiranhaPlant.id) {
-            // fall through to Demote
+        val skipDemote = (a >= EnemyId.GreyCheepCheep.id && a < EnemyId.PiranhaPlant.id) ||
+            (variant == GameVariant.SMB2J && a == EnemyId.PiranhaPlant.id) ||
+            (variant == GameVariant.SMB2J && a == EnemyId.GreenKoopaVar.id)
+        if (!skipDemote) {
             //> Demote: and #%00000001; sta Enemy_ID,x
             ram.enemyID[x] = (a and 0x01).toByte()
         }
-        // else: SetStun path (GreyCheepCheep..Podoboo — no demote)
     }
 
-    //> SetStun: lda Enemy_State,x; and #%11110000; ora #%00000010; sta Enemy_State,x
-    ram.enemyState[x] = (ram.enemyState.getEnemyState(x) and 0xF0 or 0x02).byte
-    //> dec Enemy_Y_Position,x; dec Enemy_Y_Position,x
+    if (variant == GameVariant.SMB2J) {
+        //> NoDemote: cmp #PowerUpObject; beq BounceOff
+        //> cmp #Goomba; beq BounceOff
+        //> lda #$02; sta Enemy_State,x (flat write, not preserving high nybble)
+        val currentA = ram.enemyID[x].toInt() and 0xFF
+        if (currentA != EnemyId.PowerUpObject.id && currentA != EnemyId.Goomba.id) {
+            ram.enemyState[x] = 0x02
+        }
+    } else {
+        //> SetStun: lda Enemy_State,x; and #%11110000; ora #%00000010; sta Enemy_State,x
+        ram.enemyState[x] = (ram.enemyState.getEnemyState(x) and 0xF0 or 0x02).byte
+    }
+    //> BounceOff/dec: dec Enemy_Y_Position,x; dec Enemy_Y_Position,x
     ram.sprObjYPos[x + 1] = (ram.sprObjYPos[x + 1] - 2).toByte()
 
     //> lda Enemy_ID,x; cmp #Bloober; beq SetWYSpd
@@ -1171,12 +1201,14 @@ private fun System.handlePECollisions(x: Int, enemyId: Int) {
 
     //> cpy #Spiny; beq ChkForPlayerInjury
     if (enemyId == EnemyId.Spiny.id) { chkForPlayerInjury(x); return }
-    //> cpy #PiranhaPlant; beq InjurePlayer
-    if (enemyId == EnemyId.PiranhaPlant.id) { injurePlayer(); return }
-    //> cpy #Podoboo; beq InjurePlayer
-    if (enemyId == EnemyId.Podoboo.id) { injurePlayer(); return }
     //> cpy #BulletBill_CannonVar; beq ChkForPlayerInjury
     if (enemyId == EnemyId.BulletBillCannonVar.id) { chkForPlayerInjury(x); return }
+    //> cpy #PiranhaPlant; beq InjurePlayer
+    if (enemyId == EnemyId.PiranhaPlant.id) { injurePlayer(); return }
+    //> SMB2J: cpy #UpsideDownPiranhaP; beq InjurePlayer
+    if (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.id) { injurePlayer(); return }
+    //> cpy #Podoboo; beq InjurePlayer
+    if (enemyId == EnemyId.Podoboo.id) { injurePlayer(); return }
     //> cpy #$15; bcs InjurePlayer
     if (enemyId >= EnemyId.BowserFlame.id) { injurePlayer(); return }
     //> lda AreaType; beq InjurePlayer
@@ -1388,6 +1420,11 @@ private fun System.chkForDemoteKoopa(x: Int, enemyId: Int) {
         handleStompedShellE(x)
         return
     }
+    //> SMB2J: jsr SetBounce (called BEFORE demoting, so it reads the original enemy ID)
+    //> SMB1: jmp SBnce at end instead
+    if (variant == GameVariant.SMB2J) {
+        setBounce(x)
+    }
     //> and #%00000001; sta Enemy_ID,x
     ram.enemyID[x] = (enemyId and 0x01).toByte()
     //> ldy #$00; sty Enemy_State,x
@@ -1407,10 +1444,7 @@ private fun System.chkForDemoteKoopa(x: Int, enemyId: Int) {
     //> lda DemotedKoopaXSpdData,y; sta Enemy_X_Speed,x
     ram.sprObjXSpeed[x + 1] = demotedKoopaXSpdData[dirOfs]
     //> SMB1: SBnce: lda #$fc; sta Player_Y_Speed
-    //> SMB2J: jsr SetBounce (then rts)
-    if (variant == GameVariant.SMB2J) {
-        setBounce(x)
-    } else {
+    if (variant != GameVariant.SMB2J) {
         ram.playerYSpeed = 0xfc.toByte()
     }
 }
@@ -2165,6 +2199,8 @@ private fun System.chkForLandJumpSpring(metatile: Int) {
 
     //> lda #$70; sta VerticalForce
     ram.verticalForce = 0x70
+    // SMB2J also sets VerticalForceDown here (sta VerticalForceDown at sm2main line 11296)
+    if (variant == GameVariant.SMB2J) ram.verticalForceDown = 0x70
     //> lda #$f9; sta JumpspringForce
     ram.jumpspringForce = 0xf9.toByte()
     //> lda #$03; sta JumpspringTimer

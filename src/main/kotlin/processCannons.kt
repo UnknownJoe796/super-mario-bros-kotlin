@@ -250,7 +250,9 @@ fun System.offscreenBoundsCheck() {
     //> cpy #PiranhaPlant       ;check for piranha plant object
     //> bne ExtendLB
     var carry: Int
-    if (enemyId == EnemyId.HammerBro.byte || enemyId == EnemyId.PiranhaPlant.byte) {
+    //> SMB2J: cpy #UpsideDownPiranhaP; beq LimitB
+    if (enemyId == EnemyId.HammerBro.byte || enemyId == EnemyId.PiranhaPlant.byte ||
+        (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.byte)) {
         //> LimitB: adc #$38    ;add 56 pixels if hammer bro or piranha plant
         // Carry is SET from cpy (enemyId == HammerBro or PiranhaPlant, both >= compared value)
         val adcResult = leftBound + 0x38 + 1  // +1 for carry set from cpy
@@ -318,6 +320,8 @@ fun System.offscreenBoundsCheck() {
     if (ram.enemyState[x] == EnemyState.SPINY_EGG.byte) return
     //> cpy #PiranhaPlant       ;if piranha plant, do not erase
     if (enemyId == EnemyId.PiranhaPlant.byte) return
+    // SMB2J: cpy #UpsideDownPiranhaP; beq ExScrnBd — upside-down piranha also exempt
+    if (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.byte) return
     //> cpy #FlagpoleFlagObject ;if flagpole flag, do not erase
     if (enemyId == EnemyId.FlagpoleFlagObject.byte) return
     //> cpy #StarFlagObject     ;if star flag, do not erase

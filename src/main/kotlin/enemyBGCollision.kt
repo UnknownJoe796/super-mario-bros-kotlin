@@ -247,6 +247,8 @@ fun System.enemyToBGCollisionDet() {
     //> beq YesIn
     //> cpy #PowerUpObject       ;if special power-up object, branch
     //> beq YesIn
+    //> SMB2J: cpy #UpsideDownPiranhaP; beq ExIDBChk
+    if (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.id) return
     //> cpy #$07                 ;if enemy object =>$07, branch to leave
     //> bcs ExEBGChk
     if (enemyId != EnemyId.Spiny.id &&
@@ -384,10 +386,21 @@ private fun System.killEnemyAboveBlock(x: Int) {
 private fun System.shellOrBlockDefeatLocal(x: Int) {
     //> ShellOrBlockDefeat:
     val enemyId = ram.enemyID[x].toInt() and 0xFF
-    //> cmp #PiranhaPlant; bne StnE
-    if (enemyId == EnemyId.PiranhaPlant.id) {
+    // SMB2J checks for both PiranhaPlant and UpsideDownPiranhaP
+    val isPiranha = enemyId == EnemyId.PiranhaPlant.id ||
+        (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.id)
+    if (isPiranha) {
+        //> lda Enemy_Y_Position,x; adc #$18
+        // carry=1 from cmp (equal), so adc adds $18 + 1 = $19
         val yPos = ram.sprObjYPos[x + 1].toInt() and 0xFF
-        ram.sprObjYPos[x + 1] = (yPos + 0x18).toByte()
+        var newY = (yPos + 0x19) and 0xFF
+        //> SMB2J: cpy #UpsideDownPiranhaP; bne SetDY; sbc #$31
+        if (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.id) {
+            // carry=1 from cpy (equal), so sbc subtracts exactly $31
+            newY = (newY - 0x31) and 0xFF
+        }
+        //> SetDY: sta Enemy_Y_Position,x
+        ram.sprObjYPos[x + 1] = newY.toByte()
     }
     //> StnE: jsr ChkToStunEnemies
     chkToStunEnemiesLocal(x)
@@ -418,21 +431,34 @@ private fun System.chkToStunEnemiesLocal(x: Int) {
     //> ChkToStunEnemies:
     val enemyId = ram.enemyID[x].toInt() and 0xFF
 
-    //> cmp #$09; bcc SetStun
-    //> cmp #$11; bcs SetStun
+    //> cmp #$09; bcc SetStun/NoDemote
+    //> cmp #$11; bcs SetStun/NoDemote
     //> cmp #$0a; bcc Demote
-    //> cmp #PiranhaPlant; bcc SetStun
+    //> cmp #PiranhaPlant; bcc SetStun/NoDemote
+    //> SMB2J: cmp #UpsideDownPiranhaP; beq NoDemote
     if (enemyId in EnemyId.TallEnemy.id until EnemyId.Lakitu.id) {
-        if (enemyId < EnemyId.GreyCheepCheep.id || enemyId >= EnemyId.PiranhaPlant.id) {
+        val skipDemote = (enemyId >= EnemyId.GreyCheepCheep.id && enemyId < EnemyId.PiranhaPlant.id) ||
+            (variant == GameVariant.SMB2J && enemyId == EnemyId.PiranhaPlant.id) ||
+            (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.id)
+        if (!skipDemote) {
             //> Demote: and #%00000001; sta Enemy_ID,x
             ram.enemyID[x] = (enemyId and 0x01).toByte()
         }
-        // else: SetStun path (fall through to SetStun below)
     }
 
-    //> SetStun: lda Enemy_State,x; and #%11110000; ora #%00000010; sta Enemy_State,x
-    ram.enemyState[x] = (ram.enemyState.getEnemyState(x) and 0xF0 or 0x02).byte
-    //> dec Enemy_Y_Position,x; dec Enemy_Y_Position,x
+    if (variant == GameVariant.SMB2J) {
+        //> NoDemote: cmp #PowerUpObject; beq BounceOff
+        //> cmp #Goomba; beq BounceOff
+        //> lda #$02; sta Enemy_State,x (flat write, not preserving high nybble)
+        val currentA = ram.enemyID[x].toInt() and 0xFF
+        if (currentA != EnemyId.PowerUpObject.id && currentA != EnemyId.Goomba.id) {
+            ram.enemyState[x] = 0x02
+        }
+    } else {
+        //> SetStun: lda Enemy_State,x; and #%11110000; ora #%00000010; sta Enemy_State,x
+        ram.enemyState[x] = (ram.enemyState.getEnemyState(x) and 0xF0 or 0x02).byte
+    }
+    //> BounceOff/dec: dec Enemy_Y_Position,x; dec Enemy_Y_Position,x
     ram.sprObjYPos[x + 1] = (ram.sprObjYPos[x + 1] - 2).toByte()
 
     //> lda Enemy_ID,x; cmp #Bloober; beq SetWYSpd
@@ -797,6 +823,8 @@ private fun System.enemyTurnAroundLocal(x: Int) {
     val enemyId = ram.enemyID[x].toInt() and 0xFF
     //> cmp #PiranhaPlant; beq ExTA
     if (enemyId == EnemyId.PiranhaPlant.id) return
+    //> SMB2J: cmp #UpsideDownPiranhaP; beq ExTA
+    if (variant == GameVariant.SMB2J && enemyId == EnemyId.GreenKoopaVar.id) return
     //> cmp #Lakitu; beq ExTA
     if (enemyId == EnemyId.Lakitu.id) return
     //> cmp #HammerBro; beq ExTA
