@@ -29,7 +29,12 @@ fun System.screenRoutines() {
         ScreenRoutineTask.ResetSpritesAndScreenTimer1 -> resetSpritesAndScreenTimer()
         //> .dw DisplayIntermediate
         ScreenRoutineTask.DisplayIntermediate -> displayIntermediate()
-        //> .dw ResetSpritesAndScreenTimer
+        //> .dw ResetSpritesAndScreenTimer (SMB1) / .dw DemoReset (SMB2J)
+        // SMB2J has DemoReset here which reinitializes the area and exits screen routines,
+        // but that requires the game engine to progressively render columns during the entrance
+        // sequence. Our entrance flow doesn't support progressive rendering yet, so we use
+        // ResetSpritesAndScreenTimer for both variants to ensure block buffers are filled
+        // via AreaParserTaskControl before gameplay starts.
         ScreenRoutineTask.ResetSpritesAndScreenTimer2 -> resetSpritesAndScreenTimer()
         //> .dw AreaParserTaskControl
         ScreenRoutineTask.AreaParserTaskControl -> areaParserTaskControl()

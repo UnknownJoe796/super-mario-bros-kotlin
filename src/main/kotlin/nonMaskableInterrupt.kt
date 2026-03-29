@@ -191,7 +191,14 @@ fun System.nonMaskableInterrupt() {
     ppu.scroll(ram.horizontalScroll, ram.verticalScroll)
 
     //> lda Mirror_PPU_CTRL_REG1  ;load saved mirror of $2000
-    val reg1temp = ram.mirrorPPUCTRLREG1
+    var reg1temp = ram.mirrorPPUCTRLREG1
+    // SMB2J (FDS): NameTableSelect is written to $4025 bit 3 to control nametable mirroring.
+    // Replicate by patching bit 0 of the PPU control register with nameTableSelect.
+    if (variant == GameVariant.SMB2J) {
+        reg1temp = reg1temp.copy(
+            baseNametableAddress = ((reg1temp.baseNametableAddress.toInt() and 0x2) or (ram.nameTableSelect.toInt() and 0x1)).toByte()
+        )
+    }
     //> pha
     ram.stack.push(reg1temp.byte)
     //> sta PPU_CTRL_REG1

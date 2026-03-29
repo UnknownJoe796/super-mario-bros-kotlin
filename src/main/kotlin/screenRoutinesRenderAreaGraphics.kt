@@ -51,6 +51,7 @@ fun System.renderAreaGraphics() {
 
     // We will build a sequence of 26 tile IDs written vertically (increment by 32 between bytes).
     val patternIds = ArrayList<Int>(26)
+    val mtGfx = metatileGraphicsTable(variant)
 
     // DrawMTLoop:
     while (true) {
@@ -98,7 +99,7 @@ fun System.renderAreaGraphics() {
         // mtVal layout: %aabbcccc where aa=attribute group, cccc=metatile index low bits
         val attributeBits = (metatileVal shr 6) and 0x03u
         val metatileIndex = metatileVal and 0x3Fu
-        val group = metatileGraphics[attributeBits.toInt().coerceIn(0, metatileGraphics.lastIndex)]
+        val group = mtGfx[attributeBits.toInt().coerceIn(0, mtGfx.lastIndex)]
         val metatile = group[metatileIndex.toInt().coerceIn(0, group.lastIndex)]
         val metatileUsesLeft = columnSide shr 1 == 0.toByte()
         val tileTop = if(metatileUsesLeft) metatile.topLeft else metatile.topRight
