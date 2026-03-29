@@ -1228,7 +1228,8 @@ internal fun System.initPiranhaPlant() {
 }
 
 /**
- * Initializes jumping green paratroopa: moving left, speed $f8, bbox $03.
+ * Initializes jumping green paratroopa: moving left, bbox $03.
+ * SMB1 uses speed $f8; SMB2J uses $f4 (faster).
  */
 private fun System.initJumpGPTroopa() {
     val x = ram.objectOffset.toInt() and 0xFF
@@ -1238,9 +1239,9 @@ private fun System.initJumpGPTroopa() {
     //> sta Enemy_MovingDir,x
     ram.enemyMovingDirs[x] = 2
 
-    //> lda #$f8                  ;set horizontal speed
+    //> lda #$f8 (SMB1) / lda #$f4 (SMB2J)  ;set horizontal speed
     //> sta Enemy_X_Speed,x
-    ram.sprObjXSpeed[1 + x] = 0xf8.toByte()
+    ram.sprObjXSpeed[1 + x] = if (variant == GameVariant.SMB2J) 0xf4.toByte() else 0xf8.toByte()
 
     //> TallBBox2: lda #$03       ;set specific value for bounding box control
     //> SetBBox2:  sta Enemy_BoundBoxCtrl,x  ;set bounding box control then leave
