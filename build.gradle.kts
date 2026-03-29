@@ -44,6 +44,23 @@ tasks.test {
     useJUnitPlatform()
     maxHeapSize = "1g"
 }
+
+tasks.register<JavaExec>("runSmb2j") {
+    description = "Run Super Mario Bros. 2 (The Lost Levels) as Mario"
+    group = "application"
+    mainClass.set("com.ivieleague.smbtranslation.MainKt")
+    classpath = sourceSets["main"].runtimeClasspath
+    systemProperty("smb.variant", "smb2j")
+}
+
+tasks.register<JavaExec>("runSmb2jLuigi") {
+    description = "Run Super Mario Bros. 2 (The Lost Levels) as Luigi"
+    group = "application"
+    mainClass.set("com.ivieleague.smbtranslation.MainKt")
+    classpath = sourceSets["main"].runtimeClasspath
+    systemProperty("smb.variant", "smb2j")
+    systemProperty("smb.character", "luigi")
+}
 kotlin {
     jvmToolchain(17)
 }
