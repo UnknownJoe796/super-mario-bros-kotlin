@@ -101,24 +101,32 @@ private val EnemyGraphicsTable = byteArrayOf(
 )
 
 //> EnemyGfxTableOffsets:
-//>       .db $0c, $0c, $00, $0c, $0c, $a8, $54, $3c
-//>       .db $ea, $18, $48, $48, $cc, $c0, $18, $18
-//>       .db $18, $90, $24, $ff, $48, $9c, $d2, $d8
-//>       .db $f0, $f6, $fc
-private val EnemyGfxTableOffsets = intArrayOf(
+//>   SMB1: index 4 (PiranhaPlant) = $0c
+//>   SMB2J: index 4 (PiranhaPlant) = $c0 (uses own piranha plant tiles)
+private val EnemyGfxTableOffsets_SMB1 = intArrayOf(
     0x0c, 0x0c, 0x00, 0x0c, 0x0c, 0xa8, 0x54, 0x3c,
+    0xea, 0x18, 0x48, 0x48, 0xcc, 0xc0, 0x18, 0x18,
+    0x18, 0x90, 0x24, 0xff, 0x48, 0x9c, 0xd2, 0xd8,
+    0xf0, 0xf6, 0xfc
+)
+private val EnemyGfxTableOffsets_SMB2J = intArrayOf(
+    0x0c, 0x0c, 0x00, 0x0c, 0xc0, 0xa8, 0x54, 0x3c,
     0xea, 0x18, 0x48, 0x48, 0xcc, 0xc0, 0x18, 0x18,
     0x18, 0x90, 0x24, 0xff, 0x48, 0x9c, 0xd2, 0xd8,
     0xf0, 0xf6, 0xfc
 )
 
 //> EnemyAttributeData:
-//>       .db $01, $02, $03, $02, $01, $01, $03, $03
-//>       .db $03, $01, $01, $02, $02, $21, $01, $02
-//>       .db $01, $01, $02, $ff, $02, $02, $01, $01
-//>       .db $02, $02, $02
-private val EnemyAttributeData = intArrayOf(
+//>   SMB1: index 4 (PiranhaPlant) = $01
+//>   SMB2J: index 4 (PiranhaPlant) = $22 (default red, patched at runtime)
+private val EnemyAttributeData_SMB1 = intArrayOf(
     0x01, 0x02, 0x03, 0x02, 0x01, 0x01, 0x03, 0x03,
+    0x03, 0x01, 0x01, 0x02, 0x02, 0x21, 0x01, 0x02,
+    0x01, 0x01, 0x02, 0xff, 0x02, 0x02, 0x01, 0x01,
+    0x02, 0x02, 0x02
+)
+private val EnemyAttributeData_SMB2J = intArrayOf(
+    0x01, 0x02, 0x03, 0x02, 0x22, 0x01, 0x03, 0x03,
     0x03, 0x01, 0x01, 0x02, 0x02, 0x21, 0x01, 0x02,
     0x01, 0x01, 0x02, 0xff, 0x02, 0x02, 0x01, 0x01,
     0x02, 0x02, 0x02
@@ -303,12 +311,14 @@ fun System.enemyGfxHandler() {
     //> ora $04                     ;as offset, and add to bits already loaded
     //> sta $04
     // SMB2J patches EnemyAttributeData[PiranhaPlant] at runtime (red=$22 vs green=$21)
+    val enemyAttributeData = if (variant == GameVariant.SMB2J) EnemyAttributeData_SMB2J else EnemyAttributeData_SMB1
     val enemyAttr = if (variant == GameVariant.SMB2J && enemyCode == EnemyId.PiranhaPlant.id)
-        ram.piranhaPlantAttribute else EnemyAttributeData[enemyCode]
+        ram.piranhaPlantAttribute else enemyAttributeData[enemyCode]
     attribs = (attribs.toInt() or enemyAttr).toByte()
     //> lda EnemyGfxTableOffsets,y  ;load value based on enemy object as offset
     //> tax                         ;save as X
-    gfxTableOfs = EnemyGfxTableOffsets[enemyCode]
+    val enemyGfxTableOffsets = if (variant == GameVariant.SMB2J) EnemyGfxTableOffsets_SMB2J else EnemyGfxTableOffsets_SMB1
+    gfxTableOfs = enemyGfxTableOffsets[enemyCode]
     //> ldy $ec                     ;get previously saved value
     // altState = savedAltState (already set)
 

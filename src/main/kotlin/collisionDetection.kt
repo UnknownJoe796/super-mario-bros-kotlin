@@ -12,10 +12,16 @@ import kotlin.experimental.or
 // ---------------------------------------------------------------------------
 
 //> BowserIdentities:
-//>       .db Goomba, GreenKoopa, BuzzyBeetle, Spiny, Lakitu, Bloober, HammerBro, Bowser
-private val bowserIdentities = byteArrayOf(
+//>   SMB1: Goomba, GreenKoopa, BuzzyBeetle, Spiny, Lakitu, Bloober, HammerBro, Bowser
+//>   SMB2J: same + extra Bowser for World 9
+private val bowserIdentities_SMB1 = byteArrayOf(
     EnemyId.Goomba.byte, EnemyId.GreenKoopa.byte, EnemyId.BuzzyBeetle.byte, EnemyId.Spiny.byte,
     EnemyId.Lakitu.byte, EnemyId.Bloober.byte, EnemyId.HammerBro.byte, EnemyId.Bowser.byte
+)
+private val bowserIdentities_SMB2J = byteArrayOf(
+    EnemyId.Goomba.byte, EnemyId.GreenKoopa.byte, EnemyId.BuzzyBeetle.byte, EnemyId.Spiny.byte,
+    EnemyId.Lakitu.byte, EnemyId.Bloober.byte, EnemyId.HammerBro.byte, EnemyId.Bowser.byte,
+    EnemyId.Bowser.byte // World 9
 )
 
 //> ResidualXSpdData:
@@ -63,12 +69,16 @@ private val playerBGUpperExtent = byteArrayOf(0x20, 0x10)
 private val blockBufferAdderData = byteArrayOf(0x00, 0x07, 0x0e)
 
 //> SolidMTileUpperExt:
-//>       .db $10, $61, $88, $c4
-private val solidMTileUpperExt = byteArrayOf(0x10, 0x61, 0x88.toByte(), 0xc4.toByte())
+//>   SMB1: .db $10, $61, $88, $c4
+//>   SMB2J: .db $10, $62, $88, $c5
+private val solidMTileUpperExt_SMB1 = byteArrayOf(0x10, 0x61, 0x88.toByte(), 0xc4.toByte())
+private val solidMTileUpperExt_SMB2J = byteArrayOf(0x10, 0x62, 0x88.toByte(), 0xc5.toByte())
 
 //> ClimbMTileUpperExt:
-//>       .db $24, $6d, $8a, $c6
-private val climbMTileUpperExt = byteArrayOf(0x24, 0x6d, 0x8a.toByte(), 0xc6.toByte())
+//>   SMB1: .db $24, $6d, $8a, $c6
+//>   SMB2J: .db $21, $6f, $8d, $c7
+private val climbMTileUpperExt_SMB1 = byteArrayOf(0x24, 0x6d, 0x8a.toByte(), 0xc6.toByte())
+private val climbMTileUpperExt_SMB2J = byteArrayOf(0x21, 0x6f, 0x8d.toByte(), 0xc7.toByte())
 
 //> AreaChangeTimerData:
 //>       .db $a0, $34
@@ -478,11 +488,12 @@ private fun getMTileAttrib(metatile: Int): Pair<Int, Int> {
  * Checks if the metatile is a solid block.
  * @return true if solid (carry set), the metatile value is compared against threshold
  */
-private fun checkForSolidMTiles(metatile: Int): Boolean {
+private fun checkForSolidMTiles(metatile: Int, variant: GameVariant): Boolean {
     //> CheckForSolidMTiles:
     //> jsr GetMTileAttrib
     //> cmp SolidMTileUpperExt,x
     val (mt, offset) = getMTileAttrib(metatile)
+    val solidMTileUpperExt = if (variant == GameVariant.SMB2J) solidMTileUpperExt_SMB2J else solidMTileUpperExt_SMB1
     val threshold = solidMTileUpperExt[offset].toInt() and 0xFF
     return mt >= threshold  // carry set if metatile >= threshold
 }
@@ -491,11 +502,12 @@ private fun checkForSolidMTiles(metatile: Int): Boolean {
  * Checks if the metatile is climbable.
  * @return true if climbable (carry set)
  */
-private fun checkForClimbMTiles(metatile: Int): Boolean {
+private fun checkForClimbMTiles(metatile: Int, variant: GameVariant): Boolean {
     //> CheckForClimbMTiles:
     //> jsr GetMTileAttrib
     //> cmp ClimbMTileUpperExt,x
     val (mt, offset) = getMTileAttrib(metatile)
+    val climbMTileUpperExt = if (variant == GameVariant.SMB2J) climbMTileUpperExt_SMB2J else climbMTileUpperExt_SMB1
     val threshold = climbMTileUpperExt[offset].toInt() and 0xFF
     return mt >= threshold
 }
@@ -513,7 +525,7 @@ private fun System.checkForCoinMTiles(metatile: Int): Boolean {
     //> clc; rts
     //> CoinSd: lda #Sfx_CoinGrab; sta Square2SoundQueue
     val mt = metatile and 0xFF
-    if (mt == MetatileId.COIN || mt == MetatileId.UNDERWATER_COIN) {
+    if (mt == metatileId.COIN || mt == metatileId.UNDERWATER_COIN) {
         ram.square2SoundQueue = Constants.Sfx_CoinGrab
         return true
     }
@@ -528,7 +540,7 @@ private fun System.chkInvisibleMTiles(metatile: Int): Boolean {
     //> ChkInvisibleMTiles:
     val mt = metatile and 0xFF
     // SMB1: $5f (hidden coin), $60 (hidden 1-up)
-    if (mt == MetatileId.HIDDEN_COIN_BLOCK || mt == MetatileId.HIDDEN_1UP_BLOCK) return true
+    if (mt == metatileId.HIDDEN_COIN_BLOCK || mt == metatileId.HIDDEN_1UP_BLOCK) return true
     // SMB2J adds: $5e (hidden coin), $61 (hidden power-up)
     if (variant == GameVariant.SMB2J && (mt == 0x5e || mt == 0x61)) return true
     return false
@@ -541,8 +553,8 @@ private fun System.chkInvisibleMTiles(metatile: Int): Boolean {
 private fun System.chkForNonSolids(metatile: Int): Boolean {
     //> ChkForNonSolids:
     val mt = metatile and 0xFF
-    if (mt == MetatileId.VINE_METATILE || mt == MetatileId.COIN || mt == MetatileId.UNDERWATER_COIN) return true
-    if (mt == MetatileId.HIDDEN_COIN_BLOCK || mt == MetatileId.HIDDEN_1UP_BLOCK) return true
+    if (mt == metatileId.VINE_METATILE || mt == metatileId.COIN || mt == metatileId.UNDERWATER_COIN) return true
+    if (mt == metatileId.HIDDEN_COIN_BLOCK || mt == metatileId.HIDDEN_1UP_BLOCK) return true
     // SMB2J adds $5e (hidden coin) and $61 (hidden power-up) as non-solid
     if (variant == GameVariant.SMB2J && (mt == 0x5e || mt == 0x61)) return true
     return false
@@ -552,7 +564,7 @@ private fun System.chkForNonSolids(metatile: Int): Boolean {
  * Checks for jumpspring metatiles.
  * @return true if jumpspring found (carry set)
  */
-private fun chkJumpspringMetatiles(metatile: Int): Boolean {
+private fun chkJumpspringMetatiles(metatile: Int, mtId: MetatileId): Boolean {
     //> ChkJumpspringMetatiles:
     //> cmp #$67      ;check for top jumpspring metatile
     //> beq JSFnd
@@ -561,7 +573,7 @@ private fun chkJumpspringMetatiles(metatile: Int): Boolean {
     //> JSFnd:   sec           ;set carry if found
     //> NoJSFnd: rts           ;leave
     val mt = metatile and 0xFF
-    return mt == MetatileId.JUMPSPRING_TOP || mt == MetatileId.JUMPSPRING_BOTTOM
+    return mt == mtId.JUMPSPRING_TOP || mt == mtId.JUMPSPRING_BOTTOM
 }
 
 // =====================================================================
@@ -892,7 +904,8 @@ private fun System.hurtBowser(bowserIdx: Int, enemyIdx: Int) {
     //> ldy WorldNumber
     val worldNum = ram.worldNumber.toInt() and 0xFF
     //> lda BowserIdentities,y; sta Enemy_ID,x
-    ram.enemyID[bowserIdx] = bowserIdentities[worldNum.coerceIn(0, 7)]
+    val bowserIdentities = if (variant == GameVariant.SMB2J) bowserIdentities_SMB2J else bowserIdentities_SMB1
+    ram.enemyID[bowserIdx] = bowserIdentities[worldNum.coerceIn(0, bowserIdentities.size - 1)]
     //> lda #$20
     var state = EnemyState.DEFEATED.toInt()
     //> cpy #$03; bcs SetDBSte
@@ -1597,10 +1610,10 @@ fun System.playerBGCollision() {
                 //> ldy $04; cpy #$04; bcc DoFootCheck
                 if (headResult.lowNybble >= 0x04) {
                     //> jsr CheckForSolidMTiles; bcs SolidOrClimb
-                    if (checkForSolidMTiles(headMT)) {
+                    if (checkForSolidMTiles(headMT, variant)) {
                         //> SolidOrClimb:
                         //> cmp #$26; beq NYSpd  ;climbing metatile, no sound
-                        if (headMT != MetatileId.VINE_METATILE) {
+                        if (headMT != metatileId.VINE_METATILE) {
                             //> lda #Sfx_Bump; sta Square1SoundQueue
                             ram.square1SoundQueue = Constants.Sfx_Bump
                         }
@@ -1675,13 +1688,13 @@ fun System.playerBGCollision() {
 private fun System.processFootMetatile(metatile: Int, result: BlockBufferResult, rightFootMT: Int, adderY: Int): Boolean {
     //> ChkFootMTile:
     //> jsr CheckForClimbMTiles; bcs DoPlayerSideCheck
-    if (checkForClimbMTiles(metatile)) return false  // falls through to side check
+    if (checkForClimbMTiles(metatile, variant)) return false  // falls through to side check
 
     //> ldy Player_Y_Speed; bmi DoPlayerSideCheck
     if (ram.playerYSpeed < 0) return false
 
     //> cmp #$c5; bne ContChk
-    if (metatile == MetatileId.AXE) {
+    if (metatile == metatileId.AXE) {
         //> jmp HandleAxeMetatile  — exits PlayerBGCollision entirely
         handleAxeMetatile(result)
         return true
@@ -1746,9 +1759,9 @@ private fun System.doPlayerSideCheck(bbAdderBase: Int) {
             if (sideMT != 0) {
                 //> cmp #$1c; beq BHalf  ;sideways pipe top
                 //> cmp #$6b; beq BHalf  ;water pipe top
-                if (sideMT != MetatileId.SIDE_PIPE_JOINT_TOP && sideMT != MetatileId.WATER_PIPE_TOP) {
+                if (sideMT != metatileId.SIDE_PIPE_JOINT_TOP && sideMT != metatileId.WATER_PIPE_TOP) {
                     //> jsr CheckForClimbMTiles; bcc CheckSideMTiles
-                    if (checkForClimbMTiles(sideMT)) {
+                    if (checkForClimbMTiles(sideMT, variant)) {
                         // climbable: skip to BHalf
                     } else {
                         checkSideMTiles(sideMT, sideResult, counter)
@@ -1787,7 +1800,7 @@ private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult, sid
     if (chkInvisibleMTiles(metatile)) return
 
     //> jsr CheckForClimbMTiles; bcc ContSChk
-    if (checkForClimbMTiles(metatile)) {
+    if (checkForClimbMTiles(metatile, variant)) {
         //> jmp HandleClimbing
         handleClimbing(metatile, result)
         return
@@ -1800,7 +1813,7 @@ private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult, sid
     }
 
     //> jsr ChkJumpspringMetatiles; bcc ChkPBtm
-    if (chkJumpspringMetatiles(metatile)) {
+    if (chkJumpspringMetatiles(metatile, metatileId)) {
         //> lda JumpspringAnimCtrl; bne ExCSM
         if (ram.jumpspringAnimCtrl != 0.toByte()) return
         //> jmp StopPlayerMove
@@ -1822,7 +1835,7 @@ private fun System.checkSideMTiles(metatile: Int, result: BlockBufferResult, sid
 
     //> cmp #$6c; beq PipeDwnS
     //> cmp #$1f; bne StopPlayerMove
-    if (metatile != MetatileId.WATER_PIPE_BOTTOM && metatile != MetatileId.SIDE_PIPE_JOINT_BOTTOM) {
+    if (metatile != metatileId.WATER_PIPE_BOTTOM && metatile != metatileId.SIDE_PIPE_JOINT_BOTTOM) {
         stopPlayerMove(sideCounter)
         return
     }
@@ -1980,13 +1993,13 @@ private fun System.handleClimbing(metatile: Int, result: BlockBufferResult) {
     //> ChkForFlagpole:
     //> bne VineCollision      ;branch to alternate code if flagpole shaft not found
     //> beq FlagpoleCollision  ;branch if flagpole ball found
-    if (metatile == MetatileId.FLAGPOLE_BALL || metatile == MetatileId.FLAGPOLE_SHAFT) {
+    if (metatile == metatileId.FLAGPOLE_BALL || metatile == metatileId.FLAGPOLE_SHAFT) {
         //> FlagpoleCollision:
         flagpoleCollision(metatile)
         //> jmp PutPlayerOnVine  ;all FlagpoleCollision paths fall through to PutPlayerOnVine
         putPlayerOnVine(result)
         return
-    } else if (metatile == MetatileId.VINE_METATILE) {
+    } else if (metatile == metatileId.VINE_METATILE) {
         //> VineCollision:
         //> bcs PutPlayerOnVine       ;branch if not that far up
         //> bne PutPlayerOnVine
@@ -2109,9 +2122,9 @@ private fun System.handlePipeEntry(rightFootMT: Int, leftFootMT: Int) {
     if ((ram.upDownButtons.toInt() and 0x04) == 0) return
 
     //> lda $00; cmp #$11; bne ExPipeE  ;check right foot for warp pipe right
-    if ((rightFootMT and 0xFF) != MetatileId.WARP_PIPE_TOP_RIGHT) return
+    if ((rightFootMT and 0xFF) != metatileId.WARP_PIPE_TOP_RIGHT) return
     //> lda $01; cmp #$10; bne ExPipeE  ;check left foot for warp pipe left
-    if ((leftFootMT and 0xFF) != MetatileId.WARP_PIPE_TOP_LEFT) return
+    if ((leftFootMT and 0xFF) != metatileId.WARP_PIPE_TOP_LEFT) return
 
     //> lda #$30; sta ChangeAreaTimer
     ram.changeAreaTimer = 0x30
@@ -2149,7 +2162,7 @@ private fun System.chkForLandJumpSpring(metatile: Int) {
     //> ChkForLandJumpSpring:
     //> bcc ExCJSp                  ;if carry not set, jumpspring not found, therefore leave
     //> ExCJSp: rts                         ;and leave
-    if (!chkJumpspringMetatiles(metatile)) return
+    if (!chkJumpspringMetatiles(metatile, metatileId)) return
 
     //> lda #$70; sta VerticalForce
     ram.verticalForce = 0x70

@@ -20,26 +20,27 @@ private val vineHeightData = intArrayOf(0x30, 0x60)
 private val vineYPosAdder = intArrayOf(0x00, 0x30)
 
 //> PowerUpGfxTable:
-//>       .db $76, $77, $78, $79 ;regular mushroom
-//>       .db $d6, $d6, $d9, $d9 ;fire flower
-//>       .db $8d, $8d, $e4, $e4 ;star
-//>       .db $76, $77, $78, $79 ;1-up mushroom
-// by Claude
-private val powerUpGfxTable = byteArrayOf(
+//>   SMB1: $76,$77,$78,$79 / $d6,$d6,$d9,$d9 / $8d,$8d,$e4,$e4 / $76,$77,$78,$79
+//>   SMB2J: $d8,$da,$db,$ff / $d6,$d6,$d9,$d9 / $8d,$8d,$e4,$e4 / $d8,$da,$db,$ff / $d8,$da,$db,$ff
+private val powerUpGfxTable_SMB1 = byteArrayOf(
     0x76, 0x77, 0x78, 0x79,       // regular mushroom
     0xd6.toByte(), 0xd6.toByte(), 0xd9.toByte(), 0xd9.toByte(), // fire flower
     0x8d.toByte(), 0x8d.toByte(), 0xe4.toByte(), 0xe4.toByte(), // star
     0x76, 0x77, 0x78, 0x79,       // 1-up mushroom
-    // SMB2J: poison mushroom (type $04) — on NES, reads past table into next ROM data.
-    // Uses same tiles as regular mushroom (palette makes it look different).
-    0x76, 0x77, 0x78, 0x79
+)
+private val powerUpGfxTable_SMB2J = byteArrayOf(
+    0xd8.toByte(), 0xda.toByte(), 0xdb.toByte(), 0xff.toByte(), // regular mushroom
+    0xd6.toByte(), 0xd6.toByte(), 0xd9.toByte(), 0xd9.toByte(), // fire flower
+    0x8d.toByte(), 0x8d.toByte(), 0xe4.toByte(), 0xe4.toByte(), // star
+    0xd8.toByte(), 0xda.toByte(), 0xdb.toByte(), 0xff.toByte(), // 1-up mushroom
+    0xd8.toByte(), 0xda.toByte(), 0xdb.toByte(), 0xff.toByte(), // poison mushroom
 )
 
 //> PowerUpAttributes:
-//>       .db $02, $01, $02, $01
-// by Claude - SMB2J adds poison mushroom (type $04); on NES it reads the next ROM byte
-// which is $01 (first byte of PowerUpGfxTable). Add that to avoid index-out-of-bounds.
-private val powerUpAttributes = byteArrayOf(0x02, 0x01, 0x02, 0x01, 0x01)
+//>   SMB1: $02, $01, $02, $01
+//>   SMB2J: $02, $01, $02, $01, $03 (poison mushroom uses palette 3)
+private val powerUpAttributes_SMB1 = byteArrayOf(0x02, 0x01, 0x02, 0x01)
+private val powerUpAttributes_SMB2J = byteArrayOf(0x02, 0x01, 0x02, 0x01, 0x03)
 
 // -------------------------------------------------------------------------------------
 // PowerUpObjHandler
@@ -422,7 +423,7 @@ fun System.enemyJump() {
 
     //> jsr ChkForNonSolids   ;check for non-solid blocks
     //> beq DoSide
-    if (chkForNonSolidsLocal(underResult.metatile.toInt() and 0xFF)) {
+    if (chkForNonSolidsLocal(underResult.metatile.toInt() and 0xFF, metatileId)) {
         doEnemySideCheck(x)
         return
     }
@@ -468,7 +469,8 @@ private fun System.drawPowerUp() {
     //> lda PowerUpAttributes,x    ;get attribute data for power-up type
     //> ora Enemy_SprAttrib+5      ;add background priority bit if set
     //> sta $04                    ;store attributes here
-    val baseAttribs = (powerUpAttributes[puType].toInt() and 0xFF) or
+    val powerUpAttributes = if (variant == GameVariant.SMB2J) powerUpAttributes_SMB2J else powerUpAttributes_SMB1
+    val baseAttribs = (powerUpAttributes[puType.coerceIn(0, powerUpAttributes.size - 1)].toInt() and 0xFF) or
             (ram.sprAttrib[6].toInt() and 0xFF)  // by Claude - Enemy_SprAttrib+5 = sprAttrib[6]
 
     //> txa; pha                   ;save power-up type to the stack
@@ -487,8 +489,9 @@ private fun System.drawPowerUp() {
         //> sta $00
         //> lda PowerUpGfxTable+1,x    ;load right tile
         //> jsr DrawOneSpriteRow       ;branch to draw one row
-        val tile0 = powerUpGfxTable[tblOfs]
-        val tile1 = powerUpGfxTable[tblOfs + 1]
+        val powerUpGfxTable = if (variant == GameVariant.SMB2J) powerUpGfxTable_SMB2J else powerUpGfxTable_SMB1
+        val tile0 = powerUpGfxTable[tblOfs.coerceIn(0, powerUpGfxTable.size - 2)]
+        val tile1 = powerUpGfxTable[(tblOfs + 1).coerceIn(0, powerUpGfxTable.size - 1)]
 
         // Draw two side-by-side sprites (one row)
         ram.sprites[sprIdx].tilenumber = tile0

@@ -529,7 +529,7 @@ fun System.drawBlock() {
     //> ChkRep:    lda Block_Metatile,x          ;check replacement metatile
     //> cmp #$c4                      ;if not used block metatile, then
     //> bne BlkOffscr                 ;branch ahead to use current graphics
-    if (ram.blockMetatile[x] == MetatileId.EMPTY_BLOCK.toByte()) {
+    if (ram.blockMetatile[x] == metatileId.EMPTY_BLOCK.toByte()) {
         //> lda #$87                      ;set A for used block tile
         //> iny                           ;increment Y to write to tile bytes
         //> jsr DumpFourSpr               ;do sub to dump into all four sprites

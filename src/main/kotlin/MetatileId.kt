@@ -2,56 +2,69 @@
 package com.ivieleague.smbtranslation
 
 /**
- * Named constants for NES metatile IDs (0x00-0xEB).
- * Metatiles are 16x16 pixel background tiles stored in the block buffer.
- * Values are Int because metatile comparisons use `toInt() and 0xFF` throughout.
+ * Named constants for NES metatile IDs.
+ * Metatile IDs encode palette in the top 2 bits and index within the palette group in the lower 6 bits.
+ * SMB2J has different metatile tables (shifted entries) so many IDs differ from SMB1.
  */
-object MetatileId {
-    // Pipe metatiles (vertical)
-    const val WARP_PIPE_TOP_LEFT: Int = 0x10   // pipe top that leads somewhere (left half)
-    const val WARP_PIPE_TOP_RIGHT: Int = 0x11  // pipe top that leads somewhere (right half)
+class MetatileId private constructor(val variant: GameVariant) {
+    // Pipe metatiles (vertical) -- same in both games
+    val WARP_PIPE_TOP_LEFT: Int = 0x10   // pipe top that leads somewhere (left half)
+    val WARP_PIPE_TOP_RIGHT: Int = 0x11  // pipe top that leads somewhere (right half)
 
     // Sideways pipe joints (where horizontal meets vertical)
-    const val SIDE_PIPE_JOINT_TOP: Int = 0x1c  // sideways pipe joint, top row
-    const val SIDE_PIPE_JOINT_BOTTOM: Int = 0x1f // sideways pipe joint, bottom row
+    val SIDE_PIPE_JOINT_TOP: Int = if (variant == GameVariant.SMB2J) 0x19 else 0x1c
+    val SIDE_PIPE_JOINT_BOTTOM: Int = if (variant == GameVariant.SMB2J) 0x1c else 0x1f
 
     // Used/bumped block (visually blank after being hit from below)
-    const val USED_BLOCK: Int = 0x23
+    val USED_BLOCK: Int = if (variant == GameVariant.SMB2J) 0x20 else 0x23
 
     // Flagpole
-    const val FLAGPOLE_BALL: Int = 0x24
-    const val FLAGPOLE_SHAFT: Int = 0x25
+    val FLAGPOLE_BALL: Int = if (variant == GameVariant.SMB2J) 0x21 else 0x24
+    val FLAGPOLE_SHAFT: Int = if (variant == GameVariant.SMB2J) 0x22 else 0x25
 
     // Vine/climbable blank
-    const val VINE_METATILE: Int = 0x26
+    val VINE_METATILE: Int = if (variant == GameVariant.SMB2J) 0x23 else 0x26
 
     // Brick variants — with visible line (area style 1)
-    const val BREAKABLE_BRICK_WITH_LINE: Int = 0x51
-    const val BREAKABLE_BRICK_WITHOUT_LINE: Int = 0x52
+    val BREAKABLE_BRICK_WITH_LINE: Int = if (variant == GameVariant.SMB2J) 0x4f else 0x51
+    val BREAKABLE_BRICK_WITHOUT_LINE: Int = if (variant == GameVariant.SMB2J) 0x50 else 0x52
 
     // Brick with coins — two visual styles
-    const val BRICK_WITH_COINS_WITH_LINE: Int = 0x58
-    const val BRICK_WITH_COINS_WITHOUT_LINE: Int = 0x5d
+    val BRICK_WITH_COINS_WITH_LINE: Int = if (variant == GameVariant.SMB2J) 0x56 else 0x58
+    val BRICK_WITH_COINS_WITHOUT_LINE: Int = if (variant == GameVariant.SMB2J) 0x5c else 0x5d
 
     // Hidden blocks (invisible until hit from below)
-    const val HIDDEN_COIN_BLOCK: Int = 0x5f
-    const val HIDDEN_1UP_BLOCK: Int = 0x60  // SMB2J: also used as hidden poison mushroom block
+    val HIDDEN_COIN_BLOCK: Int = if (variant == GameVariant.SMB2J) 0x5e else 0x5f
+    val HIDDEN_1UP_BLOCK: Int = if (variant == GameVariant.SMB2J) 0x5f else 0x60
 
     // Jumpspring
-    const val JUMPSPRING_TOP: Int = 0x67
-    const val JUMPSPRING_BOTTOM: Int = 0x68
+    val JUMPSPRING_TOP: Int = if (variant == GameVariant.SMB2J) 0x65 else 0x67
+    val JUMPSPRING_BOTTOM: Int = if (variant == GameVariant.SMB2J) 0x66 else 0x68
 
     // Water pipe (vertical, in water areas)
-    const val WATER_PIPE_TOP: Int = 0x6b
-    const val WATER_PIPE_BOTTOM: Int = 0x6c
+    val WATER_PIPE_TOP: Int = if (variant == GameVariant.SMB2J) 0x6d else 0x6b
+    val WATER_PIPE_BOTTOM: Int = if (variant == GameVariant.SMB2J) 0x6e else 0x6c
 
     // Coins
-    const val COIN: Int = 0xc2
-    const val UNDERWATER_COIN: Int = 0xc3
+    val COIN: Int = if (variant == GameVariant.SMB2J) 0xc3 else 0xc2
+    val UNDERWATER_COIN: Int = if (variant == GameVariant.SMB2J) 0xc4 else 0xc3
 
     // Empty block (question block or brick after contents removed)
-    const val EMPTY_BLOCK: Int = 0xc4
+    val EMPTY_BLOCK: Int = if (variant == GameVariant.SMB2J) 0xc5 else 0xc4
 
     // Axe (end of Bowser's bridge)
-    const val AXE: Int = 0xc5
+    val AXE: Int = if (variant == GameVariant.SMB2J) 0xc6 else 0xc5
+
+    companion object {
+        private val SMB1 = MetatileId(GameVariant.SMB1)
+        private val SMB2J = MetatileId(GameVariant.SMB2J)
+
+        fun forVariant(variant: GameVariant): MetatileId = when (variant) {
+            GameVariant.SMB1 -> SMB1
+            GameVariant.SMB2J -> SMB2J
+        }
+    }
 }
+
+/** Convenience accessor for the variant-appropriate MetatileId from a System context. */
+val System.metatileId: MetatileId get() = MetatileId.forVariant(variant)

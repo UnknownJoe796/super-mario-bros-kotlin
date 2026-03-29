@@ -24,44 +24,30 @@ fun System.verticalPipe() {
     //> pha
     val savedY = horizOffset
 
-    //> lda AreaNumber
-    //> ora WorldNumber          ;if at world 1-1, do not add piranha plant ever
-    //> beq DrawPipe
-    if ((ram.areaNumber.toInt() or ram.worldNumber.toInt()) != 0) {
-        //> ldy AreaObjectLength,x   ;if on second column of pipe, branch
-        //> beq DrawPipe             ;(because we only need to do this once)
-        if (ram.areaObjectLength[x.toInt()] != 0.toByte()) {
-            //> jsr FindEmptyEnemySlot   ;check for an empty moving data buffer space
-            //> bcs DrawPipe             ;if not found, too many enemies, thus skip
-            val slot = findEmptyEnemySlot()
-            if (slot != null) {
-                //> jsr GetAreaObjXPosition  ;get horizontal pixel coordinate
-                //> clc
-                //> adc #$08                 ;add eight to put the piranha plant in the center
-                val xPos = (getAreaObjXPosition().toInt() and 0xFF) + 8
-                //> sta Enemy_X_Position,x   ;store as enemy's horizontal coordinate
-                ram.sprObjXPos[1 + slot] = (xPos and 0xFF).toByte()
-                //> lda CurrentPageLoc       ;add carry to current page number
-                //> adc #$00
-                //> sta Enemy_PageLoc,x      ;store as enemy's page coordinate
-                ram.sprObjPageLoc[1 + slot] = ((ram.currentPageLoc.toInt() + (if (xPos > 0xFF) 1 else 0)) and 0xFF).toByte()
-                //> lda #$01
-                //> sta Enemy_Y_HighPos,x
-                ram.sprObjYHighPos[1 + slot] = 1
-                //> sta Enemy_Flag,x         ;activate enemy flag
-                ram.enemyFlags[slot] = 1
-                //> jsr GetAreaObjYPosition  ;get piranha plant's vertical coordinate and store here
-                //> sta Enemy_Y_Position,x
-                ram.sprObjYPos[1 + slot] = getAreaObjYPosition(row.toByte())
-                //> lda #PiranhaPlant        ;write piranha plant's value into buffer
-                //> sta Enemy_ID,x
-                ram.enemyID[slot] = EnemyId.PiranhaPlant.byte
-                //> jsr InitPiranhaPlant
-                val savedOffset = ram.objectOffset
-                ram.objectOffset = slot.toByte()
-                initPiranhaPlant()
-                ram.objectOffset = savedOffset
-            }
+    // SMB1: skip piranha plants in W1-1 (AreaNumber|WorldNumber == 0)
+    // SMB2J: removed this check — piranha plants spawn in all worlds including W1-1
+    val allowPiranha = if (variant == GameVariant.SMB2J) true
+        else (ram.areaNumber.toInt() or ram.worldNumber.toInt()) != 0
+    //> ldy AreaObjectLength,x   ;if on second column of pipe, branch
+    //> beq DrawPipe             ;(because we only need to do this once)
+    if (allowPiranha && ram.areaObjectLength[x.toInt()] != 0.toByte()) {
+        //> jsr FindEmptyEnemySlot   ;check for an empty moving data buffer space
+        //> bcs DrawPipe             ;if not found, too many enemies, thus skip
+        val slot = findEmptyEnemySlot()
+        if (slot != null) {
+            //> lda #PiranhaPlant        ;write piranha plant's value into buffer
+            //> jsr SetupPiranhaPlant    ;(SMB2J) / inline setup (SMB1)
+            val xPos = (getAreaObjXPosition().toInt() and 0xFF) + 8
+            ram.sprObjXPos[1 + slot] = (xPos and 0xFF).toByte()
+            ram.sprObjPageLoc[1 + slot] = ((ram.currentPageLoc.toInt() + (if (xPos > 0xFF) 1 else 0)) and 0xFF).toByte()
+            ram.sprObjYHighPos[1 + slot] = 1
+            ram.enemyFlags[slot] = 1
+            ram.sprObjYPos[1 + slot] = getAreaObjYPosition(row.toByte())
+            ram.enemyID[slot] = EnemyId.PiranhaPlant.byte
+            val savedOffset = ram.objectOffset
+            ram.objectOffset = slot.toByte()
+            initPiranhaPlant()
+            ram.objectOffset = savedOffset
         }
     }
 

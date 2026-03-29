@@ -174,7 +174,8 @@ fun System.writeBlockMetatile(metatileId: Int, bbLow: Int, vertOfs: Int) {
         //> beq UseBOffset          ;use offset if metatile is brick with coins (w/ line)
         //> cmp #$51
         //> beq UseBOffset          ;use offset if metatile is breakable brick w/ line
-        if (metatileId == MetatileId.BRICK_WITH_COINS_WITH_LINE || metatileId == MetatileId.BREAKABLE_BRICK_WITH_LINE) {
+        val mt = this.metatileId // variant-aware MetatileId constants
+        if (metatileId == mt.BRICK_WITH_COINS_WITH_LINE || metatileId == mt.BREAKABLE_BRICK_WITH_LINE) {
             // keep index = 0
         } else {
             //> iny                     ;increment offset for brick metatile w/o line
@@ -183,7 +184,7 @@ fun System.writeBlockMetatile(metatileId: Int, bbLow: Int, vertOfs: Int) {
             //> beq UseBOffset          ;use offset if metatile is brick with coins (w/o line)
             //> cmp #$52
             //> beq UseBOffset          ;use offset if metatile is breakable brick w/o line
-            if (metatileId == MetatileId.BRICK_WITH_COINS_WITHOUT_LINE || metatileId == MetatileId.BREAKABLE_BRICK_WITHOUT_LINE) {
+            if (metatileId == mt.BRICK_WITH_COINS_WITHOUT_LINE || metatileId == mt.BREAKABLE_BRICK_WITHOUT_LINE) {
                 // keep index = 0x01
             } else {
                 //> iny                     ;if any other metatile, increment offset for empty block

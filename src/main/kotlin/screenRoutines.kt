@@ -389,9 +389,8 @@ fun System.getPlayerColors() {
     // We're preparing to append to VRAM Buffer 1.
     //> ldy #$00
     var palette = PlayerPalettes.mario // start with Mario
-    //> lda CurrentPlayer        ;check which player is on the screen
-    //> beq ChkFiery
-    if ((ram.currentPlayer) != 0.toByte()) {
+    // SMB1 checks CurrentPlayer for Luigi palette; SMB2J has no Luigi color distinction
+    if (variant != GameVariant.SMB2J && (ram.currentPlayer) != 0.toByte()) {
         //> ldy #$04                 ;load offset for luigi
         palette = PlayerPalettes.luigi
     }

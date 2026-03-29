@@ -297,14 +297,14 @@ private fun System.handleEToBGCollision(x: Int, underResult: BlockBufferResult) 
     //> jsr ChkForNonSolids       ;if something is underneath enemy, find out what
     //> beq NoEToBGCollision      ;if blank $26, coins, or hidden blocks, jump
     val mt = underResult.metatile.toInt() and 0xFF
-    if (chkForNonSolidsLocal(mt)) {
+    if (chkForNonSolidsLocal(mt, metatileId)) {
         chkForRedKoopa(x)
         return
     }
 
     //> cmp #$23
     //> bne LandEnemyProperly     ;check for blank metatile $23 and branch if not found
-    if (mt == MetatileId.USED_BLOCK) {
+    if (mt == metatileId.USED_BLOCK) {
         //> ldy $02                   ;get vertical coordinate used to find block
         //> lda #$00                  ;store default blank metatile in that spot so we won't
         //> sta ($06),y               ;trigger this routine accidentally again
@@ -347,10 +347,10 @@ private fun System.handleEToBGCollision(x: Int, underResult: BlockBufferResult) 
 /**
  * Checks for non-solid metatiles (vine blank, coins, hidden blocks).
  */
-internal fun chkForNonSolidsLocal(metatile: Int): Boolean {
+internal fun chkForNonSolidsLocal(metatile: Int, mtId: MetatileId): Boolean {
     //> ChkForNonSolids:
     val mt = metatile and 0xFF
-    return mt == MetatileId.VINE_METATILE || mt == MetatileId.COIN || mt == MetatileId.UNDERWATER_COIN || mt == MetatileId.HIDDEN_COIN_BLOCK || mt == MetatileId.HIDDEN_1UP_BLOCK
+    return mt == mtId.VINE_METATILE || mt == mtId.COIN || mt == mtId.UNDERWATER_COIN || mt == mtId.HIDDEN_COIN_BLOCK || mt == mtId.HIDDEN_1UP_BLOCK
 }
 
 /**
@@ -682,7 +682,7 @@ internal fun System.doEnemySideCheck(x: Int) {
             //> beq NextSdeC
             if (result.metatile != 0.toByte()) {
                 //> jsr ChkForNonSolids; bne ChkForBump_HammerBroJ
-                if (!chkForNonSolidsLocal(result.metatile.toInt() and 0xFF)) {
+                if (!chkForNonSolidsLocal(result.metatile.toInt() and 0xFF, metatileId)) {
                     chkForBumpHammerBroJ(x)
                     return
                 }
@@ -828,7 +828,7 @@ private fun System.enemyJump(x: Int) {
     }
 
     //> jsr ChkForNonSolids; beq DoSide
-    if (chkForNonSolidsLocal(underResult.metatile.toInt() and 0xFF)) {
+    if (chkForNonSolidsLocal(underResult.metatile.toInt() and 0xFF, metatileId)) {
         doEnemySideCheck(x)
         return
     }
@@ -862,7 +862,7 @@ private fun System.hammerBroBGColl(x: Int) {
 
     //> cmp #$23; bne UnderHammerBro
     val mt = underResult.metatile.toInt() and 0xFF
-    if (mt == MetatileId.USED_BLOCK) {
+    if (mt == metatileId.USED_BLOCK) {
         //> KillEnemyAboveBlock:
         killEnemyAboveBlock(x)
         return
@@ -945,10 +945,10 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
         //> ldy #$11; sty Block_State,x
         ram.blockStates[x] = 0x11
         //> lda #$c4
-        metatileForBlock = MetatileId.EMPTY_BLOCK
+        metatileForBlock = metatileId.EMPTY_BLOCK
 
         //> ldy $00; cpy #$58; beq StartBTmr; cpy #$5d; bne PutMTileB
-        if (storedMetatile == MetatileId.BRICK_WITH_COINS_WITH_LINE || storedMetatile == MetatileId.BRICK_WITH_COINS_WITHOUT_LINE) {
+        if (storedMetatile == metatileId.BRICK_WITH_COINS_WITH_LINE || storedMetatile == metatileId.BRICK_WITH_COINS_WITHOUT_LINE) {
             //> StartBTmr: lda BrickCoinTimerFlag; bne ContBTmr
             if (ram.brickCoinTimerFlag == 0.toByte()) {
                 //> lda #$0b; sta BrickCoinTimer; inc BrickCoinTimerFlag
@@ -961,7 +961,7 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
                 metatileForBlock = storedMetatile
             } else {
                 //> ldy #$c4
-                metatileForBlock = MetatileId.EMPTY_BLOCK
+                metatileForBlock = metatileId.EMPTY_BLOCK
             }
         }
     }
@@ -975,7 +975,7 @@ fun System.playerHeadCollision(result: BlockBufferResult) {
 
     //> ldy $02; lda #$23; sta ($06),y
     if (bufIdx in result.blockBuffer.indices) {
-        result.blockBuffer[bufIdx] = MetatileId.USED_BLOCK.toByte()
+        result.blockBuffer[bufIdx] = metatileId.USED_BLOCK.toByte()
     }
 
     //> lda #$10; sta BlockBounceTimer
@@ -1231,7 +1231,7 @@ private fun System.checkTopOfBlock(x: Int) {
     val idx = bufBase + newVertOffset
     if (idx !in buffer.indices) return
     val aboveMT = buffer[idx].toInt() and 0xFF
-    if (aboveMT != MetatileId.COIN) return
+    if (aboveMT != metatileId.COIN) return
 
     //> lda #$00; sta ($06),y
     buffer[idx] = 0

@@ -458,7 +458,8 @@ private fun System.areaParserCore() {
         var a: UByte = ram.metatileBuffer[x]
         //> cmp BlockBuffLowBounds,y   ;check for certain values depending on bits set
         //> bcs StrBlock               ;if equal or greater, branch
-        if (a < BlockBuffLowBounds[yAttr]) {
+        val blockBuffLowBounds = if (variant == GameVariant.SMB2J) BlockBuffLowBounds_SMB2J else BlockBuffLowBounds_SMB1
+        if (a < blockBuffLowBounds[yAttr]) {
             //> lda #$00                   ;if less, init value before storing
             a = 0u
         }
@@ -870,9 +871,10 @@ private val Bitmasks = ubyteArrayOf(
 )
 
 // Thresholds for block buffer low byte based on attribute bits (top 2 bits of metatile)
-private val BlockBuffLowBounds = ubyteArrayOf(
-    0x10u, 0x51u, 0x88u, 0xC0u
-)
+//   SMB1: $10, $51, $88, $C0
+//   SMB2J: $10, $4f, $88, $C0
+private val BlockBuffLowBounds_SMB1 = ubyteArrayOf(0x10u, 0x51u, 0x88u, 0xC0u)
+private val BlockBuffLowBounds_SMB2J = ubyteArrayOf(0x10u, 0x4fu, 0x88u, 0xC0u)
 
 /** SMB1 area object dispatch for indices >= 0x16. */
 private fun System.smb1AreaObjectDispatch(index: Int) {
@@ -1085,25 +1087,32 @@ private val CastleMetatiles = ubyteArrayOf(
 private val PulleyRopeMetatiles = ubyteArrayOf(0x42u, 0x41u, 0x43u)
 
 //> CoinMetatileData:
-//>   .db $c3, $c2, $c2, $c2
-private val CoinMetatileData = ubyteArrayOf(0xc3u, 0xc2u, 0xc2u, 0xc2u)
+//>   SMB1: .db $c3, $c2, $c2, $c2
+//>   SMB2J: .db $c4, $c3, $c3, $c3
+private val CoinMetatileData_SMB1 = ubyteArrayOf(0xc3u, 0xc2u, 0xc2u, 0xc2u)
+private val CoinMetatileData_SMB2J = ubyteArrayOf(0xc4u, 0xc3u, 0xc3u, 0xc3u)
 
 //> C_ObjectRow:
 //>   .db $06, $07, $08
 private val C_ObjectRow = byteArrayOf(0x06, 0x07, 0x08)
 
 //> C_ObjectMetatile:
-//>   .db $c5, $0c, $89
-private val C_ObjectMetatile = ubyteArrayOf(0xc5u, 0x0cu, 0x89u.toUByte())
+//>   SMB1: .db $c5, $0c, $89
+//>   SMB2J: .db $c6, $0c, $89
+private val C_ObjectMetatile_SMB1 = ubyteArrayOf(0xc5u, 0x0cu, 0x89u.toUByte())
+private val C_ObjectMetatile_SMB2J = ubyteArrayOf(0xc6u, 0x0cu, 0x89u.toUByte())
 
 //> SolidBlockMetatiles:
-//>   .db $69, $61, $61, $62
-private val SolidBlockMetatiles = ubyteArrayOf(0x69u, 0x61u, 0x61u, 0x62u)
+//>   SMB1: .db $69, $61, $61, $62
+//>   SMB2J: .db $6a, $62, $62, $63
+private val SolidBlockMetatiles_SMB1 = ubyteArrayOf(0x69u, 0x61u, 0x61u, 0x62u)
+private val SolidBlockMetatiles_SMB2J = ubyteArrayOf(0x6au, 0x62u, 0x62u, 0x63u)
 
 //> BrickMetatiles:
-//>   .db $22, $51, $52, $52
-//>   .db $88 ;used only by row of bricks object
-private val BrickMetatiles = ubyteArrayOf(0x22u, 0x51u, 0x52u, 0x52u, 0x88u)
+//>   SMB1: .db $22, $51, $52, $52, $88
+//>   SMB2J: .db $1f, $4f, $50, $50, $88
+private val BrickMetatiles_SMB1 = ubyteArrayOf(0x22u, 0x51u, 0x52u, 0x52u, 0x88u)
+private val BrickMetatiles_SMB2J = ubyteArrayOf(0x1fu, 0x4fu, 0x50u, 0x50u, 0x88u)
 
 //> HoleMetatiles:
 //>   .db $87, $00, $00, $00
@@ -1123,14 +1132,16 @@ private val StaircaseRowData = byteArrayOf(0x03, 0x03, 0x04, 0x05, 0x06, 0x07, 0
 private val SidePipeShaftData = ubyteArrayOf(0x15u, 0x14u, 0x00u, 0x00u)
 
 //> SidePipeTopPart:
-//>   .db $15, $1e  ;top part of sideways part of pipe
-//>   .db $1d, $1c
-private val SidePipeTopPart = ubyteArrayOf(0x15u, 0x1eu, 0x1du, 0x1cu)
+//>   SMB1: .db $15, $1e, $1d, $1c
+//>   SMB2J: .db $15, $1b, $1a, $19
+private val SidePipeTopPart_SMB1 = ubyteArrayOf(0x15u, 0x1eu, 0x1du, 0x1cu)
+private val SidePipeTopPart_SMB2J = ubyteArrayOf(0x15u, 0x1bu, 0x1au, 0x19u)
 
 //> SidePipeBottomPart:
-//>   .db $15, $21  ;bottom part of sideways part of pipe
-//>   .db $20, $1f
-private val SidePipeBottomPart = ubyteArrayOf(0x15u, 0x21u, 0x20u, 0x1fu)
+//>   SMB1: .db $15, $21, $20, $1f
+//>   SMB2J: .db $15, $1e, $1d, $1c
+private val SidePipeBottomPart_SMB1 = ubyteArrayOf(0x15u, 0x21u, 0x20u, 0x1fu)
+private val SidePipeBottomPart_SMB2J = ubyteArrayOf(0x15u, 0x1eu, 0x1du, 0x1cu)
 
 // VerticalPipeData moved to areaparser/shared.kt (shared with verticalPipe.kt)
 
@@ -1837,10 +1848,12 @@ private fun System.renderSidewaysPipe(objOffset: Byte, inputLength: Int): Boolea
     //> DrawSidePart: ldy $06                   ;render side pipe part at the bottom
     //> lda SidePipeTopPart,y
     //> sta MetatileBuffer,x      ;note that the pipe parts are stored
-    ram.metatileBuffer[bufX] = SidePipeTopPart[horizOffset]
+    val sidePipeTopPart = if (variant == GameVariant.SMB2J) SidePipeTopPart_SMB2J else SidePipeTopPart_SMB1
+    ram.metatileBuffer[bufX] = sidePipeTopPart[horizOffset]
     //> lda SidePipeBottomPart,y  ;backwards horizontally
     //> sta MetatileBuffer+1,x
-    ram.metatileBuffer[bufX + 1] = SidePipeBottomPart[horizOffset]
+    val sidePipeBottomPart = if (variant == GameVariant.SMB2J) SidePipeBottomPart_SMB2J else SidePipeBottomPart_SMB1
+    ram.metatileBuffer[bufX + 1] = sidePipeBottomPart[horizOffset]
     //> rts
     return carrySet
 }
@@ -1922,7 +1935,8 @@ private fun System.chainObjWithIndex(cIndex: Int) {
     //> ldx C_ObjectRow-2,y       ;get appropriate row and metatile for object
     val row = C_ObjectRow[cIndex].toInt() and 0xFF
     //> lda C_ObjectMetatile-2,y
-    val metatile = C_ObjectMetatile[cIndex]
+    val cObjectMetatile = if (variant == GameVariant.SMB2J) C_ObjectMetatile_SMB2J else C_ObjectMetatile_SMB1
+    val metatile = cObjectMetatile[cIndex]
     //> ColObj: ldy #$00             ;column length of 1
     //> jmp RenderUnderPart
     renderUnderPart(metatile, row, 0)
@@ -1945,7 +1959,8 @@ private fun System.emptyBlock() {
 private fun System.rowOfCoins() {
     //> ldy AreaType            ;get area type
     //> lda CoinMetatileData,y  ;load appropriate coin metatile
-    val metatile = CoinMetatileData[ram.areaType.ordinal]
+    val coinMetatileData = if (variant == GameVariant.SMB2J) CoinMetatileData_SMB2J else CoinMetatileData_SMB1
+    val metatile = coinMetatileData[ram.areaType.ordinal]
     //> jmp GetRow
     getRow(metatile)
 }
@@ -1961,7 +1976,8 @@ private fun System.rowOfBricks() {
         y = 4
     }
     //> DrawBricks: lda BrickMetatiles,y   ;get appropriate metatile
-    val metatile = BrickMetatiles[y]
+    val brickMetatiles = if (variant == GameVariant.SMB2J) BrickMetatiles_SMB2J else BrickMetatiles_SMB1
+    val metatile = brickMetatiles[y]
     //> jmp GetRow             ;and go render it
     getRow(metatile)
 }
@@ -1971,7 +1987,8 @@ private fun System.rowOfSolidBlocks() {
     //> ldy AreaType               ;load area type obtained from area offset pointer
     val y = ram.areaType.ordinal
     //> lda SolidBlockMetatiles,y  ;get metatile
-    val metatile = SolidBlockMetatiles[y]
+    val solidBlockMetatiles = if (variant == GameVariant.SMB2J) SolidBlockMetatiles_SMB2J else SolidBlockMetatiles_SMB1
+    val metatile = solidBlockMetatiles[y]
     //> GetRow: (falls through)
     getRow(metatile)
 }
@@ -1995,7 +2012,8 @@ private fun System.columnOfBricks() {
     //> ldy AreaType          ;load area type obtained from area offset
     val y = ram.areaType.ordinal
     //> lda BrickMetatiles,y  ;get metatile (no cloud override as for row)
-    val metatile = BrickMetatiles[y]
+    val brickMetatiles = if (variant == GameVariant.SMB2J) BrickMetatiles_SMB2J else BrickMetatiles_SMB1
+    val metatile = brickMetatiles[y]
     //> jmp GetRow2
     getRow2(metatile)
 }
@@ -2005,7 +2023,8 @@ private fun System.columnOfSolidBlocks() {
     //> ldy AreaType               ;load area type obtained from area offset
     val y = ram.areaType.ordinal
     //> lda SolidBlockMetatiles,y  ;get metatile
-    val metatile = SolidBlockMetatiles[y]
+    val solidBlockMetatiles = if (variant == GameVariant.SMB2J) SolidBlockMetatiles_SMB2J else SolidBlockMetatiles_SMB1
+    val metatile = solidBlockMetatiles[y]
     //> GetRow2: (falls through)
     getRow2(metatile)
 }
