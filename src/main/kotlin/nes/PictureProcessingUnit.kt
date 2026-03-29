@@ -9,6 +9,17 @@ import com.ivieleague.smbtranslation.utils.PpuStatus
 import java.io.File
 
 class PictureProcessingUnit {
+    /** CHR tile source — set to Smb2jRom for SMB2J, OriginalRom for SMB1. */
+    var chrSource: Any = OriginalRom
+    val chrBackgrounds get() = when (chrSource) {
+        is com.ivieleague.smbtranslation.chr.Smb2jRom -> com.ivieleague.smbtranslation.chr.Smb2jRom.backgrounds
+        else -> OriginalRom.backgrounds
+    }
+    val chrSprites get() = when (chrSource) {
+        is com.ivieleague.smbtranslation.chr.Smb2jRom -> com.ivieleague.smbtranslation.chr.Smb2jRom.sprites
+        else -> OriginalRom.sprites
+    }
+
     val backgroundTiles = Array(2) { NesNametable() }
     val backgroundPalettes = Array(4) { IndirectPalette(Palette.RGB, "background $it") }
     val sprites = Array(64) { Sprite() }
@@ -99,7 +110,7 @@ class PictureProcessingUnit {
                     if (ty < 30) {
                         val tileIdx = value.toInt() and 0xFF
                         val existing = nt[tx, ty]
-                        nt[tx, ty] = existing.copy(pattern = OriginalRom.backgrounds[tileIdx])
+                        nt[tx, ty] = existing.copy(pattern = chrBackgrounds[tileIdx])
                     }
                 } else {
                     // Attribute table writes ($23C0-$23FF etc)
@@ -134,7 +145,7 @@ class PictureProcessingUnit {
             dst.y = src.y
             dst.x = src.x
             dst.attributes = src.attributes
-            dst.pattern = OriginalRom.sprites[src.tilenumber.toInt() and 0xFF]
+            dst.pattern = chrSprites[src.tilenumber.toInt() and 0xFF]
         }
     }
 }

@@ -27,6 +27,9 @@ sealed class BufferedPpuUpdate {
             var x = x
             var y = y
             for (pattern in patterns) {
+                // Re-resolve pattern from PPU's CHR source if tile index is known,
+                // so SMB2J uses its own CHR tiles instead of SMB1's
+                val resolvedPattern = if (pattern.tileIndex >= 0) ppu.chrBackgrounds[pattern.tileIndex] else pattern
                 val nt = ppu.backgroundTiles[nametable.toInt() and 0x01]
                 val existing = nt.get(
                     x = x.toInt(),
@@ -35,7 +38,7 @@ sealed class BufferedPpuUpdate {
                 nt.set(
                     x = x.toInt(),
                     y = y.toInt(),
-                    value = existing.copy(pattern = pattern)
+                    value = existing.copy(pattern = resolvedPattern)
                 )
                 if (drawVertically) y++ else x++
             }
@@ -53,6 +56,7 @@ sealed class BufferedPpuUpdate {
     ) : BufferedPpuUpdate() {
         override fun toString() = "BufferedPpuUpdate.BackgroundPatternRepeat(nametable=$nametable, x=$x, y=$y, drawVertically=$drawVertically, pattern=${pattern.source ?: "???"}, repetitions=$repetitions)"
         override fun invoke(ppu: PictureProcessingUnit) {
+            val resolvedPattern = if (pattern.tileIndex >= 0) ppu.chrBackgrounds[pattern.tileIndex] else pattern
             var x = x
             var y = y
             repeat(repetitions) {
@@ -64,7 +68,7 @@ sealed class BufferedPpuUpdate {
                 nt.set(
                     x = x.toInt(),
                     y = y.toInt(),
-                    value = existing.copy(pattern = pattern)
+                    value = existing.copy(pattern = resolvedPattern)
                 )
                 if (drawVertically) y++ else x++
             }

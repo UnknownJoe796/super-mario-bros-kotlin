@@ -53,13 +53,75 @@ object OriginalRom {
     init {
         // Attempt to parse CHR data from the bundled SMB ROM and populate pattern tables.
         // Non-fatal on failure: tests and other code paths should not crash if the ROM is missing.
-        val sprStart = 0
-        val bgStart = 16 * 256
-        for (i in 0 until 256) {
-            val bgSlice = rawChrData.copyOfRange(bgStart + i * 16, bgStart + (i + 1) * 16)
-            val sprSlice = rawChrData.copyOfRange(sprStart + i * 16, sprStart + (i + 1) * 16)
-            backgrounds[i] = Pattern(bgSlice, PpuMap.background[i], "OriginalRom.backgrounds[0x${i.toString(16)}]")
-            sprites[i] = Pattern(sprSlice, PpuMap.sprites[i], "OriginalRom.sprites[0x${i.toString(16)}]")
+        loadChrData(rawChrData, sprites, backgrounds)
+    }
+}
+
+/** SMB2J CHR tile set loaded from FDS disk image. */
+object Smb2jRom {
+    val sprites = Array<Pattern>(256) { Pattern() }
+    val backgrounds = Array<Pattern>(256) { Pattern() }
+
+    init {
+        loadChrData(smb2jChrData, sprites, backgrounds)
+    }
+}
+
+private fun loadChrData(chrData: ByteArray, sprites: Array<Pattern>, backgrounds: Array<Pattern>) {
+    if (chrData.size < 8192) return
+    val sprStart = 0
+    val bgStart = 16 * 256
+    for (i in 0 until 256) {
+        val bgSlice = chrData.copyOfRange(bgStart + i * 16, bgStart + (i + 1) * 16)
+        val sprSlice = chrData.copyOfRange(sprStart + i * 16, sprStart + (i + 1) * 16)
+        backgrounds[i] = Pattern(bgSlice, PpuMap.background[i], "chr.backgrounds[0x${i.toString(16)}]", tileIndex = i)
+        sprites[i] = Pattern(sprSlice, PpuMap.sprites[i], "chr.sprites[0x${i.toString(16)}]", tileIndex = i)
+    }
+}
+
+/** Load SMB2J CHR data from FDS disk image. Returns 8KB CHR with SM2CHAR2 patch applied. */
+private val smb2jChrData: ByteArray = run {
+    val fdsFile = java.io.File("smb2j.fds")
+    if (!fdsFile.exists()) return@run ByteArray(8192)
+    val data = fdsFile.readBytes()
+    val start = if (data.size >= 4 && data[0] == 0x46.toByte() && data[1] == 0x44.toByte() &&
+        data[2] == 0x53.toByte() && data[3] == 0x1A.toByte()) 16 else 0
+
+    // Parse FDS disk to find SM2CHAR1 and SM2CHAR2
+    var offset = start + 56 // skip block 1
+    if (offset >= data.size || data[offset] != 0x02.toByte()) return@run ByteArray(8192)
+    val nfiles = data[offset + 1].toInt() and 0xFF
+    offset += 2
+
+    var chrData = ByteArray(8192)
+    for (i in 0 until nfiles) {
+        if (offset >= data.size || data[offset] != 0x03.toByte()) break
+        val filename = String(data, offset + 3, 8).trim()
+        val loadAddr = (data[offset + 11].toInt() and 0xFF) or ((data[offset + 12].toInt() and 0xFF) shl 8)
+        val fileSize = (data[offset + 13].toInt() and 0xFF) or ((data[offset + 14].toInt() and 0xFF) shl 8)
+        val fileType = data[offset + 15].toInt() and 0xFF
+        offset += 16
+        if (offset < data.size && data[offset] == 0x04.toByte()) {
+            offset++ // skip block type
+            if (fileType == 1) { // CHR type
+                if (filename.contains("SM2CHAR1")) {
+                    // Full 8KB CHR tile set
+                    val end = minOf(offset + fileSize, data.size)
+                    chrData = data.copyOfRange(offset, end)
+                    if (chrData.size < 8192) chrData = chrData.copyOf(8192)
+                } else if (filename.contains("SM2CHAR2")) {
+                    // Small CHR patch at PPU address loadAddr
+                    val patchSize = minOf(fileSize, data.size - offset)
+                    for (j in 0 until patchSize) {
+                        val patchAddr = loadAddr + j
+                        if (patchAddr in chrData.indices) {
+                            chrData[patchAddr] = data[offset + j]
+                        }
+                    }
+                }
+            }
+            offset += fileSize
         }
     }
+    chrData
 }

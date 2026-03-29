@@ -11,6 +11,10 @@ class System {
         set(value) { field = value; ram.variant = value }
     var character: Character = Character.Mario
     var romData: RomData = Smb1RomData
+
+    /** CHR tile set for the current variant. */
+    val chrRom get() = if (variant == GameVariant.SMB2J)
+        com.ivieleague.smbtranslation.chr.Smb2jRom else com.ivieleague.smbtranslation.chr.OriginalRom
     val ram = GameRam()
     val ppu = PictureProcessingUnit()
     val apu = AudioProcessingUnit()

@@ -22,6 +22,8 @@ private val Sprite0Data = GameRam.Sprite(
 )
 
 fun System.start() {
+    // Set CHR tile source based on variant
+    if (variant == GameVariant.SMB2J) ppu.chrSource = com.ivieleague.smbtranslation.chr.Smb2jRom
 
     //> Start:
     // This is just clearing flags.
