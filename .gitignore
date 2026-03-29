@@ -49,7 +49,7 @@ smb2j.fds
 *.fm2
 tmp/
 .claude/worktrees/
-/data/tas/happylee-warpless-ram.bin
+/data/tas/*.bin
 
 ### AI/IDE tool artifacts ###
 .fork/
