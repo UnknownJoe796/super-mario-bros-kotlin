@@ -1338,15 +1338,41 @@ private fun System.enemyStomped(x: Int) {
     //> jsr InitVStf; sta Enemy_X_Speed,x
     initVStf(x)
     ram.sprObjXSpeed[x + 1] = 0
-    //> lda #$fd; sta Player_Y_Speed
-    ram.playerYSpeed = 0xfd.toByte()
+    //> SMB1: lda #$fd; sta Player_Y_Speed
+    //> SMB2J: jmp SetBounce
+    if (variant == GameVariant.SMB2J) {
+        setBounce(x)
+    } else {
+        ram.playerYSpeed = 0xfd.toByte()
+    }
+}
+
+/**
+ * SMB2J SetBounce: sets player bounce speed based on enemy type.
+ * Regular enemies get $FA (-6), Red/Green Paratroopas get $F8 (-8).
+ * SMB1 uses a fixed $FC for shells and $FD for special enemies instead.
+ */
+private fun System.setBounce(x: Int) {
+    //> SetBounce:
+    //> ldy #$fa
+    var bounceSpeed: Byte = 0xfa.toByte()
+    //> lda Enemy_ID,x
+    val eid = ram.enemyID[x].toInt() and 0xFF
+    //> cmp #RedParatroopa; beq BnceH
+    //> cmp #GreenParatroopaFly; bne BnceL
+    if (eid == EnemyId.RedParatroopa.id || eid == EnemyId.GreenParatroopaFly.id) {
+        //> BnceH: ldy #$f8
+        bounceSpeed = 0xf8.toByte()
+    }
+    //> BnceL: sty Player_Y_Speed
+    ram.playerYSpeed = bounceSpeed
 }
 
 private fun System.chkForDemoteKoopa(x: Int, enemyId: Int) {
     //> ChkForDemoteKoopa:
     //> cmp #$09; bcc HandleStompedShellE
     if (enemyId < EnemyId.TallEnemy.id) {
-        //> jmp SBnce                  ;then move onto something else
+        //> SMB1: jmp SBnce; SMB2J: falls through to SetBounce via HandleStompedShellE
         handleStompedShellE(x)
         return
     }
@@ -1368,8 +1394,13 @@ private fun System.chkForDemoteKoopa(x: Int, enemyId: Int) {
     ram.objectOffset = savedOfs2
     //> lda DemotedKoopaXSpdData,y; sta Enemy_X_Speed,x
     ram.sprObjXSpeed[x + 1] = demotedKoopaXSpdData[dirOfs]
-    //> SBnce: lda #$fc; sta Player_Y_Speed
-    ram.playerYSpeed = 0xfc.toByte()
+    //> SMB1: SBnce: lda #$fc; sta Player_Y_Speed
+    //> SMB2J: jsr SetBounce (then rts)
+    if (variant == GameVariant.SMB2J) {
+        setBounce(x)
+    } else {
+        ram.playerYSpeed = 0xfc.toByte()
+    }
 }
 
 private fun System.handleStompedShellE(x: Int) {
@@ -1390,8 +1421,13 @@ private fun System.handleStompedShellE(x: Int) {
     //> ldy PrimaryHardMode; lda RevivalRateData,y; sta EnemyIntervalTimer,x
     val hardMode = if (ram.primaryHardMode) 1 else 0
     ram.timers[0x16 + x] = revivalRateData[hardMode]
-    //> SBnce: lda #$fc; sta Player_Y_Speed
-    ram.playerYSpeed = 0xfc.toByte()
+    //> SMB1: SBnce: lda #$fc; sta Player_Y_Speed
+    //> SMB2J: (falls through to SetBounce)
+    if (variant == GameVariant.SMB2J) {
+        setBounce(x)
+    } else {
+        ram.playerYSpeed = 0xfc.toByte()
+    }
 }
 
 // =====================================================================
