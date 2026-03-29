@@ -303,23 +303,45 @@ fun System.runStarFlagObj() {
 
 /**
  * Determines how many fireworks to display based on the last digit of the game timer.
- * Timer digit 1 -> 5 fireworks, 3 -> 3 fireworks, 6 -> 0 fireworks, else none.
+ * SMB1: Timer digit 1 -> 5 fireworks, 3 -> 3 fireworks, 6 -> 0 fireworks, else none.
+ * SMB2J: Compare timer last digit with coin last digit. If match and odd -> 3 fireworks,
+ *        if match and even -> 6 fireworks, otherwise no fireworks.
  */
 private fun System.gameTimerFireworks(x: Int) {
     //> GameTimerFireworks:
     //> lda GameTimerDisplay+2 ;get game timer's last digit
     val lastDigit = ram.gameTimerDisplay[2].toInt() and 0xFF
-    // Assembly checks sequentially: if digit==1, Y=5; elif digit==3, Y=3; elif digit==6, Y=0; else A=$FF
-    // A stays as the timer digit through the first three checks, only becomes $FF in the else case
-    val (fireworks, enemyState) = when (lastDigit) {
-        //> cmp #$01; beq SetFWC    ;if last digit set to 1, Y=$05 (5 fireworks)
-        0x01 -> lastDigit to 0x05
-        //> cmp #$03; beq SetFWC    ;if last digit set to 3, Y=$03 (3 fireworks)
-        0x03 -> lastDigit to 0x03
-        //> cmp #$06; beq SetFWC    ;if last digit set to 6, Y=$00 (0 fireworks)
-        0x06 -> lastDigit to 0x00
-        //> lda #$ff               ;otherwise set value for no fireworks
-        else -> 0xFF to 0x00
+
+    val (fireworks, enemyState) = if (variant == GameVariant.SMB2J) {
+        // SMB2J: compare timer digit with coin tally digit (sm2main.asm lines 9470-9491)
+        //> lda CoinDisplay+1     ;get coin last digit
+        //> cmp GameTimerDisplay+2 ;compare with timer last digit
+        val coinDigit = ram.coinDisplay[1].toInt() and 0xFF
+        if (coinDigit == lastDigit) {
+            //> lda GameTimerDisplay+2; and #$01; bne OddDgs
+            if ((lastDigit and 0x01) != 0) {
+                //> OddDgs: lda #$03; ldy #$03
+                0x03 to 0x03
+            } else {
+                //> EvenDgs: lda #$06; ldy #$00
+                0x06 to 0x00
+            }
+        } else {
+            //> lda #$ff; ldy #$00
+            0xFF to 0x00
+        }
+    } else {
+        // SMB1: checks sequentially: digit==1 -> Y=5; digit==3 -> Y=3; digit==6 -> Y=0; else A=$FF
+        when (lastDigit) {
+            //> cmp #$01; beq SetFWC    ;if last digit set to 1, Y=$05 (5 fireworks)
+            0x01 -> lastDigit to 0x05
+            //> cmp #$03; beq SetFWC    ;if last digit set to 3, Y=$03 (3 fireworks)
+            0x03 -> lastDigit to 0x03
+            //> cmp #$06; beq SetFWC    ;if last digit set to 6, Y=$00 (0 fireworks)
+            0x06 -> lastDigit to 0x00
+            //> lda #$ff               ;otherwise set value for no fireworks
+            else -> 0xFF to 0x00
+        }
     }
 
     //> SetFWC: sta FireworksCounter   ;set fireworks counter here

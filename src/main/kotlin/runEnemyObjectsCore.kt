@@ -479,10 +479,12 @@ fun System.moveSwimmingCheepCheep() {
     // by Claude - CheepCheepMoveMFlag aliases Enemy_X_Speed ($58+x) = sprObjXSpeed[1+x]
     val moveFlag = ram.sprObjXSpeed[1 + x].toInt() and 0xFF
     //> bcc CCSwimUpwards         ;branch to move upwards
+    // SMB2J uses $40 vertical swim speed (sm2main.asm line 8621); SMB1 uses $20
+    val swimSpeed = if (variant == GameVariant.SMB2J) 0x40 else 0x20
     if (moveFlag < 0x10) {
         //> CCSwimUpwards: fractional upward movement
         //> sbc $03                   ;subtract borrow to it plus enemy state to slowly move it upwards
-        val dummy = (ram.sprObjYMFDummy[1 + x].toInt() and 0xFF) - 0x20
+        val dummy = (ram.sprObjYMFDummy[1 + x].toInt() and 0xFF) - swimSpeed
         ram.sprObjYMFDummy[1 + x] = (dummy and 0xFF).toByte()
         val borrow = if (dummy < 0) 1 else 0
         val yPos = (ram.sprObjYPos[1 + x].toInt() and 0xFF) - borrow
@@ -491,7 +493,7 @@ fun System.moveSwimmingCheepCheep() {
     } else {
         //> CCSwimDownwards: fractional downward movement
         //> adc $03                   ;add carry to it plus enemy state to slowly move it downwards
-        val dummy = (ram.sprObjYMFDummy[1 + x].toInt() and 0xFF) + 0x20
+        val dummy = (ram.sprObjYMFDummy[1 + x].toInt() and 0xFF) + swimSpeed
         ram.sprObjYMFDummy[1 + x] = (dummy and 0xFF).toByte()
         val carry = if (dummy > 0xFF) 1 else 0
         val yPos = (ram.sprObjYPos[1 + x].toInt() and 0xFF) + carry

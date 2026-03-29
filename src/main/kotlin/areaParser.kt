@@ -1577,7 +1577,7 @@ private fun System.bridgeCommon(startRow: Int) {
     //> ldy #$00             ;now render the bridge itself
     //> lda #$63
     //> jmp RenderUnderPart
-    renderUnderPart(0x63.toUByte(), startRow + 1, 0)
+    renderUnderPart(metatileId.BRIDGE_BODY.toUByte(), startRow + 1, 0)
 }
 
 //> Hole_Water:
@@ -1911,7 +1911,7 @@ private fun System.flagBalls_Residual() {
     //> ldx #$02             ;render flag balls on third row from top
     //> lda #$6d             ;of screen downwards based on low nybble
     //> jmp RenderUnderPart
-    renderUnderPart(0x6d.toUByte(), 0x02, attrib.length.toInt() and 0xFF)
+    renderUnderPart(metatileId.FLAG_BALLS.toUByte(), 0x02, attrib.length.toInt() and 0xFF)
 }
 
 //> FlagpoleObject:
@@ -1997,7 +1997,7 @@ private fun System.emptyBlock() {
     //> lda #$c4
     //> ColObj: ldy #$00             ;column length of 1
     //> jmp RenderUnderPart
-    renderUnderPart(0xc4.toUByte(), row, 0)
+    renderUnderPart(metatileId.EMPTY_BLOCK.toUByte(), row, 0)
 }
 
 //> RowOfCoins:
@@ -2097,7 +2097,7 @@ private fun System.bulletBillCannon() {
     var lengthY = attrib.length.toInt() and 0xFF
     //> lda #$64                 ;render bullet bill cannon
     //> sta MetatileBuffer,x
-    ram.metatileBuffer[bufX] = 0x64.toUByte()
+    ram.metatileBuffer[bufX] = metatileId.CANNON_TOP.toUByte()
     //> inx
     bufX++
     //> dey                      ;done yet?
@@ -2106,7 +2106,7 @@ private fun System.bulletBillCannon() {
     if (lengthY >= 0) {
         //> lda #$65                 ;if not, render middle part
         //> sta MetatileBuffer,x
-        ram.metatileBuffer[bufX] = 0x65.toUByte()
+        ram.metatileBuffer[bufX] = metatileId.CANNON_MIDDLE.toUByte()
         //> inx
         bufX++
         //> dey                      ;done yet?
@@ -2115,7 +2115,7 @@ private fun System.bulletBillCannon() {
         if (lengthY >= 0) {
             //> lda #$66                 ;if not, render bottom until length expires
             //> jsr RenderUnderPart
-            renderUnderPart(0x66.toUByte(), bufX, lengthY)
+            renderUnderPart(metatileId.CANNON_BOTTOM.toUByte(), bufX, lengthY)
         }
     }
     //> SetupCannon: ldx Cannon_Offset        ;get offset for data used by cannons and whirlpools
