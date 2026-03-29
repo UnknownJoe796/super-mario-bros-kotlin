@@ -367,7 +367,13 @@ fun System.blockBufferCollision(sprObjOffset: Int, adderOffset: Int, returnHoriz
     //> lda ($06),y                 ;check current content of block buffer
     //> sta $03                     ;and store here
     val bufIndex = bufBase + vertOffset
-    val metatile = if (bufIndex in buffer.indices) buffer[bufIndex] else 0
+    // NES has no bounds check on ($06),y — overflow reads adjacent memory.
+    // Buffer 1 overflow (vertOffset=$D0) reads buffer 2 same column;
+    // buffer 2 overflow reads blockBufferColumnPos/$06A0+ region.
+    val metatile: Byte = if (bufIndex in buffer.indices) buffer[bufIndex]
+        else if (buffer === ram.blockBuffer1 && (bufIndex - buffer.size) in ram.blockBuffer2.indices)
+            ram.blockBuffer2[bufIndex - buffer.size]
+        else 0
 
     //> pla                         ;pull A from stack
     //> bne RetXC                   ;if A = 1, branch

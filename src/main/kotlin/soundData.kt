@@ -164,10 +164,15 @@ object SoundData {
         val origAddr = ((h.dataAddrHigh and 0xFF) shl 8) or (h.dataAddrLow and 0xFF)
         val smb2jAddr = origAddr - ADDR_DELTA
         val shifted = h.copy(dataAddrLow = smb2jAddr and 0xFF, dataAddrHigh = (smb2jAddr shr 8) and 0xFF)
-        // SilenceHdr (offset $4B) is only 4 bytes; NES reads 6, overflowing into CastleMusHdr.
-        // Byte 5 (noiseOffset) picks up CastleMusHdr's dataAddrLow, which shifts in SMB2J.
-        if (offset == 0x4b) shifted.copy(noiseOffset = CASTLE_MUS_ADDR_SMB2J and 0xFF)
-        else shifted
+        // All headers are 5 bytes; NES reads 6, so byte 5 (noiseOffset) overflows into
+        // the next header's lengthOffset. Two headers have different neighbors in SMB2J:
+        // SilenceHdr ($4B): overflows into CastleMusHdr whose dataAddrLow shifts in SMB2J.
+        // CastleMusHdr ($4F): SMB1 next=VictoryMusHdr (len=$10), SMB2J next=GameOverMusHdr (len=$18).
+        when (offset) {
+            0x4b -> shifted.copy(noiseOffset = CASTLE_MUS_ADDR_SMB2J and 0xFF)
+            0x4f -> shifted.copy(noiseOffset = 0x18)
+            else -> shifted
+        }
     }
 
     /** Look up a music header by index into the offset table. */

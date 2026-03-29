@@ -416,7 +416,14 @@ fun System.runGameTimer() {
     //> lda Player_Y_HighPos
     //> cmp #$02                   ;if player below the screen,
     //> bcs ExGTimer               ;branch to leave regardless of level type
-    if (ram.playerYHighPos.toUByte() >= 2u) return
+    // SMB2J uses bpl (signed: branches when result is positive, i.e. A in [2,$81])
+    // SMB1 uses bcs (unsigned: branches when A >= 2)
+    val yHigh = ram.playerYHighPos.toInt() and 0xFF
+    if (variant == GameVariant.SMB2J) {
+        if (yHigh in 2..0x81) return
+    } else {
+        if (yHigh >= 2) return
+    }
     //> lda GameTimerCtrlTimer     ;if game timer control not yet expired,
     //> bne ExGTimer               ;branch to leave
     if (ram.gameTimerCtrlTimer != 0.toByte()) return

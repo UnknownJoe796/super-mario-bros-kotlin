@@ -144,7 +144,11 @@ private fun System.blockBufferCollisionEnemy(sprObjOffset: Int, adderOffset: Int
 
     val vertOffset = ((modifiedY and 0xF0) - 0x20) and 0xFF
     val bufIndex = bufBase + vertOffset
-    val metatile = if (bufIndex in buffer.indices) buffer[bufIndex] else 0
+    // NES has no bounds check — buffer 1 overflow reads buffer 2 same column
+    val metatile: Byte = if (bufIndex in buffer.indices) buffer[bufIndex]
+        else if (buffer === ram.blockBuffer1 && (bufIndex - buffer.size) in ram.blockBuffer2.indices)
+            ram.blockBuffer2[bufIndex - buffer.size]
+        else 0
 
     val lowNybble: Int = if (returnHorizontal) {
         objX and 0x0F
