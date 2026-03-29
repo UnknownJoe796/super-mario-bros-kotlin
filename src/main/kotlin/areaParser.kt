@@ -1825,7 +1825,7 @@ private fun System.renderSidewaysPipe(objOffset: Byte, inputLength: Int): Boolea
     //> cmp #$00
     //> beq DrawSidePart          ;if found, do not draw the vertical pipe shaft
     var carrySet = true
-    if (SidePipeShaftData[horizOffset] != 0.toUByte()) {
+    if (horizOffset in SidePipeShaftData.indices && SidePipeShaftData[horizOffset] != 0.toUByte()) {
         //> ldx #$00
         //> ldy $05                   ;init buffer offset and get vertical length
         //> jsr RenderUnderPart       ;and render vertical shaft using tile number in A
@@ -2135,10 +2135,10 @@ private fun System.jumpspring() {
     //> ldx $07
     //> lda #$67                    ;draw metatiles in two rows where jumpspring is
     //> sta MetatileBuffer,x
-    ram.metatileBuffer[row] = 0x67.toUByte()
+    if (row in ram.metatileBuffer.indices) ram.metatileBuffer[row] = 0x67.toUByte()
     //> lda #$68
     //> sta MetatileBuffer+1,x
-    ram.metatileBuffer[row + 1] = 0x68.toUByte()
+    if (row + 1 in ram.metatileBuffer.indices) ram.metatileBuffer[row + 1] = 0x68.toUByte()
     //> rts
 }
 

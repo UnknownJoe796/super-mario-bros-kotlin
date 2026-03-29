@@ -2099,8 +2099,9 @@ class TASReplayTest {
         }
     }
 
-    // Cache: FDS NES address → headerless area data array (avoids re-stripping every frame)
-    private val smb2jHeaderlessCache = mutableMapOf<Int, ByteArray>()
+    // Caches: FDS NES address → resolved data array (avoids re-resolving every frame)
+    private val smb2jAreaHeaderlessCache = mutableMapOf<Int, ByteArray>()
+    private val smb2jEnemyDataCache = mutableMapOf<Int, ByteArray>()
 
     private fun syncSmb2jRomPointers(system: System) {
         system.ram.stack.clear()
@@ -2121,8 +2122,17 @@ class TASReplayTest {
                 else
                     Smb2jRomData.enemyDataArrays_AD?.get(smb2jEnemyAddrToIdx_AD[enemyAddr]!!)
                         ?: ByteArray(0)
+        } else {
+            // Pointer unresolved (FDS real address). Cache the current enemy data
+            // array for this pointer so area transitions preserve the correct data.
+            val cached = smb2jEnemyDataCache[enemyAddr]
+            if (cached != null) {
+                system.ram.enemyDataBytes = cached
+            } else {
+                val cur = system.ram.enemyDataBytes
+                if (cur != null) smb2jEnemyDataCache[enemyAddr] = cur
+            }
         }
-        // Enemy data has no header, so no stripping needed for unresolved pointers.
 
         // Resolve area data pointer.
         // FCEUX pointer is post-header (NES advances $E7/$E8 by 2 past header).
@@ -2147,7 +2157,7 @@ class TASReplayTest {
                         // Pointer unresolved (FDS uses real NES addresses that don't match
                         // our synthetic addresses). The FCEUX pointer is post-header, so
                         // use the cached headerless version for this pointer.
-                        val cached = smb2jHeaderlessCache[areaAddr]
+                        val cached = smb2jAreaHeaderlessCache[areaAddr]
                         if (cached != null) {
                             system.ram.areaData = cached
                         } else {
@@ -2156,7 +2166,7 @@ class TASReplayTest {
                             val cur = system.ram.areaData
                             if (cur != null && cur.size > 2) {
                                 val stripped = cur.copyOfRange(2, cur.size)
-                                smb2jHeaderlessCache[areaAddr] = stripped
+                                smb2jAreaHeaderlessCache[areaAddr] = stripped
                                 system.ram.areaData = stripped
                             }
                         }
