@@ -538,9 +538,17 @@ fun System.jumpspringHandler() {
             //> and PreviousA_B_Buttons     ;check for A button pressed in previous frame
             //> bne BounceJS                ;skip to next part if so
             if ((aPressed and ram.previousABButtons.toInt()) == 0) {
-                //> lda #$f4
+                //> lda #$f4                    ;set jumpspring force for red jumpsprings
+                var force = 0xF4
+                // SMB2J: worlds 2, 3, and 7 use green jumpspring force ($e0)
+                if (variant == GameVariant.SMB2J) {
+                    val w = ram.worldNumber.toInt() and 0xFF
+                    if (w == Constants.World2.toInt() || w == Constants.World3.toInt() || w == Constants.World7.toInt()) {
+                        force = 0xE0
+                    }
+                }
                 //> sta JumpspringForce         ;otherwise write new jumpspring force here
-                ram.jumpspringForce = 0xF4.toByte()
+                ram.jumpspringForce = force.toByte()
             }
         }
     }
