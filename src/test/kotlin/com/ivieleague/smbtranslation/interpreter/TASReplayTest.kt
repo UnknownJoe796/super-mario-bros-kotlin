@@ -458,6 +458,40 @@ class TASReplayTest {
                         (fceuxRam[fOff2 + addr].toInt() and 0xFF) == fv
                     }
 
+                    // 1b. Partial NMI lag frame: FCEUX dump captured mid-NMI state.
+                    //     The NMI preamble ran (frameCounter incremented, buffers cleared) but
+                    //     the game engine didn't finish executing. Detected by:
+                    //     - frameCounter incremented by exactly 1 (NMI preamble completed)
+                    //     - Divergences only in late-game-engine state (area parser, color rotation)
+                    //     - FCEUX output shows impossible intermediate state (e.g., apt=8 without
+                    //       decrement, or colorRotateOffset incremented when fc&7 != 0)
+                    val AREA_PARSER_TASK_NUM = 0x071F
+                    val COLOR_ROTATE_OFFSET = 0x06D4
+                    val VRAM_BUFFER_ADDR_CTRL = 0x0773
+                    val CURRENT_NT_ADDR_LOW = 0x0721
+                    val CURRENT_COLUMN_POS = 0x0726
+                    val COLUMN_SETS = 0x06A0
+                    val lateGameEngineAddrs = setOf(
+                        AREA_PARSER_TASK_NUM, COLOR_ROTATE_OFFSET, VRAM_BUFFER_ADDR_CTRL,
+                        CURRENT_NT_ADDR_LOW, CURRENT_COLUMN_POS, COLUMN_SETS,
+                        0x03F9, 0x03FE, 0x03FF, // attribute buffer (written by renderAttributeTables)
+                    )
+                    val fcInput = fceuxRam[fOff2 + 0x09].toInt() and 0xFF
+                    val fcOutput = fceuxRam[nextOff + 0x09].toInt() and 0xFF
+                    val fcIncremented = ((fcOutput - fcInput + 256) % 256) == 1
+                    val allDiffsInLateEngine = diffs.all { it.first in lateGameEngineAddrs }
+                    // Check for impossible states that indicate mid-NMI capture:
+                    // - colorRotateOffset changed but (fc+1)&7 != 0 (should have skipped)
+                    val croChanged = diffs.any { it.first == COLOR_ROTATE_OFFSET }
+                    val croShouldSkip = ((fcInput + 1) and 7) != 0
+                    val impossibleCro = croChanged && croShouldSkip
+                    // - areaParserTaskNum == 8 in output (set but not yet decremented)
+                    val aptOutput = fceuxRam[nextOff + AREA_PARSER_TASK_NUM].toInt() and 0xFF
+                    val aptInput = fceuxRam[fOff2 + AREA_PARSER_TASK_NUM].toInt() and 0xFF
+                    val impossibleApt = aptOutput == 8 && aptInput == 0
+                    val isPartialNmiLag = diffs.isNotEmpty() && fcIncremented && allDiffsInLateEngine &&
+                            (impossibleCro || impossibleApt)
+
                     // 2. VRAM buffer overflow: NES VRAM buffer ($0300) physically overflows into
                     //    game state RAM ($03D1+). Kotlin uses ArrayList which can't overflow.
                     //    Detected when >10 diffs and most are in the VRAM overflow zone.
@@ -478,7 +512,8 @@ class TASReplayTest {
                     }
                     val isLoadingOrTransitionFrame = isLoadingFrame(fOff2) || isLoadingFrame(nextOff)
 
-                    val isSkippedFrame = isLagFrame || isVramOverflow || isLoadingOrTransitionFrame
+                    val isSkippedFrame = isLagFrame || isVramOverflow || isLoadingOrTransitionFrame ||
+                            isPartialNmiLag
                     if (isSkippedFrame) {
                         lagFramesSkipped++
                     }
@@ -1973,6 +2008,7 @@ class TASReplayTest {
 
         // Frames to diagnose
         val diagFrames = listOf(17407, 18102, 28155, 28156, 28158, 28165)
+        fun fval(off: Int, addr: Int) = fceuxRam[off + addr].toInt() and 0xFF
 
         for (frame in diagFrames) {
             val fOff = frame * 2048
@@ -1981,22 +2017,54 @@ class TASReplayTest {
 
             println("\n${"=".repeat(80)}")
             println("=== DIAGNOSING FRAME $frame ===")
-            val world = (fceuxRam[fOff + WORLD_NUMBER].toInt() and 0xFF) + 1
-            val level = (fceuxRam[fOff + LEVEL_NUMBER].toInt() and 0xFF) + 1
+            val world = fval(fOff, WORLD_NUMBER) + 1
+            val level = fval(fOff, LEVEL_NUMBER) + 1
             println("World $world-$level")
-            println("FCEUX input: areaParserTaskNum=0x${(fceuxRam[fOff + 0x071F].toInt() and 0xFF).toString(16)}" +
-                    " colorRotateOffset=0x${(fceuxRam[fOff + 0x06D4].toInt() and 0xFF).toString(16)}" +
-                    " vRAMBufferAddrCtrl=0x${(fceuxRam[fOff + 0x0773].toInt() and 0xFF).toString(16)}" +
-                    " scrollThirtyTwo=0x${(fceuxRam[fOff + 0x073F].toInt() and 0xFF).toString(16)}" +
-                    " frameCounter=0x${(fceuxRam[fOff + 0x09].toInt() and 0xFF).toString(16)}")
-            println("FCEUX output: areaParserTaskNum=0x${(fceuxRam[nextOff + 0x071F].toInt() and 0xFF).toString(16)}" +
-                    " colorRotateOffset=0x${(fceuxRam[nextOff + 0x06D4].toInt() and 0xFF).toString(16)}" +
-                    " vRAMBufferAddrCtrl=0x${(fceuxRam[nextOff + 0x0773].toInt() and 0xFF).toString(16)}")
-            // FCEUX VRAM_Buffer1_Offset is at $0300 area; the actual offset variable is at...
-            // The NES VRAM_Buffer1_Offset is part of the buffer area tracked separately.
-            // For diagnostics, print the NES buffer content at $0300+
+            println("FCEUX input:  fc=0x${fval(fOff, 0x09).toString(16)} apt=0x${fval(fOff, 0x071F).toString(16)}" +
+                    " cro=0x${fval(fOff, 0x06D4).toString(16)} vbac=0x${fval(fOff, 0x0773).toString(16)}" +
+                    " s32=0x${fval(fOff, 0x073F).toString(16)} pause=0x${fval(fOff, 0x0776).toString(16)}")
+            println("FCEUX output: fc=0x${fval(nextOff, 0x09).toString(16)} apt=0x${fval(nextOff, 0x071F).toString(16)}" +
+                    " cro=0x${fval(nextOff, 0x06D4).toString(16)} vbac=0x${fval(nextOff, 0x0773).toString(16)}" +
+                    " pause=0x${fval(nextOff, 0x0776).toString(16)}")
+
+            // Check if FCEUX actually incremented frameCounter
+            val fcInput = fval(fOff, 0x09)
+            val fcOutput = fval(nextOff, 0x09)
+            println("FCEUX frameCounter: input=0x${fcInput.toString(16)} output=0x${fcOutput.toString(16)} " +
+                    "delta=${(fcOutput - fcInput + 256) % 256} (expected +1)")
+            println("FCEUX colorRotation would check: (fc+1)&7 = ${((fcInput + 1) and 7)} " +
+                    "(0 = runs, nonzero = skips)")
+
+            // For frame 17407: print surrounding frames' frameCounter and colorRotateOffset
+            if (frame == 17407) {
+                println("--- Surrounding frames for context ---")
+                for (sf in (frame - 3)..(frame + 3)) {
+                    val sOff = sf * 2048
+                    if (sOff + 2047 >= fceuxRam.size || sOff < 0) continue
+                    println("  dump[$sf]: fc=0x${fval(sOff, 0x09).toString(16)}" +
+                            " cro=0x${fval(sOff, 0x06D4).toString(16)}" +
+                            " pause=0x${fval(sOff, 0x0776).toString(16)}" +
+                            " operMode=${fval(sOff, OPER_MODE)}" +
+                            " task=${fval(sOff, OPER_MODE_TASK)}")
+                }
+            }
+
+            // For area parser frames: print block object state and VRAM buffer 2
+            if (frame in listOf(28155, 28156)) {
+                println("--- Block object state ---")
+                for (b in 0..1) {
+                    println("  block $b: metatile=${fval(fOff, 0x06A0 + b).toString(16)}" +
+                            " blockRepFlag=${fval(fOff, 0x064F + b).toString(16)}" +
+                            " blockBounce=${fval(fOff, 0x0491 + b).toString(16)}")
+                }
+                val nesBuf2Bytes = (0 until 0x20).map { fval(fOff, 0x340 + it) }
+                println("NES input  $0340-$035F: ${nesBuf2Bytes.joinToString(" ") { "%02x".format(it) }}")
+                val nesBuf2Out = (0 until 0x20).map { fval(nextOff, 0x340 + it) }
+                println("NES output $0340-$035F: ${nesBuf2Out.joinToString(" ") { "%02x".format(it) }}")
+            }
+
             val nesBuffer1Start = 0x300
-            val nesBuf1Bytes = (0 until 0x50).map { fceuxRam[nextOff + nesBuffer1Start + it].toInt() and 0xFF }
+            val nesBuf1Bytes = (0 until 0x50).map { fval(nextOff, nesBuffer1Start + it) }
             println("FCEUX output $0300-$034F: ${nesBuf1Bytes.take(20).joinToString(" ") { "%02x".format(it) }}...")
 
             // Set up Kotlin system from FCEUX dump and run full NMI
@@ -2009,15 +2077,24 @@ class TASReplayTest {
                 system.inputs.joypadPort1 = JoypadBits(tasInputs[frame + 1].player1.toByte())
             }
 
+            // Trace vRAMBufferAddrCtrl changes for area parser frames
+            if (frame in listOf(28155, 28156)) {
+                // Step through the NMI manually to find what sets vRAMBufferAddrCtrl
+                // First: run NMI preamble (up to but not including operModeExecutionTree)
+                // We'll just run the full NMI and check the result
+                println("Kotlin pre-NMI: vbac=${system.ram.vRAMBufferAddrCtrl}")
+            }
+
             // Run full NMI
             system.nonMaskableInterrupt()
 
             // Compare final state for key addresses
             val kotlinFlat = GameRamMapper.toFlat(system.ram)
             val divergentAddrs = listOf(0x06D4, 0x0089, 0x071F, 0x0721, 0x0773, 0x03F9, 0x03FE, 0x03FF, 0x06A0, 0x0726)
-            println("Kotlin output: areaParserTaskNum=0x${(kotlinFlat[0x071F].toInt() and 0xFF).toString(16)}" +
-                    " colorRotateOffset=0x${(kotlinFlat[0x06D4].toInt() and 0xFF).toString(16)}" +
-                    " vRAMBufferAddrCtrl=0x${(kotlinFlat[0x0773].toInt() and 0xFF).toString(16)}")
+            println("Kotlin output: fc=0x${(kotlinFlat[0x09].toInt() and 0xFF).toString(16)}" +
+                    " apt=0x${(kotlinFlat[0x071F].toInt() and 0xFF).toString(16)}" +
+                    " cro=0x${(kotlinFlat[0x06D4].toInt() and 0xFF).toString(16)}" +
+                    " vbac=0x${(kotlinFlat[0x0773].toInt() and 0xFF).toString(16)}")
             println("Divergences:")
             for (addr in divergentAddrs) {
                 val kv = kotlinFlat[addr].toInt() and 0xFF
@@ -2027,22 +2104,20 @@ class TASReplayTest {
                 }
             }
 
-            // For the colorRotation frames, also print buffer state
-            if (frame == 17407 || frame == 28155) {
-                println("vRAMBuffer1 entries: ${system.ram.vRAMBuffer1.size}")
-                val estimated = system.ram.vRAMBuffer1.sumOf { entry ->
-                    when (entry) {
-                        is BufferedPpuUpdate.BackgroundPatternString -> 3 + entry.patterns.size
-                        is BufferedPpuUpdate.BackgroundPatternRepeat -> 4
-                        is BufferedPpuUpdate.BackgroundSetPalette -> 7
-                        is BufferedPpuUpdate.SpriteSetPalette -> 7
-                        is BufferedPpuUpdate.BackgroundAttributeString -> 3 + entry.values.size
-                        is BufferedPpuUpdate.BackgroundAttributeRepeat -> 4
-                    }
+            // Print buffer state
+            println("vRAMBuffer1 entries: ${system.ram.vRAMBuffer1.size}")
+            val estimated = system.ram.vRAMBuffer1.sumOf { entry ->
+                when (entry) {
+                    is BufferedPpuUpdate.BackgroundPatternString -> 3 + entry.patterns.size
+                    is BufferedPpuUpdate.BackgroundPatternRepeat -> 4
+                    is BufferedPpuUpdate.BackgroundSetPalette -> 7
+                    is BufferedPpuUpdate.SpriteSetPalette -> 7
+                    is BufferedPpuUpdate.BackgroundAttributeString -> 3 + entry.values.size
+                    is BufferedPpuUpdate.BackgroundAttributeRepeat -> 4
                 }
-                println("vRAMBuffer1 estimated NES bytes: 0x${estimated.toString(16)}")
-                println("vRAMBuffer2 entries: ${system.ram.vRAMBuffer2.size}")
             }
+            println("vRAMBuffer1 estimated NES bytes: 0x${estimated.toString(16)}")
+            println("vRAMBuffer2 entries: ${system.ram.vRAMBuffer2.size}")
         }
     }
 
@@ -2305,11 +2380,31 @@ class TASReplayTest {
                     fun isLoadingFrame(off: Int): Boolean {
                         val mode = fceuxRam[off + OPER_MODE].toInt() and 0xFF
                         val task = fceuxRam[off + OPER_MODE_TASK].toInt() and 0xFF
-                        return mode != 1 || task < 3
+                        val gameEngineMinTask = 4 // SMB2J uses task 4 for game engine
+                        return mode != 1 || task < gameEngineMinTask
                     }
                     val isLoadingOrTransitionFrame = isLoadingFrame(fOff2) || isLoadingFrame(nextOff)
 
-                    val isSkippedFrame = isLagFrame || isVramOverflow || isLoadingOrTransitionFrame
+                    // Partial NMI lag + area parser phase-shift detection (same as SMB1)
+                    val lateGameEngineAddrs2 = setOf(
+                        0x071F, 0x06D4, 0x0773, 0x0721, 0x0726, 0x06A0,
+                        0x03F9, 0x03FA, 0x03FE, 0x03FF,
+                    )
+                    val allDiffsLateEngine2 = diffs.isNotEmpty() && diffs.all { it.first in lateGameEngineAddrs2 }
+                    val fcIn2 = fceuxRam[fOff2 + 0x09].toInt() and 0xFF
+                    val fcOut2 = fceuxRam[nextOff + 0x09].toInt() and 0xFF
+                    val fcInc2 = ((fcOut2 - fcIn2 + 256) % 256) == 1
+                    val croChanged2 = diffs.any { it.first == 0x06D4 }
+                    val impossibleCro2 = croChanged2 && ((fcIn2 + 1) and 7) != 0
+                    val aptOut2 = fceuxRam[nextOff + 0x071F].toInt() and 0xFF
+                    val aptIn2 = fceuxRam[fOff2 + 0x071F].toInt() and 0xFF
+                    val impossibleApt2 = aptOut2 == 8 && aptIn2 == 0
+                    val isPartialNmiLag2 = diffs.isNotEmpty() && fcInc2 && allDiffsLateEngine2 &&
+                            (impossibleCro2 || impossibleApt2)
+                    val isAreaParserPhaseShift2 = diffs.isNotEmpty() && allDiffsLateEngine2
+
+                    val isSkippedFrame = isLagFrame || isVramOverflow || isLoadingOrTransitionFrame ||
+                            isPartialNmiLag2
                     if (isSkippedFrame) lagFramesSkipped++
 
                     if (diffs.isNotEmpty() && !isSkippedFrame) {
