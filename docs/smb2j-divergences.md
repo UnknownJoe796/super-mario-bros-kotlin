@@ -4,9 +4,9 @@
 
 | Scenario | Divergent Frames | Compared Frames | Rate |
 |---|---|---|---|
-| smb2j-warps-mario | 11 | 28,391 | 0.039% |
-| smb2j-warps-luigi | 13 | 28,928 | 0.045% |
-| smb2j-allitems-mario | 17 | 84,180 | 0.020% |
+| smb2j-warps-mario | 2 | 28,391 | 0.007% |
+| smb2j-warps-luigi | 1 | 28,928 | 0.003% |
+| smb2j-allitems-mario | 2 | 84,180 | 0.002% |
 
 SMB1 TAS: 0 divergent frames (warps, smb-0); 6 on warpless (all proven NES lag frame artifacts).
 
@@ -28,14 +28,42 @@ SMB1 TAS: 0 divergent frames (warps, smb-0); 6 on warpless (all proven NES lag f
 
 ---
 
-## Category 1: Block Buffer USED_BLOCK (kotlin=0x00, fceux=0x20)
+## Category 1: Block Buffer USED_BLOCK (kotlin=0x00, fceux=0x20) — RESOLVED
 
-**Status**: OPEN — no code bug found, needs 6502 interpreter tracing.
+**Root cause**: `handleEToBGCollision()` in `enemyBGCollision.kt` unconditionally cleared the
+block buffer when an enemy stood on USED_BLOCK. But **SMB2J omits the clearing instructions**
+that SMB1 has.
 
-**Impact**: ~2 frames directly (warps-mario 1494, 21795; warps-luigi 1382, 8304, 22165;
-allitems 1584, 1714, 53577, 53799, 53815). Causes Category 2 (fireball bounce failures).
+**SMB1** (smbdism.asm:12439-12443):
+```asm
+cmp #$23              ; USED_BLOCK for SMB1
+bne LandEnemyProperly
+ldy $02               ; get vertical offset
+lda #$00              ; zero
+sta ($06),y           ; CLEAR block buffer position
+lda Enemy_ID,x
+```
 
-### Occurrences
+**SMB2J** (sm2main.asm:11482-11484):
+```asm
+cmp #$20              ; USED_BLOCK for SMB2J
+bne LandEnemyProperly
+lda Enemy_ID,x        ; NO CLEARING — goes straight to enemy ID check
+```
+
+The three instructions `ldy $02; lda #$00; sta ($06),y` are present in SMB1 but entirely
+absent in SMB2J. The Kotlin code cleared unconditionally for both variants.
+
+**Fix**: Wrapped the block buffer clearing in `if (variant != GameVariant.SMB2J)`.
+File: `src/main/kotlin/enemyBGCollision.kt`, `handleEToBGCollision()`.
+
+**Impact**: Eliminated all 10 Category 1 divergent frames across 3 scenarios
+(warps-mario -2, warps-luigi -3, allitems -5).
+
+Note: Category 2 (fireball bounce) was originally hypothesized as downstream of Category 1,
+but the fireball divergences remain after this fix. They are independent bugs.
+
+### Previous Occurrences (now resolved)
 
 | Scenario | Frame | World | Address | Buffer Position |
 |---|---|---|---|---|
@@ -50,66 +78,22 @@ allitems 1584, 1714, 53577, 53799, 53815). Causes Category 2 (fireball bounce fa
 | allitems | 53799 | W6-1 | $0572 | buf1[0x72] (row 7, col 2) |
 | allitems | 53815 | W6-1 | $0574 | buf1[0x74] (row 7, col 4) |
 
-### Root Cause Analysis
-
-Exhaustive code review found no translation errors. The block buffer address computation
-(`blockBufferCollision` / `blockBufferCollisionEnemy`), USED_BLOCK constants, comparison
-chains in `chkForNonSolids`, and clearing logic in `handleEToBGCollision` are all faithful
-to the NES assembly (verified against both smbdism.asm and sm2main.asm).
-
-The consistent pattern on every affected frame:
-
-1. **Player bumps block** during `gameRoutines()` → `playerCtrlRoutine()` → `playerHeadCollision()`:
-   - Writes USED_BLOCK (0x20) directly to block buffer via `sta ($06),y`
-   - Writes 4 VRAM buffer entries to `vRAMBuffer1` for the visual update
-   - Sets `Block_Metatile[x]`, `Block_State[x]=0x11`, `BlockBounceTimer=0x10`
-
-2. **Enemy walks over same position** during `gameEngine()` → `enemiesAndLoopsCore()` → `handleEToBGCollision()`:
-   - `chkUnderEnemy()` reads the just-written USED_BLOCK from the block buffer
-   - `chkForNonSolids()` returns false (0x20 is not vine/coin/hidden block)
-   - `cmp #$20; bne LandEnemyProperly` matches → enters clearing code
-   - Writes 0x00 to the block buffer position
-
-3. **blockObjMTUpdater skips** because `vRAMBuffer1.isNotEmpty()` (4 entries from step 1)
-
-4. **Result**: Kotlin ends with 0x00 (cleared by enemy). FCEUX ends with 0x20.
-
-### Leading Hypothesis
-
-Since the code is verified correct, the remaining hypothesis is that the NES enemy computes
-a block buffer index that maps to a **different position** than where the player wrote
-USED_BLOCK, due to a frame-specific alignment condition that doesn't manifest in the code
-review.
-
-### Next Step
-
-Run 6502 interpreter on frame 1494 to trace exact NES execution:
-1. Load frame 1494's FCEUX dump state
-2. Step through `EnemyToBGCollisionDet` for each enemy slot
-3. Record which enemies reach `ChkUnderEnemy`, what `BlockBufferCollision` computes, and
-   whether any actually reach `HandleEToBGCollision` with metatile 0x20
-4. Compare the NES computed `bufIndex` values with what Kotlin computes
-
 ---
 
-## Category 2: Fireball Bounce Failure (downstream of Category 1)
+## Category 2: Fireball Bounce Failure — RESOLVED
 
-**Status**: OPEN — would be fixed by fixing Category 1.
+**Root cause**: Block buffer overflow for `blockBuffer2`. When a fireball is near the bottom
+of the screen (Y ~0xE8), `BlockBufferChk_FBall` computes `vertOffset = 0xD0`, which overflows
+the 0xD0-byte buffer. On NES, `lda ($06),y` reads past blockBuffer2 ($05D0-$069F) into the
+MetatileBuffer ($06A1-$06AD), which contains terrain metatile IDs from the area parser —
+typically ground/floor tiles (solid). The fireball detects these as solid and bounces.
+Kotlin returned 0 for buffer 2 overflows, so the fireball saw "nothing" and fell through.
 
-**Impact**: ~5-6 frames per scenario. Fireball checks block buffer for a solid metatile to
-bounce off. When Category 1 causes USED_BLOCK to be missing (0x00 instead of 0x20), the
-fireball falls through instead of bouncing.
+**Fix**: Added `readNesRamAt06A0()` to `GameRam.kt` that replicates the NES memory layout
+after blockBuffer2. Updated `blockBufferCollision()` and `blockBufferCollisionEnemy()` to
+call it for buffer 2 overflows instead of returning 0.
 
-| Address | Field | Kotlin | FCEUX | Meaning |
-|---|---|---|---|---|
-| $003A | fireballBouncingFlags[0] | 0x00 | 0x01 | Not bouncing vs bouncing |
-| $003B | fireballBouncingFlags[1] | 0x00 | 0x01 | Same, fireball slot 1 |
-| $00A6 | sprObjYSpeed[7] (fb0) | 0x03 | 0xFD | Falling vs bouncing upward |
-| $00A7 | sprObjYSpeed[8] (fb1) | 0x03 | 0xFD | Same |
-| $00D5 | sprObjYPos[7] (fb0) | varies | 0xE8 | Y position diverges |
-| $00D6 | sprObjYPos[8] (fb1) | varies | 0xE8 | Same |
-
-### Occurrences
+### Previous Occurrences (now resolved)
 
 | Scenario | Frame | World | Addresses |
 |---|---|---|---|
@@ -178,7 +162,7 @@ a +1 divergence (opposite direction). Not yet observed in TAS.
 
 ### Sub-category 4b: Enemy X position differences
 
-**Status**: OPEN — not conclusively identified.
+**Status**: OPEN — carry threshold fixed but 7-11px deltas not fully explained.
 
 Single-frame enemy X position differences with large deltas (7-11 pixels).
 
@@ -187,43 +171,59 @@ Single-frame enemy X position differences with large deltas (7-11 pixels).
 | warps-mario | 3589 | W1-3 | $0088 (enemy 1 X) | 0x02 | 0x0D | -11 |
 | warps-luigi | 6978 | W4-1 | $008A (enemy 3 X) | 0x0D | 0x06 | +7 |
 
-**Partial fix applied**: `offscreenBoundsCheck()` (processCannons.kt:262) used
-`PiranhaPlant.id` ($0D) as the carry threshold for SMB2J, but SMB2J's last `cpy` before
-`ExtendLB` is `#UpsideDownPiranhaP` ($04). Fixed to use variant-appropriate value. This
-corrects a 1-pixel offscreen boundary but doesn't explain the 7-11px deltas.
+**Fix**: `offscreenBoundsCheck()` (processCannons.kt:262) carry threshold reverted to
+`PiranhaPlant.id` ($0D) for both variants. SMB2J inserts `cpy #UpsideDownPiranhaP; beq LimitB`
+before `cpy #PiranhaPlant; bne ExtendLB`, but the `bne ExtendLB` still carries from the
+PiranhaPlant comparison. The previous "fix" to $04 was incorrect.
 
-### Sub-category 4c: Player X position (flagpole/climbing)
+The 7-11px deltas are too large for a 1-pixel boundary shift. Investigation found both
+divergences involve VineObject ($2F) spawning at different X positions — the vine reads
+its initial position from `Block_X_Position,Y` where Y comes from JumpEngine dispatch
+($2F * 2 + 2 = $60), reading from NES scratch RAM that Kotlin doesn't model.
+Requires 6502 tracing to resolve.
 
-**Status**: OPEN — root cause not yet identified.
+### Sub-category 4c: Player X position (flagpole/climbing) — RESOLVED
 
-| Scenario | Frame | World | Addresses | Kotlin | FCEUX | Delta |
+**Root cause**: `putPlayerOnVine()` (collisionDetection.kt) reads `ClimbXPosAdder-1,y`
+where y = PlayerFacingDir. The NES `-1` indexing means out-of-range facingDir values
+(0 or 3) read adjacent ROM bytes:
+
+- **facingDir=3** (Direction.Both): NES reads `ClimbPLocAdder[0]` = `$FF`. Kotlin used
+  `coerceIn` to clamp index 3 to 2, reading `$07` instead.
+- **facingDir=0** (Direction.None): NES reads the high byte of the preceding
+  `jmp RemoveCoin_Axe`. This differs by variant: SMB1 = `$8A`, SMB2J = `$69`.
+
+Secondary fix: the `lda $06; bne ExPVne` check uses the full NES `$06` value (column for
+buffer 1, column + $D0 for buffer 2), but Kotlin only used the column.
+
+**Fix**: Extended `climbXPosAdder` and `climbPLocAdder` arrays with ROM overflow/underflow
+bytes; made `climbXPosAdder` variant-aware; fixed `putPlayerOnVine` to reconstruct NES `$06`.
+
+| Scenario | Frame | World | Addresses | Kotlin→Fixed | FCEUX | Delta |
 |---|---|---|---|---|---|---|
-| warps-mario | 22374 | W8-2 | $0086 + $0755 | 0xF7/0x53 | 0xEF/0x4B | +8 |
-| warps-mario | 22786 | W8-2 | $0086 + $0755 | 0xCA | 0xA9 | +0x21 (33) |
+| warps-mario | 22374 | W8-2 | $0086 + $0755 | 0xF7→0xEF | 0xEF | 0 |
+| warps-mario | 22786 | W8-2 | $0086 + $0755 | 0xCA→0xA9 | 0xA9 | 0 |
 
-Both `playerXPosition` and `playerPosForScroll` diverge together. Frame 22786 has the
-larger delta of 0x21 (33 pixels). Both frames are in W8-2 near the flagpole/end of level.
+### Sub-category 4d: Enemy Y speed/position (Bloober BlooperMoveCounter)
 
-**Investigated and ruled out**: The first-half side check in `doPlayerSideCheck()` was
-suspected — when `CheckForClimbMTiles` returns climbable, the agent proposed calling
-`handleClimbing`. However, the NES assembly (smbdism.asm:12048, sm2main.asm:11079) shows
-that climbable falls through to BHalf (not to HandleClimbing). HandleClimbing is only called
-from `CheckSideMTiles` (the second `CheckForClimbMTiles` call). The proposed fix was reverted
-after it introduced SMB1 regressions.
-
-### Sub-category 4d: Enemy Y speed/position
-
-**Status**: OPEN — likely NES memory aliasing, needs FCEUX dump enemy type.
+**Status**: OPEN — root cause confirmed as Bloober swimming state machine, but exact
+NES code path that zeroes the counter remains unidentified.
 
 | Scenario | Frame | World | Addresses | Pattern |
 |---|---|---|---|---|
+| warps-mario | 26328 | W8-4 | $00A2 (sprObjYSpeed[3]) | speed 2 vs 0 |
 | allitems | 56767 | W6-3 | $00A3 (sprObjYSpeed[4]), $00D2 (sprObjYPos[4]) | speed 2 vs 0, pos off by 1 |
+| allitems | 82022 | W8-4 | $00A2 (sprObjYSpeed[3]) | speed 2 vs 0 |
 
-Both addresses are for the same enemy (slot 3, objectOffset=3). Kotlin=0x91/speed=2 (still
-falling), FCEUX=0x90/speed=0 (stopped). The FCEUX position 0x90 is NOT the result of
-`enemyLanding()` snap (which would give 0x98), so something other than the standard landing
-path zeroed the Y speed on NES — likely an alias variable (PiranhaPlant_MoveFlag,
-BlooperMoveCounter, or LakituMoveDirection sharing the $A0+x address).
+**Enemy types confirmed**: All three are **Bloober** (ID $07). The $A0+x address serves as
+both `Enemy_Y_Speed` and `BlooperMoveCounter`. On NES, the counter is zeroed (resetting the
+swimming state machine), while Kotlin leaves it at 2 (float-down phase).
+
+The `procSwimmingB` float-down path checks: (1) timer expired — confirmed for all cases,
+(2) bloober below player — confirmed NOT met. The NES `adc #$10` in `ChkNearPlayer` has
+an inherited carry from `PlayerEnemyDiff` but doesn't change the comparison outcome.
+
+Requires 6502 instruction-level tracing to identify the zeroing code path.
 
 ---
 
@@ -260,15 +260,13 @@ The test detects and skips several categories of FCEUX dump artifacts:
 
 ## Priority for Fixing
 
-1. **Category 1** (block buffer USED_BLOCK): Highest impact. Fixing would also fix Category 2,
-   eliminating ~16-18 frames total. Requires 6502 interpreter tracing.
+Only 5 frames remain across all 3 scenarios (down from 41). All require 6502
+instruction-level tracing to resolve.
 
-2. **Category 4c** (player X + scroll): 2 frames in warps-mario. Root cause unknown —
-   related to flagpole/climbing area in W8-2. The `doPlayerSideCheck` first-half hypothesis
-   was ruled out.
+1. **Category 4d** (Bloober Y speed): 3 frames. All Bloobers whose BlooperMoveCounter
+   is zeroed on NES through an unidentified code path.
 
-3. **Category 4b** (enemy X 7-11px): 2 frames. Large deltas suggest a significant logic
-   difference, not just off-by-one. May be related to Category 1 block buffer differences
-   affecting enemy collision behavior.
+2. **Category 4b** (VineObject X position): 2 frames. Vine reads initial X from NES
+   scratch RAM ($60) set by JumpEngine dispatch, not modeled in Kotlin.
 
-4. **Category 4d** (enemy Y speed aliasing): 1 frame. Needs FCEUX dump enemy type to confirm.
+6. New: warps-mario frame 26328 (W8-4) — 1 divergence ($00a2: sprObjYSpeed). Not yet categorized.

@@ -259,11 +259,10 @@ fun System.offscreenBoundsCheck() {
         leftBound = adcResult and 0xFF
         carry = if (adcResult > 0xFF) 1 else 0
     } else {
-        // Carry comes from the last cpy before reaching ExtendLB.
-        // SMB1: last cpy is #PiranhaPlant ($0D) — bne ExtendLB carries from that comparison.
-        // SMB2J: last cpy is #UpsideDownPiranhaP ($04) — bne ExtendLB carries from that comparison.
-        val lastCmpValue = if (variant == GameVariant.SMB2J) EnemyId.GreenKoopaVar.id else EnemyId.PiranhaPlant.id
-        carry = if ((enemyId.toInt() and 0xFF) >= lastCmpValue) 1 else 0
+        // Both SMB1 and SMB2J: last cpy is #PiranhaPlant ($0D) — bne ExtendLB carries from that comparison.
+        // SMB2J inserts cpy #UpsideDownPiranhaP ($04); beq LimitB before cpy #PiranhaPlant,
+        // but the bne ExtendLB still branches from the PiranhaPlant comparison.
+        carry = if ((enemyId.toInt() and 0xFF) >= EnemyId.PiranhaPlant.id) 1 else 0
     }
     //> ExtendLB: sbc #$48      ;subtract 72 pixels regardless
     // SBC with carry: result = A - operand - (1 - carry)

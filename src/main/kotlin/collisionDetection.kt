@@ -102,15 +102,17 @@ private val flagpoleYPosData = byteArrayOf(0x18, 0x22, 0x50, 0x68, 0x90.toByte()
 
 //> ClimbXPosAdder:
 //>       .db $f9, $07
-// NES accesses via ClimbXPosAdder-1,y (1-indexed by PlayerFacingDir).
-// Prepend the ROM underflow byte ($8A at $DE24) so facingDir=0 reads
-// the same byte the NES would. Index with [facingDir] directly.
-private val climbXPosAdder = byteArrayOf(0x8a.toByte(), 0xf9.toByte(), 0x07)
+// Out-of-range facingDir (0 or 3) reads adjacent ROM bytes. These differ by variant:
+// facingDir=0 reads the high byte of `jmp RemoveCoin_Axe` (SMB1=$8A, SMB2J=$69).
+// facingDir=3 reads ClimbPLocAdder[0] ($FF, same for both variants).
+private val climbXPosAdder_SMB1 = byteArrayOf(0x8a.toByte(), 0xf9.toByte(), 0x07, 0xff.toByte())
+private val climbXPosAdder_SMB2J = byteArrayOf(0x69, 0xf9.toByte(), 0x07, 0xff.toByte())
 
 //> ClimbPLocAdder:
 //>       .db $ff, $00
-// Same pattern: prepend ROM underflow byte ($07 at $DE26).
-private val climbPLocAdder = byteArrayOf(0x07, 0xff.toByte(), 0x00)
+// facingDir=0 reads ClimbXPosAdder[1] ($07, same for both variants).
+// facingDir=3 reads FlagpoleYPosData[0] ($18, same for both variants).
+private val climbPLocAdder = byteArrayOf(0x07, 0xff.toByte(), 0x00, 0x18)
 
 //> BlockBuffer_X_Adder:
 private val blockBufferXAdder = byteArrayOf(
@@ -383,6 +385,8 @@ fun System.blockBufferCollision(sprObjOffset: Int, adderOffset: Int, returnHoriz
     val metatile: Byte = if (bufIndex in buffer.indices) buffer[bufIndex]
         else if (buffer === ram.blockBuffer1 && (bufIndex - buffer.size) in ram.blockBuffer2.indices)
             ram.blockBuffer2[bufIndex - buffer.size]
+        else if (buffer === ram.blockBuffer2)
+            ram.readNesRamAt06A0(bufIndex - ram.blockBuffer2.size)
         else 0
 
     //> pla                         ;pull A from stack
@@ -2138,12 +2142,16 @@ private fun System.putPlayerOnVine(result: BlockBufferResult) {
     //> SetVXPl: ldy PlayerFacingDir
     val facingDir = ram.playerFacingDir.byte.toInt() and 0xFF
     //> lda $06; asl; asl; asl; asl  ;low byte of block buffer address * 16
-    val bbLow = result.blockBufferBase and 0xFF  // approximate: $06 in assembly
-    // Actually $06 is the low byte of the block buffer pointer.
-    // In our implementation, blockBufferBase encodes the column offset.
-    // The assembly multiplies it by 16 and adds an adder based on facing direction.
+    // Reconstruct NES $06: buffer 1 → column, buffer 2 → column + 0xD0
+    val nes06 = if (result.blockBuffer === ram.blockBuffer2) (0xD0 + result.blockBufferBase) and 0xFF
+                else result.blockBufferBase and 0xFF
+    // The assembly multiplies $06 by 16 (asl x4) and adds an adder based on facing direction.
     // This positions the player horizontally on the vine/flagpole.
-    val shiftedBBLow = (bbLow shl 4) and 0xFF
+    // Note: (column + 0xD0) << 4 == column << 4 in 8-bit arithmetic, so X position is the same.
+    val shiftedBBLow = (nes06 shl 4) and 0xFF
+    // NES reads ClimbXPosAdder-1,y which can overflow/underflow for unusual facingDir values.
+    // The arrays include underflow (index 0) and overflow (index 3) bytes from adjacent ROM.
+    val climbXPosAdder = if (variant == GameVariant.SMB2J) climbXPosAdder_SMB2J else climbXPosAdder_SMB1
     val xPosAdder = climbXPosAdder[facingDir.coerceIn(climbXPosAdder.indices)].toInt()
     //> clc; adc ClimbXPosAdder-1,y; sta Player_X_Position
     // by Claude - use named scalar, not flat array (coherence fix)
@@ -2151,11 +2159,11 @@ private fun System.putPlayerOnVine(result: BlockBufferResult) {
 
     //> ExPVne:  rts                     ;finally, we're done!
     //> lda $06; bne ExPVne
-    if (bbLow != 0) return
+    if (nes06 != 0) return
 
     //> lda ScreenRight_PageLoc; clc; adc ClimbPLocAdder-1,y; sta Player_PageLoc
     val pageLoc = ram.screenRightPageLoc.toInt() and 0xFF
-    val pageAdder = climbPLocAdder[facingDir].toInt()
+    val pageAdder = climbPLocAdder[facingDir.coerceIn(climbPLocAdder.indices)].toInt()
     ram.playerPageLoc = ((pageLoc + pageAdder) and 0xFF).toByte()
 }
 

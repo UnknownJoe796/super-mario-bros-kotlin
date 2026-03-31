@@ -144,10 +144,13 @@ private fun System.blockBufferCollisionEnemy(sprObjOffset: Int, adderOffset: Int
 
     val vertOffset = ((modifiedY and 0xF0) - 0x20) and 0xFF
     val bufIndex = bufBase + vertOffset
-    // NES has no bounds check — buffer 1 overflow reads buffer 2 same column
+    // NES has no bounds check — buffer 1 overflow reads buffer 2 same column;
+    // buffer 2 overflow reads blockBufferColumnPos/$06A0+ region.
     val metatile: Byte = if (bufIndex in buffer.indices) buffer[bufIndex]
         else if (buffer === ram.blockBuffer1 && (bufIndex - buffer.size) in ram.blockBuffer2.indices)
             ram.blockBuffer2[bufIndex - buffer.size]
+        else if (buffer === ram.blockBuffer2)
+            ram.readNesRamAt06A0(bufIndex - ram.blockBuffer2.size)
         else 0
 
     val lowNybble: Int = if (returnHorizontal) {
@@ -325,9 +328,14 @@ private fun System.handleEToBGCollision(x: Int, underResult: BlockBufferResult) 
         //> ldy $02                   ;get vertical coordinate used to find block
         //> lda #$00                  ;store default blank metatile in that spot so we won't
         //> sta ($06),y               ;trigger this routine accidentally again
-        val idx = underResult.blockBufferBase + underResult.vertOffset
-        if (idx in underResult.blockBuffer.indices) {
-            underResult.blockBuffer[idx] = 0
+        // SMB2J omits these three instructions — it does NOT clear the block buffer here.
+        // SMB1: clears USED_BLOCK to 0x00 so the routine won't re-trigger.
+        // SMB2J: skips straight to Enemy_ID check, leaving USED_BLOCK in place.
+        if (variant != GameVariant.SMB2J) {
+            val idx = underResult.blockBufferBase + underResult.vertOffset
+            if (idx in underResult.blockBuffer.indices) {
+                underResult.blockBuffer[idx] = 0
+            }
         }
 
         //> lda Enemy_ID,x

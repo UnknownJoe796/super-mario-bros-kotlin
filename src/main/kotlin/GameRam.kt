@@ -731,4 +731,28 @@ class GameRam {
     @RamLocation(0xf9) var musicOffsetTriangle: Byte = 0
     @RamLocation(0xf0) var noteLenLookupTblOfs: Byte = 0
 
+    /**
+     * Reads the NES byte at address $06A0 + [offset], replicating the NES memory
+     * layout after blockBuffer2 ($05D0-$069F). Called when block buffer collision
+     * detection overflows blockBuffer2 (e.g., fireball at Y near 0xE8 checks
+     * vertOffset $D0, reading from MetatileBuffer which contains terrain tiles).
+     */
+    fun readNesRamAt06A0(offset: Int): Byte {
+        val addr = 0x06A0 + offset
+        return when {
+            addr == 0x06A0 -> blockBufferColumnPos
+            addr in 0x06A1..0x06AD -> metatileBuffer[(addr - 0x06A1)].toByte()
+            addr in 0x06AE..0x06B6 -> hammerEnemyOffsets[addr - 0x06AE]
+            addr == 0x06B7 -> jumpCoinMiscOffset
+            addr == 0x06BC -> brickCoinTimerFlag
+            addr in 0x06BE..0x06C6 -> miscCollisionFlags[addr - 0x06BE]
+            addr == 0x06CB -> enemyFrenzyBuffer
+            addr == 0x06CC -> secondaryHardMode
+            addr == 0x06CD -> enemyFrenzyQueue
+            addr == 0x06CE -> fireballCounter
+            addr == 0x06CF -> duplicateObjOffset
+            else -> 0 // Unmapped NES RAM bytes default to 0
+        }
+    }
+
 }
