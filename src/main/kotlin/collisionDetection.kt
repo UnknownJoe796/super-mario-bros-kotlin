@@ -257,6 +257,16 @@ fun System.playerCollisionCore(bbOffsetY: Int): Boolean {
  * @return true (carry set) if player is offscreen or too far down (>= $d0)
  */
 private fun System.checkPlayerVertical(): Boolean {
+    if (variant == GameVariant.SMB2J) {
+        //> CheckPlayerVertical:         (sm2main.asm:10901)
+        //> lda Player_OffscreenBits     ;if player object is not offscreen
+        //> and #$f0                     ;then branch with clear carry flag
+        //> clc
+        //> beq ExCPV                    ;otherwise fall through and set carry flag
+        //> sec                          ;to symbolize that player is offscreen
+        //> ExCPV: rts
+        return (ram.playerOffscreenBits.toInt() and 0xF0) != 0
+    }
     //> CheckPlayerVertical:
     //> lda Player_OffscreenBits  ;if player object is completely offscreen
     //> cmp #$f0                  ;vertically, leave this routine
@@ -1322,8 +1332,15 @@ private fun System.chkEnemyFaceRight(x: Int) {
 
 fun System.injurePlayer() {
     //> InjurePlayer:
-    //> lda InjuryTimer; bne ExInjColRoutines
-    if (ram.injuryTimer != 0.toByte()) return
+    if (variant == GameVariant.SMB2J) {
+        //> lda InjuryTimer              (sm2main.asm:10424)
+        //> ora StarInvincibleTimer      ;check both invincibility timers
+        //> bne ExInjColRoutines
+        if (ram.injuryTimer != 0.toByte() || ram.starInvincibleTimer != 0.toByte()) return
+    } else {
+        //> lda InjuryTimer; bne ExInjColRoutines
+        if (ram.injuryTimer != 0.toByte()) return
+    }
 
     //> ForceInjury:
     forceInjury()  // defined in gameMode.kt
@@ -1800,8 +1817,10 @@ private fun System.doPlayerSideCheck(bbAdderBase: Int) {
                 //> cmp #$6b; beq BHalf  ;water pipe top
                 if (sideMT != metatileId.SIDE_PIPE_JOINT_TOP && sideMT != metatileId.WATER_PIPE_TOP) {
                     //> jsr CheckForClimbMTiles; bcc CheckSideMTiles
+                    // If climbable (carry set), fall through to BHalf.
+                    // If NOT climbable (carry clear), go to CheckSideMTiles.
                     if (checkForClimbMTiles(sideMT, variant)) {
-                        // climbable: skip to BHalf
+                        // climbable: fall through to BHalf
                     } else {
                         checkSideMTiles(sideMT, sideResult, counter)
                         return

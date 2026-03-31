@@ -35,6 +35,7 @@ fun System.screenRoutines() {
         // sequence. Our entrance flow doesn't support progressive rendering yet, so we use
         // ResetSpritesAndScreenTimer for both variants to ensure block buffers are filled
         // via AreaParserTaskControl before gameplay starts.
+        ScreenRoutineTask.DemoReset -> resetSpritesAndScreenTimer()
         ScreenRoutineTask.ResetSpritesAndScreenTimer2 -> resetSpritesAndScreenTimer()
         //> .dw AreaParserTaskControl
         ScreenRoutineTask.AreaParserTaskControl -> areaParserTaskControl()
@@ -183,7 +184,7 @@ private fun System.displayTimeUp() {
         return
     }
     //> NoTimeUp: inc ScreenRoutineTask     ;increment control task 2 tasks forward
-    ram.screenRoutineTask = ram.screenRoutineTask.next()
+    ram.screenRoutineTask = ram.screenRoutineTask.next(variant)
     //> jmp IncSubtask
     incSubtask()
 }
@@ -266,7 +267,7 @@ private fun System.areaParserTaskControl() {
     //> bpl OutputCol
     if (--ram.columnSets < 0) {
         //> inc ScreenRoutineTask     ;if not, move on to the next task
-        ram.screenRoutineTask = ram.screenRoutineTask.next()
+        ram.screenRoutineTask = ram.screenRoutineTask.next(variant)
     }
     //> OutputCol: lda #$06                  ;set vram buffer to output rendered column set
     //> sta VRAM_Buffer_AddrCtrl  ;on next NMI
@@ -382,7 +383,7 @@ private fun System.writeTopScore(): Unit {
 
 private fun System.incSubtask() {
     //> IncSubtask:  inc ScreenRoutineTask      ;move onto next task
-    ram.screenRoutineTask = ram.screenRoutineTask.next()
+    ram.screenRoutineTask = ram.screenRoutineTask.next(variant)
 }
 
 //> NextSubtask:   jmp IncSubtask           ;move onto next task
@@ -394,8 +395,8 @@ fun System.getPlayerColors() {
     // We're preparing to append to VRAM Buffer 1.
     //> ldy #$00
     var palette = PlayerPalettes.mario // start with Mario
-    // SMB1 checks CurrentPlayer for Luigi palette; SMB2J has no Luigi color distinction
-    if (variant != GameVariant.SMB2J && (ram.currentPlayer) != 0.toByte()) {
+    // CurrentPlayer (SMB1) / SelectedPlayer (SMB2J) — same address $753
+    if (ram.currentPlayer != 0.toByte()) {
         //> ldy #$04                 ;load offset for luigi
         palette = PlayerPalettes.luigi
     }
@@ -446,7 +447,7 @@ private fun System.resetScreenTimer() {
     //> sta ScreenTimer
     ram.screenTimer = 0x07.toByte()
     //> inc ScreenRoutineTask       ;move onto next task
-    ram.screenRoutineTask = ram.screenRoutineTask.next()
+    ram.screenRoutineTask = ram.screenRoutineTask.next(variant)
     //> NoReset: rts
 }
 

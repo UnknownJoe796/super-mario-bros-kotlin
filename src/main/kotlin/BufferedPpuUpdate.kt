@@ -172,7 +172,7 @@ sealed class BufferedPpuUpdate {
          *   If writes are misaligned or partial, we fall back to PaletteBytesWrite to preserve intent.
          * - Other ranges are currently not supported and will throw for visibility during development.
          */
-        fun parseVramBuffer(bytes: ByteArray): MutableVBuffer {
+        fun parseVramBuffer(bytes: ByteArray, backgrounds: Array<Pattern> = OriginalRom.backgrounds): MutableVBuffer {
             val out = MutableVBuffer()
             var i = 0 // cursor into the buffer
             while (i < bytes.size) {
@@ -255,7 +255,7 @@ sealed class BufferedPpuUpdate {
                         val startY = startInNt / 32
                         if (repeat && data.isNotEmpty()) {
                             // Repeat: one tile ID replicated 'length' times along X or Y depending on drawVert
-                            val pat = OriginalRom.backgrounds[data[0]]
+                            val pat = backgrounds[data[0]]
                             out.add(
                                 BackgroundPatternRepeat(
                                     nametable = ntIndex.toByte(),
@@ -268,7 +268,7 @@ sealed class BufferedPpuUpdate {
                             )
                         } else if (data.isNotEmpty()) {
                             // Literal: sequence of tile IDs placed across or down depending on drawVert
-                            val patterns = data.map { OriginalRom.backgrounds[it] }
+                            val patterns = data.map { backgrounds[it] }
                             out.add(
                                 BackgroundPatternString(
                                     nametable = ntIndex.toByte(),

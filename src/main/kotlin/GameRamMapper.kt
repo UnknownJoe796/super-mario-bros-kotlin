@@ -327,10 +327,10 @@ object GameRamMapper {
             { r -> r.gameEngineSubroutine.ordinal.toByte() },
             { r, b -> r.gameEngineSubroutine = GameEngineRoutine.fromByte(b) }))
 
-        // ScreenRoutineTask enum
+        // ScreenRoutineTask enum — variant-aware because SMB2J inserts DemoReset at slot 7
         all.add(ValueByteField(0x73c,
-            { r -> r.screenRoutineTask.ordinal.toByte() },
-            { r, b -> r.screenRoutineTask = ScreenRoutineTask.fromByte(b) }))
+            { r -> ScreenRoutineTask.toByte(r.screenRoutineTask, r.variant) },
+            { r, b -> r.screenRoutineTask = ScreenRoutineTask.fromByte(b, r.variant) }))
 
         // Deduplicate: scalar aliases that delegate to arrays share the same start address.
         // Group by start address and keep the largest descriptor.

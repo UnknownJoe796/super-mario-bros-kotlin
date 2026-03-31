@@ -210,24 +210,55 @@ object AltEntrance {
 }
 
 enum class ScreenRoutineTask {
-    InitScreen,             // 0x00
-    SetupIntermediate,      // 0x01
-    WriteTopStatusLine,     // 0x02
-    WriteBottomStatusLine,  // 0x03
-    DisplayTimeUp,          // 0x04
-    ResetSpritesAndScreenTimer1, // 0x05
-    DisplayIntermediate,    // 0x06
-    ResetSpritesAndScreenTimer2, // 0x07
-    AreaParserTaskControl,  // 0x08
-    GetAreaPalette,         // 0x09
-    GetBackgroundColor,     // 0x0A
-    GetAlternatePalette1,   // 0x0B
-    DrawTitleScreen,        // 0x0C
-    ClearBuffersDrawIcon,   // 0x0D
-    WriteTopScore,          // 0x0E
+    InitScreen,             // SMB1: 0x00, SMB2J: 0x00
+    SetupIntermediate,      // SMB1: 0x01, SMB2J: 0x01
+    WriteTopStatusLine,     // SMB1: 0x02, SMB2J: 0x02
+    WriteBottomStatusLine,  // SMB1: 0x03, SMB2J: 0x03
+    DisplayTimeUp,          // SMB1: 0x04, SMB2J: 0x04
+    ResetSpritesAndScreenTimer1, // SMB1: 0x05, SMB2J: 0x05
+    DisplayIntermediate,    // SMB1: 0x06, SMB2J: 0x06
+    DemoReset,              // SMB2J only: 0x07 (reinitializes area for demo)
+    ResetSpritesAndScreenTimer2, // SMB1: 0x07, SMB2J: 0x08
+    AreaParserTaskControl,  // SMB1: 0x08, SMB2J: 0x09
+    GetAreaPalette,         // SMB1: 0x09, SMB2J: 0x0A
+    GetBackgroundColor,     // SMB1: 0x0A, SMB2J: 0x0B
+    GetAlternatePalette1,   // SMB1: 0x0B, SMB2J: 0x0C
+    DrawTitleScreen,        // SMB1: 0x0C, SMB2J: 0x0D
+    ClearBuffersDrawIcon,   // SMB1: 0x0D, SMB2J: 0x0E
+    WriteTopScore,          // SMB1: 0x0E, SMB2J: 0x0F
     ;
-    fun next() = entries[ordinal + 1]
+
+    /** Advance to the next task in the dispatch sequence for the given variant. */
+    fun next(variant: GameVariant = GameVariant.SMB1): ScreenRoutineTask {
+        if (variant == GameVariant.SMB1 && this == DisplayIntermediate) {
+            // SMB1 skips DemoReset (doesn't exist)
+            return ResetSpritesAndScreenTimer2
+        }
+        return entries[ordinal + 1]
+    }
+
     companion object {
-        fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { entries.last() }
+        // SMB2J ordinals match the enum directly (DemoReset at 7).
+        // SMB1 has no DemoReset, so NES byte values >= 7 are offset by 1.
+        fun fromByte(b: Byte, variant: GameVariant = GameVariant.SMB1): ScreenRoutineTask {
+            val i = b.toInt() and 0xFF
+            return if (variant == GameVariant.SMB2J) {
+                entries.getOrElse(i) { entries.last() }
+            } else {
+                // SMB1: no DemoReset at position 7, so shift values >= 7 up by 1
+                val adjusted = if (i >= 7) i + 1 else i
+                entries.getOrElse(adjusted) { entries.last() }
+            }
+        }
+
+        fun toByte(task: ScreenRoutineTask, variant: GameVariant = GameVariant.SMB1): Byte {
+            val ord = task.ordinal
+            return if (variant == GameVariant.SMB2J) {
+                ord.toByte()
+            } else {
+                // SMB1: DemoReset doesn't exist, shift ordinals >= 7 down by 1
+                (if (ord >= 7) ord - 1 else ord).toByte()
+            }
+        }
     }
 }

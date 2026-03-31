@@ -80,7 +80,7 @@ private fun loadChrData(chrData: ByteArray, sprites: Array<Pattern>, backgrounds
 }
 
 /** Load SMB2J CHR data from FDS disk image. Returns 8KB CHR with SM2CHAR2 patch applied. */
-private val smb2jChrData: ByteArray = run {
+val smb2jChrData: ByteArray = run {
     val fdsFile = java.io.File("smb2j.fds")
     if (!fdsFile.exists()) return@run ByteArray(8192)
     val data = fdsFile.readBytes()

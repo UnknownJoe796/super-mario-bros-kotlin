@@ -4,7 +4,9 @@ import com.ivieleague.smbtranslation.areaparser.AreaHeader
 import com.ivieleague.smbtranslation.areaparser.AreaPointer
 import com.ivieleague.smbtranslation.utils.*
 import com.ivieleague.smbtranslation.chr.OriginalRom
+import com.ivieleague.smbtranslation.chr.Smb2jRom
 import com.ivieleague.smbtranslation.chr.rawChrData
+import com.ivieleague.smbtranslation.nes.Pattern
 import com.ivieleague.smbtranslation.utils.JoypadBits
 import java.io.File
 import kotlin.experimental.or
@@ -534,29 +536,93 @@ fun System.drawMenuCursor() {
 fun System.setupMenuCursor() {
     //> SetupMenuCursor:
     val player = ram.selectedPlayer.toInt() and 1
-    // NES nametable address $2228 = nametable 0, row 17, col 8 (MARIO row)
-    // NES nametable address $2248 = nametable 0, row 18, col 8 (LUIGI row)
     val marioTile = if (player == 0) 0xce else 0x24  // mushroom or blank
     val luigiTile = if (player == 1) 0xce else 0x24  // mushroom or blank
-    ram.vRAMBuffer1.addAll(listOf(
-        BufferedPpuUpdate.BackgroundPatternString(
-            nametable = 0,
-            x = 8,
-            y = 17,
-            drawVertically = false,
-            patterns = listOf(OriginalRom.backgrounds[marioTile])
-        ),
-        BufferedPpuUpdate.BackgroundPatternString(
-            nametable = 0,
-            x = 8,
-            y = 18,
-            drawVertically = false,
-            patterns = listOf(OriginalRom.backgrounds[luigiTile])
-        ),
-    ))
+    val bg = if (variant == GameVariant.SMB2J) Smb2jRom.backgrounds else OriginalRom.backgrounds
+    if (variant == GameVariant.SMB2J) {
+        // SMB2J MenuCursorTemplate: PPU $224B, 3 tiles vertical at col 11, rows 18/19/20
+        // MARIO GAME at row 18, LUIGI GAME at row 20, blank row 19 between them
+        ram.vRAMBuffer1.addAll(listOf(
+            BufferedPpuUpdate.BackgroundPatternString(
+                nametable = 0, x = 11, y = 18, drawVertically = false,
+                patterns = listOf(bg[marioTile])
+            ),
+            BufferedPpuUpdate.BackgroundPatternString(
+                nametable = 0, x = 11, y = 19, drawVertically = false,
+                patterns = listOf(bg[0x24])  // blank between rows
+            ),
+            BufferedPpuUpdate.BackgroundPatternString(
+                nametable = 0, x = 11, y = 20, drawVertically = false,
+                patterns = listOf(bg[luigiTile])
+            ),
+        ))
+    } else {
+        // SMB1: PPU $2228/$2248 = col 8, rows 17/18
+        ram.vRAMBuffer1.addAll(listOf(
+            BufferedPpuUpdate.BackgroundPatternString(
+                nametable = 0, x = 8, y = 17, drawVertically = false,
+                patterns = listOf(bg[marioTile])
+            ),
+            BufferedPpuUpdate.BackgroundPatternString(
+                nametable = 0, x = 8, y = 18, drawVertically = false,
+                patterns = listOf(bg[luigiTile])
+            ),
+        ))
+    }
 }
 
 private val originalRom = File("smb.nes").readBytes()
+
+// SMB2J TitleScreenGfxData from sm2main.asm — VRAM buffer commands for the title screen nametable.
+// Unlike SMB1 (which embeds title screen data in CHR ROM at $1EC0), SMB2J stores it in PRG as
+// pre-formatted VRAM transfer commands: [addr_hi, addr_lo, control, data...], terminated by $00.
+@Suppress("nothing_to_inline")
+private inline fun b(v: Int): Byte = v.toByte()
+private val smb2jTitleScreenGfxData: ByteArray = byteArrayOf(
+    b(0x20), b(0x84), b(0x01), b(0x44),
+    b(0x20), b(0x85), b(0x57), b(0x48),
+    b(0x20), b(0x9c), b(0x01), b(0x49),
+    b(0x20), b(0xa4), b(0xc9), b(0x46),
+    b(0x20), b(0xa5), b(0x57), b(0x26),
+    b(0x20), b(0xbc), b(0xc9), b(0x4a),
+    b(0x20), b(0xa5), b(0x0a), b(0xd0), b(0xd1), b(0xd8), b(0xd8), b(0xde), b(0xd1), b(0xd0), b(0xda), b(0xde), b(0xd1),
+    b(0x20), b(0xc5), b(0x17), b(0xd2), b(0xd3), b(0xdb), b(0xdb), b(0xdb), b(0xd9), b(0xdb), b(0xdc), b(0xdb), b(0xdf),
+    b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26),
+    b(0x20), b(0xe5), b(0x17), b(0xd4), b(0xd5), b(0xd4), b(0xd9), b(0xdb), b(0xe2), b(0xd4), b(0xda), b(0xdb), b(0xe0),
+    b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26), b(0x26),
+    b(0x21), b(0x05), b(0x57), b(0x26),
+    b(0x21), b(0x05), b(0x0a), b(0xd6), b(0xd7), b(0xd6), b(0xd7), b(0xe1), b(0x26), b(0xd6), b(0xdd), b(0xe1), b(0xe1),
+    b(0x21), b(0x25), b(0x17), b(0xd0), b(0xe8), b(0xd1), b(0xd0), b(0xd1), b(0xde), b(0xd1), b(0xd8), b(0xd0), b(0xd1),
+    b(0x26), b(0xde), b(0xd1), b(0xde), b(0xd1), b(0xd0), b(0xd1), b(0xd0), b(0xd1), b(0x26), b(0x26), b(0xd0), b(0xd1),
+    b(0x21), b(0x45), b(0x17), b(0xdb), b(0x42), b(0x42), b(0xdb), b(0x42), b(0xdb), b(0x42), b(0xdb), b(0xdb), b(0x42),
+    b(0x26), b(0xdb), b(0x42), b(0xdb), b(0x42), b(0xdb), b(0x42), b(0xdb), b(0x42), b(0x26), b(0x26), b(0xdb), b(0x42),
+    b(0x21), b(0x65), b(0x46), b(0xdb),
+    b(0x21), b(0x6b), b(0x11), b(0xdf), b(0xdb), b(0xdb), b(0xdb), b(0x26), b(0xdb), b(0xdf), b(0xdb), b(0xdf), b(0xdb),
+    b(0xdb), b(0xe4), b(0xe5), b(0x26), b(0x26), b(0xec), b(0xed),
+    b(0x21), b(0x85), b(0x17), b(0xdb), b(0xdb), b(0xdb), b(0xde), b(0x43), b(0xdb), b(0xe0), b(0xdb), b(0xdb), b(0xdb),
+    b(0x26), b(0xdb), b(0xe3), b(0xdb), b(0xe0), b(0xdb), b(0xdb), b(0xe6), b(0xe3), b(0x26), b(0x26), b(0xee), b(0xef),
+    b(0x21), b(0xa5), b(0x17), b(0xdb), b(0xdb), b(0xdb), b(0xdb), b(0x42), b(0xdb), b(0xdb), b(0xdb), b(0xd4), b(0xd9),
+    b(0x26), b(0xdb), b(0xd9), b(0xdb), b(0xdb), b(0xd4), b(0xd9), b(0xd4), b(0xd9), b(0xe7), b(0x26), b(0xde), b(0xda),
+    b(0x21), b(0xc4), b(0x19), b(0x5f), b(0x95), b(0x95), b(0x95), b(0x95), b(0x95), b(0x95), b(0x95), b(0x95), b(0x97),
+    b(0x98), b(0x78), b(0x95), b(0x96), b(0x95), b(0x95), b(0x97), b(0x98), b(0x97), b(0x98), b(0x95), b(0x78), b(0x95),
+    b(0xf0), b(0x7a),
+    b(0x21), b(0xef), b(0x0e), b(0xcf), b(0x01), b(0x09), b(0x08), b(0x06), b(0x24), b(0x17), b(0x12), b(0x17), b(0x1d),
+    b(0x0e), b(0x17), b(0x0d), b(0x18),
+    b(0x22), b(0x4d), b(0x0a), b(0x16), b(0x0a), b(0x1b), b(0x12), b(0x18), b(0x24), b(0x10), b(0x0a), b(0x16), b(0x0e),
+    b(0x22), b(0x8d), b(0x0a), b(0x15), b(0x1e), b(0x12), b(0x10), b(0x12), b(0x24), b(0x10), b(0x0a), b(0x16), b(0x0e),
+    b(0x22), b(0xeb), b(0x04), b(0x1d), b(0x18), b(0x19), b(0x28),
+    b(0x22), b(0xf5), b(0x01), b(0x00),
+    b(0x23), b(0xc9), b(0x47), b(0x55),
+    b(0x23), b(0xd1), b(0x47), b(0x55),
+    b(0x23), b(0xd9), b(0x47), b(0x55),
+    b(0x23), b(0xcc), b(0x43), b(0xf5),
+    b(0x23), b(0xd6), b(0x01), b(0xdd),
+    b(0x23), b(0xde), b(0x01), b(0x5d),
+    b(0x23), b(0xe2), b(0x04), b(0x55), b(0xaa), b(0xaa), b(0xaa),
+    b(0x23), b(0xea), b(0x04), b(0x95), b(0xaa), b(0xaa), b(0x2a),
+    b(0x00), // terminator
+)
+
 fun System.drawTitleScreen() {
     //> DrawTitleScreen:
     //> lda OperMode                 ;are we in title screen mode?
@@ -590,11 +656,20 @@ fun System.drawTitleScreen() {
     // NES: SetVRAMAddr_B sets VRAM_Buffer_AddrCtrl then falls through to IncSubtask
     // (increments ScreenRoutineTask, NOT OperMode_Task)
 
-    // Title screen pattern data lives in CHR at $1EC0
-    val vramBufferBytes = rawChrData.copyOfRange(0x1EC0, 0x1EC0 + 0x13A)
+    // SMB1: title screen nametable is embedded in CHR ROM at $1EC0
+    // SMB2J: title screen is VRAM buffer commands in PRG ROM (TitleScreenGfxData)
+    val vramBufferBytes: ByteArray
+    val backgrounds: Array<Pattern>
+    if (variant == GameVariant.SMB2J) {
+        vramBufferBytes = smb2jTitleScreenGfxData
+        backgrounds = Smb2jRom.backgrounds
+    } else {
+        vramBufferBytes = rawChrData.copyOfRange(0x1EC0, 0x1EC0 + 0x13A)
+        backgrounds = OriginalRom.backgrounds
+    }
 
     ram.vRAMBuffer1.clear()
-    ram.vRAMBuffer1.addAll(BufferedPpuUpdate.parseVramBuffer(vramBufferBytes))
+    ram.vRAMBuffer1.addAll(BufferedPpuUpdate.parseVramBuffer(vramBufferBytes, backgrounds))
     ram.vRAMBufferAddrCtrl = 5
     //> IncSubtask: inc ScreenRoutineTask
     ram.screenRoutineTask = ram.screenRoutineTask.next()

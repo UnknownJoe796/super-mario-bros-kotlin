@@ -133,6 +133,8 @@ fun System.transposePlayers(): Boolean {
     //> sec                       ;set carry flag by default to end game
     //> lda NumberOfPlayers       ;if only a 1 player game, leave
     //> beq ExTrans
+    // SMB2J is single-player; numberOfPlayers address ($77A) is reused as nameTableSelect
+    if (variant == GameVariant.SMB2J) return true
     if (ram.numberOfPlayers == 0.toByte()) return true
     //> lda OffScr_NumberofLives  ;does offscreen player have any lives left?
     //> bmi ExTrans               ;branch if not

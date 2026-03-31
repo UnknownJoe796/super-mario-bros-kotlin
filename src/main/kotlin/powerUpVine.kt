@@ -513,7 +513,8 @@ private fun System.drawPowerUp() {
     //> pla                        ;pull saved power-up type from the stack
     //> beq PUpOfs                 ;if regular mushroom, do not change colors or flip
     //> cmp #$03; beq PUpOfs       ;if 1-up mushroom, do not change colors or flip
-    if (puType != 0x00 && puType != 0x03) {
+    //> cmp #$04; beq PUpOfs       ;(sm2main) if poison mushroom, do not change colors or flip
+    if (puType != 0x00 && puType != 0x03 && puType != 0x04) {
         //> sta $00                    ;store power-up type here now
         //> lda FrameCounter           ;get frame counter
         //> lsr                        ;divide by 2 to change colors every two frames
@@ -665,9 +666,12 @@ fun System.vineObjectHandler() {
 
     //> RunVSubs:  lda VineHeight            ;if vine still very small,
     //> cmp #$08                  ;branch to leave
-    //> bcc ExitVH
+    //> (SMB1: bcc ExitVH; SMB2J: bcc ChkVOffscr)
     val currentHeight = ram.vineHeight.toInt() and 0xFF
-    if (currentHeight < 0x08) return
+    if (currentHeight < 0x08) {
+        chkVineOffscreenSmb2j()
+        return
+    }
 
     //> jsr RelativeEnemyPosition ;get relative coordinates of vine,
     relativeEnemyPosition()
@@ -709,21 +713,74 @@ fun System.vineObjectHandler() {
 
     //> WrCMTile:  lda VineHeight            ;check vine height
     //> cmp #$20                  ;if vine small (less than 32 pixels tall)
-    //> bcc ExitVH                ;then branch ahead to leave
+    //> (SMB1: bcc ExitVH; SMB2J: bcc ChkVOffscr)
     val heightNow = ram.vineHeight.toInt() and 0xFF
     if (heightNow >= 0x20) {
         //> ldx #$06                  ;set offset in X to last enemy slot
         //> lda #$01                  ;set A to obtain horizontal coordinate
         //> ldy #$1b                  ;set Y to offset to get block at ($04, $10) of coordinates
         //> jsr BlockBufferCollision  ;do a sub to get block buffer address set, return contents
-        // TODO: BlockBufferCollision is private in collisionDetection.kt
-        // This call checks the block buffer above the vine to write climbing metatiles.
-        // For now we write the climbing metatile using a simplified approach.
         writeVineClimbingMetatile()
     }
 
+    //> (SMB2J: fall through to ChkVOffscr; SMB1: ExitVH)
+    chkVineOffscreenSmb2j()
+
     //> ExitVH:    ldx ObjectOffset          ;get enemy object offset and leave
     // ObjectOffset is already set
+}
+
+/**
+ * SMB2J-only: checks if the vine has scrolled past the left screen edge.
+ * If so, kills the vine (clears Enemy_Flag+5) and erases climbing metatiles
+ * from the vine's column in the block buffer.
+ *
+ * In SMB1 this code does not exist -- vines are only killed by the offscreen
+ * bits check in the main vine loop. SMB2J adds this because its scrolling
+ * behavior can leave vines stranded off the left edge.
+ */
+private fun System.chkVineOffscreenSmb2j() {
+    if (variant != GameVariant.SMB2J) return
+
+    //> ChkVOffscr:
+    //> lda Enemy_X_Position+5; sec; sbc ScreenLeft_X_Pos; tay
+    val vineX = ram.sprObjXPos[6].toInt() and 0xFF
+    val screenLeftX = ram.screenLeftXPos.toInt() and 0xFF
+    val xDiff = vineX - screenLeftX
+    val xDiffByte = xDiff and 0xFF
+    val borrow = if (xDiff < 0) 1 else 0
+
+    //> lda Enemy_PageLoc+5; sbc ScreenLeft_PageLoc
+    val vinePage = ram.sprObjPageLoc[6].toInt() and 0xFF
+    val screenLeftPage = ram.screenLeftPageLoc.toInt() and 0xFF
+    val pageDiff = vinePage - screenLeftPage - borrow
+
+    //> bmi VineOffscr  ;if vine is left of screen, kill it
+    if (pageDiff >= 0) {
+        //> cpy #$09; bcs ExitVH  ;if vine within screen (>= 9 pixels from left edge), exit
+        if (xDiffByte >= 0x09) return
+    }
+
+    //> VineOffscr:
+    //> lda #$00; sta Enemy_Flag+5
+    ram.enemyFlags[5] = 0
+
+    //> lda Enemy_PageLoc+5; and #$01; tay
+    val bufferSelect = vinePage and 0x01
+    val buffer = if (bufferSelect == 1) ram.blockBuffer2 else ram.blockBuffer1
+
+    //> lda Enemy_X_Position+5; lsr; lsr; lsr; lsr
+    val column = vineX ushr 4
+
+    //> EraseClM: tay; lda ($06),y; cmp #$23; bne NoClimbM; lda #$00; sta ($06),y
+    //> NoClimbM: tya; clc; adc #$10; cmp #$d0; bcc EraseClM
+    var rowOffset = column
+    while (rowOffset < 0xd0) {
+        if (rowOffset in buffer.indices && buffer[rowOffset] == metatileId.VINE_METATILE.toByte()) {
+            buffer[rowOffset] = 0
+        }
+        rowOffset += 0x10
+    }
 }
 
 /**

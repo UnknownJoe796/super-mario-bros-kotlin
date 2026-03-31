@@ -1214,10 +1214,13 @@ private fun System.setupJumpCoin(x: Int, bbResult: BlockBufferResult) {
     //> lda Block_PageLoc2,x; sta Misc_PageLoc,y
     ram.sprObjPageLoc[miscSlot + 13] = ram.blockPageLoc2[x]
     //> lda $06; asl; asl; asl; asl; ora #$05; sta Misc_X_Position,y
-    val bbLow = bbResult.blockBufferBase and 0x0F
-    ram.sprObjXPos[miscSlot + 13] = ((bbLow shl 4) or 0x05).toByte()
+    // NES $06 = low byte of block buffer address: col (buf1) or $D0+col (buf2).
+    // 4 ASLs shift low nybble to high; carry = bit 4 of $06 (1 for buf2, 0 for buf1).
+    val nesAddr06 = if (bbResult.blockBuffer === ram.blockBuffer2) 0xD0 + bbResult.blockBufferBase else bbResult.blockBufferBase
+    ram.sprObjXPos[miscSlot + 13] = (((nesAddr06 shl 4) and 0xFF) or 0x05).toByte()
+    val aslCarry = (nesAddr06 shr 4) and 1  // bit 4 of $06 = carry after 4 ASLs
     //> lda $02; adc #$20; sta Misc_Y_Position,y
-    ram.sprObjYPos[miscSlot + 13] = (bbResult.vertOffset + 0x20).toByte()
+    ram.sprObjYPos[miscSlot + 13] = (bbResult.vertOffset + 0x20 + aslCarry).toByte()
     //> JCoinC:
     jCoinC(miscSlot, x)
 }

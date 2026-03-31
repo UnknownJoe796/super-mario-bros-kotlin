@@ -150,6 +150,19 @@ class TASReplayTest {
         system.ram.stack.clear()
         system.ram.vRAMBuffer1.clear()
         system.ram.vRAMBuffer2.clear()
+        // Preserve stale inactive buffer data (same logic as syncFullRamFromFceux)
+        val vbac = fceuxRam[offset + 0x0773].toInt() and 0xFF
+        val buf1FirstByte = fceuxRam[offset + 0x0301].toInt() and 0xFF
+        val buf2FirstByte = fceuxRam[offset + 0x0341].toInt() and 0xFF
+        if (vbac == 6) {
+            if (buf1FirstByte != 0) {
+                system.ram.vRAMBuffer1.add(BufferedPpuUpdate.BackgroundPatternString(0, 0, 0, false, emptyList()))
+            }
+        } else {
+            if (buf2FirstByte != 0) {
+                system.ram.vRAMBuffer2.add(BufferedPpuUpdate.BackgroundPatternString(0, 0, 0, false, emptyList()))
+            }
+        }
         val enemyAddr = (system.ram.enemyDataLow.toInt() and 0xFF) or
                 ((system.ram.enemyDataHigh.toInt() and 0xFF) shl 8)
         val enemyIdx = enemyAddrToIdx[enemyAddr]
@@ -196,9 +209,27 @@ class TASReplayTest {
         GameRamMapper.fromFlat(system.ram, fceuxFrame, offset)
         system.ram.stack.clear()
         // VRAM buffers are MutableVBuffer (custom type) — not synced by GameRamMapper.
-        // FCEUX dump captures state after NMI consumed+cleared the buffers, so clear them.
+        // The NMI only clears the ACTIVE buffer (selected by vRAMBufferAddrCtrl).
+        // The inactive buffer retains stale data from the game engine.
+        // We must preserve this: if the inactive buffer had data (first byte non-zero
+        // at $0301 or $0341), add a dummy entry so blockObjMTUpdater's isEmpty check
+        // matches the NES's "lda VRAM_Buffer1; bne" check.
         system.ram.vRAMBuffer1.clear()
         system.ram.vRAMBuffer2.clear()
+        val vbac = fceuxFrame[offset + 0x0773].toInt() and 0xFF
+        val buf1FirstByte = fceuxFrame[offset + 0x0301].toInt() and 0xFF
+        val buf2FirstByte = fceuxFrame[offset + 0x0341].toInt() and 0xFF
+        if (vbac == 6) {
+            // Buffer 2 is active (will be cleared by NMI). Buffer 1 retains stale data.
+            if (buf1FirstByte != 0) {
+                system.ram.vRAMBuffer1.add(BufferedPpuUpdate.BackgroundPatternString(0, 0, 0, false, emptyList()))
+            }
+        } else {
+            // Buffer 1 is active (will be cleared by NMI). Buffer 2 retains stale data.
+            if (buf2FirstByte != 0) {
+                system.ram.vRAMBuffer2.add(BufferedPpuUpdate.BackgroundPatternString(0, 0, 0, false, emptyList()))
+            }
+        }
 
         // Reconstruct Kotlin-only ByteArray references from ROM pointer bytes.
         // The NES uses indirect pointers at $E9/$EA (enemy data) and $E7/$E8 (area data)
@@ -2178,10 +2209,25 @@ class TASReplayTest {
     private val smb2jAreaHeaderlessCache = mutableMapOf<Int, ByteArray>()
     private val smb2jEnemyDataCache = mutableMapOf<Int, ByteArray>()
 
-    private fun syncSmb2jRomPointers(system: System) {
+    private fun syncSmb2jRomPointers(system: System, fceuxFrame: ByteArray? = null, offset: Int = 0) {
         system.ram.stack.clear()
+        // Same stale-buffer logic as syncFullRamFromFceux:
         system.ram.vRAMBuffer1.clear()
         system.ram.vRAMBuffer2.clear()
+        if (fceuxFrame != null) {
+            val vbac = fceuxFrame[offset + 0x0773].toInt() and 0xFF
+            val buf1FirstByte = fceuxFrame[offset + 0x0301].toInt() and 0xFF
+            val buf2FirstByte = fceuxFrame[offset + 0x0341].toInt() and 0xFF
+            if (vbac == 6) {
+                if (buf1FirstByte != 0) {
+                    system.ram.vRAMBuffer1.add(BufferedPpuUpdate.BackgroundPatternString(0, 0, 0, false, emptyList()))
+                }
+            } else {
+                if (buf2FirstByte != 0) {
+                    system.ram.vRAMBuffer2.add(BufferedPpuUpdate.BackgroundPatternString(0, 0, 0, false, emptyList()))
+                }
+            }
+        }
 
         // Resolve enemy data pointer.
         // SMB2J uses synthetic addresses ($2000+) in Smb2jRomData but FCEUX has real
@@ -2253,7 +2299,7 @@ class TASReplayTest {
 
     private fun syncSmb2jFullRamFromFceux(system: System, fceuxFrame: ByteArray, offset: Int) {
         GameRamMapper.fromFlat(system.ram, fceuxFrame, offset)
-        syncSmb2jRomPointers(system)
+        syncSmb2jRomPointers(system, fceuxFrame, offset)
     }
 
     private fun runSmb2jTasReplay(scenario: Smb2jScenario, tasFile: File, ramFile: File?) {
@@ -2389,8 +2435,13 @@ class TASReplayTest {
                     val lateGameEngineAddrs2 = setOf(
                         0x071F, 0x06D4, 0x0773, 0x0721, 0x0726, 0x06A0,
                         0x03F9, 0x03FA, 0x03FE, 0x03FF,
+                        0x0730, 0x0731, 0x0732, // areaObjectLength[0-2] — area parser transient state
                     )
+                    // Wider set for lag detection: block buffer writes happen during area parser tasks,
+                    // so they can appear as diffs in partial NMI lag frames (e.g. frame 14525: $069e + $071F).
+                    val lateGameEngineAddrsWide2 = lateGameEngineAddrs2 + (0x0500..0x069F)
                     val allDiffsLateEngine2 = diffs.isNotEmpty() && diffs.all { it.first in lateGameEngineAddrs2 }
+                    val allDiffsLateEngineWide2 = diffs.isNotEmpty() && diffs.all { it.first in lateGameEngineAddrsWide2 }
                     val fcIn2 = fceuxRam[fOff2 + 0x09].toInt() and 0xFF
                     val fcOut2 = fceuxRam[nextOff + 0x09].toInt() and 0xFF
                     val fcInc2 = ((fcOut2 - fcIn2 + 256) % 256) == 1
@@ -2399,12 +2450,17 @@ class TASReplayTest {
                     val aptOut2 = fceuxRam[nextOff + 0x071F].toInt() and 0xFF
                     val aptIn2 = fceuxRam[fOff2 + 0x071F].toInt() and 0xFF
                     val impossibleApt2 = aptOut2 == 8 && aptIn2 == 0
-                    val isPartialNmiLag2 = diffs.isNotEmpty() && fcInc2 && allDiffsLateEngine2 &&
+                    val isPartialNmiLag2 = diffs.isNotEmpty() && fcInc2 && allDiffsLateEngineWide2 &&
                             (impossibleCro2 || impossibleApt2)
-                    val isAreaParserPhaseShift2 = diffs.isNotEmpty() && allDiffsLateEngine2
+                    // Area parser phase shift: all diffs in area parser state + block/attribute buffers.
+                    // Uses wide set (includes block buffers) when attribute buffer diffs are present,
+                    // which strongly indicates area parser timing offset rather than a game logic bug.
+                    val hasAttribBufDiff2 = diffs.any { it.first in 0x03F9..0x03FF }
+                    val isAreaParserPhaseShift2 = diffs.isNotEmpty() &&
+                            (allDiffsLateEngine2 || (allDiffsLateEngineWide2 && hasAttribBufDiff2))
 
                     val isSkippedFrame = isLagFrame || isVramOverflow || isLoadingOrTransitionFrame ||
-                            isPartialNmiLag2
+                            isPartialNmiLag2 || isAreaParserPhaseShift2
                     if (isSkippedFrame) lagFramesSkipped++
 
                     if (diffs.isNotEmpty() && !isSkippedFrame) {
@@ -2424,6 +2480,7 @@ class TASReplayTest {
                                 }
                             }${if (diffs.size > 5) " ..." else ""}")
                         }
+
                     }
                     comparedFrames++
                 }

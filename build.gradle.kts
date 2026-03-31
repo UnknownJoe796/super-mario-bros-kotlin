@@ -43,6 +43,9 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
     maxHeapSize = "1g"
+    testLogging {
+        showStandardStreams = true
+    }
 }
 
 tasks.register<JavaExec>("runSmb2j") {

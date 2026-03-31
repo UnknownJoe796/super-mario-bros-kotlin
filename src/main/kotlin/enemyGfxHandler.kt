@@ -178,7 +178,7 @@ fun System.enemyGfxHandler() {
     if (enemyId == EnemyId.PiranhaPlant.id) {
         //> ldy PiranhaPlant_Y_Speed,x
         //> bmi CheckForRetainerObj     ;if piranha plant moving upwards, branch
-        val ppYSpeed = ram.sprObjYSpeed[1 + objectX]
+        val ppYSpeed = ram.sprObjXSpeed[1 + objectX]  // PiranhaPlant_Y_Speed = Enemy_X_Speed ($58+x)
         if (ppYSpeed.toInt() >= 0) {
             //> ldy EnemyFrameTimer,x
             //> beq CheckForRetainerObj     ;if timer for movement expired, branch
