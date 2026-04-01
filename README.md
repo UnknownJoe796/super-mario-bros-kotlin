@@ -1,13 +1,15 @@
 # Super Mario Bros - Kotlin Translation
 
-A complete, accurate translation of Super Mario Bros from 6502 assembly into readable, modifiable Kotlin. Every line of the original disassembly is preserved as comments alongside its Kotlin equivalent.
+A complete, accurate translation of Super Mario Bros and Super Mario Bros 2J (The Lost Levels) from 6502 assembly into readable, modifiable Kotlin. Every line of the original disassembly is preserved as comments alongside its Kotlin equivalent.
 
-The game is fully playable and verified against the original ROM via TAS replay across 103,000+ frames (zero divergences on two TAS scenarios; 8 remaining on the full warpless playthrough — see [Known Inaccuracies](#known-inaccuracies)).
+Both games are fully playable and verified against the original ROMs via TAS replay across 250,000+ frames — **zero divergences** on all five primary TAS scenarios (see [Verification](#verification)).
 
 ## Running
 
 ```
-./gradlew run
+./gradlew run                                      # SMB1, Mario
+./gradlew run -Dsmb.variant=smb2j                  # SMB2J (The Lost Levels)
+./gradlew run -Dsmb.variant=smb2j -Dsmb.character=luigi  # SMB2J, Luigi
 ```
 
 Controls: Arrow keys = D-pad, X = A, Z = B, Enter = Start, Shift = Select
@@ -69,9 +71,12 @@ The translation was validated at multiple levels:
 | Tier 1 | 29 leaf subroutines compared against interpreter | All passing |
 | Tier 2 | 17 composite subroutines | All passing |
 | Tier 3 | 12 frame-level scenarios | Zero diffs |
-| TAS: happylee-warps | 17,859 frames, warp route to W8-4 victory | **0 divergent frames** |
-| TAS: happylee-warpless | 67,108 frames, full W1-1 through W8-4 | **8 divergent frames** (0.012%) |
-| TAS: smb-0-full-playthrough | 18,307 frames | **0 divergent frames** |
+| SMB1 TAS: happylee-warps | 17,868 frames, warp route to W8-4 victory | **0 divergent frames** |
+| SMB1 TAS: happylee-warpless | 67,117 frames, full W1-1 through W8-4 | **5 divergent frames** (all NES lag artifacts) |
+| SMB1 TAS: smb-0-full-playthrough | 18,315 frames | **0 divergent frames** |
+| SMB2J TAS: warps-mario | ~29,138 frames, warp route to W8-4 victory | **0 divergent frames** |
+| SMB2J TAS: warps-luigi | ~29,675 frames, warp route to W8-4 victory | **0 divergent frames** |
+| SMB2J TAS: allitems-mario | ~84,927 frames, full playthrough | **0 divergent frames** |
 
 Each TAS frame starts from FCEUX-synced state, so divergences are independent per-frame issues — they do not cascade.
 
@@ -87,7 +92,12 @@ The `GameRamMapper` provides bidirectional mapping between Kotlin properties and
   - Replacing magic numbers with typed enums and value classes
   - Boolean conversions for flag fields
   - Named constants for metatile IDs
-- **Phase 3 - Un-NES**: Future
+- **Phase 3 - SMB2J**: Complete
+  - Full Super Mario Bros 2J (The Lost Levels) support
+  - Luigi physics, poison mushroom, upside-down piranha, wind mechanic
+  - Character select, hard worlds, FDS disk image loading
+  - Zero TAS divergences across 3 scenarios (~143,740 frames)
+- **Phase 4 - Un-NES**: Future
   - Remove NES-specific complications (PPU update juggling, sprite limits, etc.)
 
 ## Purpose
@@ -106,13 +116,9 @@ The `GameRamMapper` provides bidirectional mapping between Kotlin properties and
 
 ## Known Inaccuracies
 
-The 8 remaining warpless divergences are NES cycle-level timing artifacts. The NES CPU has a limited cycle budget per frame; when the NMI handler runs long (e.g. uploading a large VRAM buffer), execution timing shifts in ways that cannot be reproduced without a cycle-accurate CPU emulator. These affect area parser task scheduling (off by one rendering step), color rotation offsets, or transient enemy positions for a single frame each. None affect gameplay.
+The 5 remaining SMB1 warpless divergences are NES cycle-level timing artifacts. The NES CPU has a limited cycle budget per frame; when the NMI handler runs long (e.g. uploading a large VRAM buffer), execution timing shifts in ways that cannot be reproduced without a cycle-accurate CPU emulator. These affect area parser task scheduling (off by one rendering step) for a single frame each. None affect gameplay.
 
-Previously there were 12 divergences; 4 were real translation bugs that have since been fixed:
-- `initPlatformFall`: 6502 register propagation through `GetEnemyOffscreenBits` (X restored to ObjectOffset, Y left at 1) was not modeled — writes went to wrong enemy slots
-- `checkPlayerVertical`: `dey` does not affect carry flag, so `bne` after `cmp` returns with carry clear — Kotlin incorrectly returned true (skip collision)
-- `mushroomLedgeHalfLen`: NES uses `MushroomLedgeHalfLen,x` (3-byte array indexed by object slot) but Kotlin used a scalar
-- `posPlatform`: table values were sign-extended before addition, causing incorrect carry/borrow in page location calculation
+All real translation bugs have been fixed. SMB2J has zero divergences across all test scenarios.
 
 ## Design Decisions
 

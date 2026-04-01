@@ -2239,13 +2239,14 @@ private fun System.setupVine() {
     // Block_Y_Position,Y using this Y value. The resulting addresses ($00D6, $00EF,
     // $0137) point to scratch RAM and stack, not meaningful block data.
     // Use GameRamMapper for full flat RAM access including unmapped scratch bytes.
+    // NES zero-page indexed addressing wraps at $FF: (base + Y) & 0xFF.
     val y = setupVineBlockY
     val flat = GameRamMapper.toFlat(ram)
     fun readFlat(addr: Int): Byte = flat.getOrElse(addr) { 0 }
-    val pageLoc = readFlat(0x76 + y)
-    val xPos = readFlat(0x8F + y)
-    val yPos = readFlat(0xD7 + y)
-    if (debugEnemyTrace) println("[setupVine] y=$y blockIdx=${9+y} nesAddr=\$${(0x76+y).toString(16)}/\$${(0x8F+y).toString(16)}/\$${(0xD7+y).toString(16)} → page=${pageLoc.toInt() and 0xFF} x=${xPos.toInt() and 0xFF} y=${yPos.toInt() and 0xFF}")
+    val pageLoc = readFlat((0x76 + y) and 0xFF)
+    val xPos = readFlat((0x8F + y) and 0xFF)
+    val yPos = readFlat((0xD7 + y) and 0xFF)
+    if (debugEnemyTrace) println("[setupVine] y=$y nesAddr=\$${((0x76+y) and 0xFF).toString(16)}/\$${((0x8F+y) and 0xFF).toString(16)}/\$${((0xD7+y) and 0xFF).toString(16)} → page=${pageLoc.toInt() and 0xFF} x=${xPos.toInt() and 0xFF} y=${yPos.toInt() and 0xFF}")
     ram.sprObjPageLoc[1 + x] = pageLoc
     ram.sprObjXPos[1 + x] = xPos
     ram.sprObjYPos[1 + x] = yPos

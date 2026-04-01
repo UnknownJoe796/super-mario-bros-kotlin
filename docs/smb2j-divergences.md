@@ -4,11 +4,11 @@
 
 | Scenario | Divergent Frames | Compared Frames | Rate |
 |---|---|---|---|
-| smb2j-warps-mario | 2 | 28,391 | 0.007% |
-| smb2j-warps-luigi | 1 | 28,928 | 0.003% |
-| smb2j-allitems-mario | 2 | 84,180 | 0.002% |
+| smb2j-warps-mario | 0 | ~29,138 | 0% |
+| smb2j-warps-luigi | 0 | ~29,675 | 0% |
+| smb2j-allitems-mario | 0 | ~84,927 | 0% |
 
-SMB1 TAS: 0 divergent frames (warps, smb-0); 6 on warpless (all proven NES lag frame artifacts).
+SMB1 TAS: 0 divergent frames (warps, smb-0); 5 on warpless (all NES lag frame artifacts).
 
 ## NES Address Reference
 
@@ -160,27 +160,25 @@ with Y = `vertOffset + 0x20 + carry`, where carry = 1 for buffer 2 blocks.
 making the NES compute `blockY - 0x11` while Kotlin computes `blockY - 0x10`. This produces
 a +1 divergence (opposite direction). Not yet observed in TAS.
 
-### Sub-category 4b: Enemy X position differences
+### Sub-category 4b: Enemy X position differences (VineObject) — RESOLVED
 
-**Status**: OPEN — carry threshold fixed but 7-11px deltas not fully explained.
+**Root cause**: `Setup_Vine` reads `Block_X_Position,Y` where Y=$60 (from JumpEngine dispatch
+for VineObject ID $2F). This reads NES address $8F + $60 = $EF, which is zero-page scratch
+RAM. On the NES, $EF is written by `EnemyGfxHandler` (`sta $ef` at sm2main.asm:12739) with
+the enemy graphics code for the last-processed enemy. The Kotlin `enemyGfxHandler()` used a
+local variable (`enemyCode`) instead of writing to `zeroPageScratch[4]`, so $EF was stale.
 
-Single-frame enemy X position differences with large deltas (7-11 pixels).
+**Fix 1**: Added `ram.zeroPageScratch[4] = enemyCode.toByte()` at both NES $EF write points
+in `enemyGfxHandler.kt` (lines ~252 and ~278, corresponding to `sta $ef` and Bowser `sty $ef`).
 
-| Scenario | Frame | World | Address | Kotlin | FCEUX | Delta |
-|---|---|---|---|---|---|---|
-| warps-mario | 3589 | W1-3 | $0088 (enemy 1 X) | 0x02 | 0x0D | -11 |
-| warps-luigi | 6978 | W4-1 | $008A (enemy 3 X) | 0x0D | 0x06 | +7 |
+**Fix 2**: Added zero-page wrapping for `setupVine()` address calculations. NES zero-page
+indexed addressing wraps at $FF: `(base + Y) & 0xFF`. The `Block_Y_Position,Y` read at
+$D7 + $60 wraps to $37 (not $137 as previously computed).
 
-**Fix**: `offscreenBoundsCheck()` (processCannons.kt:262) carry threshold reverted to
-`PiranhaPlant.id` ($0D) for both variants. SMB2J inserts `cpy #UpsideDownPiranhaP; beq LimitB`
-before `cpy #PiranhaPlant; bne ExtendLB`, but the `bne ExtendLB` still carries from the
-PiranhaPlant comparison. The previous "fix" to $04 was incorrect.
-
-The 7-11px deltas are too large for a 1-pixel boundary shift. Investigation found both
-divergences involve VineObject ($2F) spawning at different X positions — the vine reads
-its initial position from `Block_X_Position,Y` where Y comes from JumpEngine dispatch
-($2F * 2 + 2 = $60), reading from NES scratch RAM that Kotlin doesn't model.
-Requires 6502 tracing to resolve.
+| Scenario | Frame | World | Address | Before | After |
+|---|---|---|---|---|---|
+| warps-mario | 3589 | W1-3 | $0088 (enemy 1 X) | Kotlin=0x02, FCEUX=0x0D | Match |
+| warps-luigi | 6978 | W4-1 | $008A (enemy 3 X) | Kotlin=0x0D, FCEUX=0x06 | Match |
 
 ### Sub-category 4c: Player X position (flagpole/climbing) — RESOLVED
 
@@ -204,26 +202,30 @@ bytes; made `climbXPosAdder` variant-aware; fixed `putPlayerOnVine` to reconstru
 | warps-mario | 22374 | W8-2 | $0086 + $0755 | 0xF7→0xEF | 0xEF | 0 |
 | warps-mario | 22786 | W8-2 | $0086 + $0755 | 0xCA→0xA9 | 0xA9 | 0 |
 
-### Sub-category 4d: Enemy Y speed/position (Bloober BlooperMoveCounter)
+### Sub-category 4d: Enemy Y speed/position (Bloober BlooperMoveCounter) — RESOLVED
 
-**Status**: OPEN — root cause confirmed as Bloober swimming state machine, but exact
-NES code path that zeroes the counter remains unidentified.
+**Root cause**: `ProcSwimmingB` (sm2main.asm:8573) uses `adc #$10` to compare the bloober's
+Y position against the player's. The `adc` includes the 6502 carry flag, which is inherited
+from the `MoveBloober` call chain — NOT cleared by any instruction between `BlooberSwim` and
+`ChkNearPlayer`. The Kotlin code used a fixed `+ 0x10`, ignoring the carry.
 
-| Scenario | Frame | World | Addresses | Pattern |
-|---|---|---|---|---|
-| warps-mario | 26328 | W8-4 | $00A2 (sprObjYSpeed[3]) | speed 2 vs 0 |
-| allitems | 56767 | W6-3 | $00A3 (sprObjYSpeed[4]), $00D2 (sprObjYPos[4]) | speed 2 vs 0, pos off by 1 |
-| allitems | 82022 | W8-4 | $00A2 (sprObjYSpeed[3]) | speed 2 vs 0 |
+The carry at `adc #$10` depends on the path through `MoveBloober`:
+- **LSFR bypass** (direct to `BlooberSwim`): C=0 (from JumpEngine ASL of Bloober ID $07)
+- **Odd enemy slot** (through `txa; lsr`): C=1 (bit 0 of odd x)
+- **Even slot direction-set** (through `PlayerEnemyDiff`): C = result of `sbc Player_PageLoc`
 
-**Enemy types confirmed**: All three are **Bloober** (ID $07). The $A0+x address serves as
-both `Enemy_Y_Speed` and `BlooperMoveCounter`. On NES, the counter is zeroed (resetting the
-swimming state machine), while Kotlin leaves it at 2 (float-down phase).
+When C=1, the NES effectively adds $11 instead of $10. This 1-pixel difference can flip
+the `bcc Floatdown` comparison, determining whether `BlooperMoveCounter` gets zeroed.
 
-The `procSwimmingB` float-down path checks: (1) timer expired — confirmed for all cases,
-(2) bloober below player — confirmed NOT met. The NES `adc #$10` in `ChkNearPlayer` has
-an inherited carry from `PlayerEnemyDiff` but doesn't change the comparison outcome.
+**Fix**: Added `nesCarry` parameter to `procSwimmingB()`, computed from the `moveBloober()`
+call chain. The carry is tracked through JumpEngine ASL, LSFR bypass, `txa; lsr`, and
+`PlayerEnemyDiff` paths.
 
-Requires 6502 instruction-level tracing to identify the zeroing code path.
+| Scenario | Frame | World | Addresses | Before | After |
+|---|---|---|---|---|---|
+| warps-mario | 26328 | W8-4 | $00A2 | Kotlin=2, FCEUX=0 | Match |
+| allitems | 56767 | W6-3 | $00A3, $00D2 | Kotlin=2, FCEUX=0 | Match |
+| allitems | 82022 | W8-4 | $00A2 | Kotlin=2, FCEUX=0 | Match |
 
 ---
 
@@ -258,15 +260,9 @@ The test detects and skips several categories of FCEUX dump artifacts:
 
 ---
 
-## Priority for Fixing
+## Current Status
 
-Only 5 frames remain across all 3 scenarios (down from 41). All require 6502
-instruction-level tracing to resolve.
+**All SMB2J divergences resolved.** 0 divergent bytes across all 3 scenarios (~143,740 frames).
 
-1. **Category 4d** (Bloober Y speed): 3 frames. All Bloobers whose BlooperMoveCounter
-   is zeroed on NES through an unidentified code path.
-
-2. **Category 4b** (VineObject X position): 2 frames. Vine reads initial X from NES
-   scratch RAM ($60) set by JumpEngine dispatch, not modeled in Kotlin.
-
-6. New: warps-mario frame 26328 (W8-4) — 1 divergence ($00a2: sprObjYSpeed). Not yet categorized.
+SMB1 warpless has 5 frames (18 bytes) remaining — all NES lag frame / area parser
+phase shift artifacts in a cluster at frames 28155-28167 (W4-3).

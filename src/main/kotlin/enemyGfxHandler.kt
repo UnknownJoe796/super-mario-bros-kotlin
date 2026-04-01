@@ -250,6 +250,7 @@ fun System.enemyGfxHandler() {
     //> CheckForPodoboo:
     //> sta $ef                 ;store saved enemy object value here
     //> sty $ec                 ;and Y here (enemy state -2 MSB if not changed)
+    ram.zeroPageScratch[4] = enemyCode.toByte()  // NES $EF — read by setupVine via flat RAM
     var savedAltState = altState  // $ec
     //> ldx ObjectOffset        ;get enemy object offset
     var x = ram.objectOffset.toInt()
@@ -275,6 +276,7 @@ fun System.enemyGfxHandler() {
         //> iny                 ;otherwise draw bowser's rear
         //> SBwsrGfxOfs: sty $ef
         enemyCode = if (bowserFlag == 1) 0x16 else 0x17
+        ram.zeroPageScratch[4] = enemyCode.toByte()  // NES $EF overwrite for Bowser
     }
 
     //> CheckForGoomba:

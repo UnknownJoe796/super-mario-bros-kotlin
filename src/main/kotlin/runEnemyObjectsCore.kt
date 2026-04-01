@@ -289,6 +289,9 @@ fun System.moveBloober() {
     //> bne BlooberSwim
     val hardIdx = if (ram.secondaryHardMode != 0.toByte()) 1 else 0
     val lsfr = ram.pseudoRandomBitReg[(1 + x).coerceIn(0, ram.pseudoRandomBitReg.size - 1)].toInt() and 0xFF
+    // Track 6502 carry flag for ProcSwimmingB's `adc #$10` (sm2main:8573).
+    // JumpEngine ASL on Bloober ID ($07) sets C=0 (bit 7 of $07 is 0).
+    var nesCarry = 0
     //> bcc FBLeft                 ;if not, branch to figure out moving direction
     if ((lsfr and blooberBitmasks[hardIdx]) == 0) {
         //> Set moving direction toward player
@@ -296,6 +299,8 @@ fun System.moveBloober() {
         //> bcs SBMDir                 ;do an unconditional branch to set
         //> txa; lsr; bcs ChkRev (odd slot uses player dir)
         if ((x and 1) != 0) {
+            // Odd slot: txa; lsr puts bit 0 (=1) into carry
+            nesCarry = 1
             ram.enemyMovingDirs[x] = ram.playerMovingDir.byte
         } else {
             //> FBLeft: ldy #$02                   ;set left moving direction by default
@@ -306,12 +311,19 @@ fun System.moveBloober() {
             if ((highDiff and 0x80) != 0) dir = 1
             //> SBMDir: sty Enemy_MovingDir,x  ;set moving direction of bloober
             ram.enemyMovingDirs[x] = dir.toByte()
+            // Even slot: carry = result of PlayerEnemyDiff's `sbc Player_PageLoc`
+            val enemyX = ram.sprObjXPos[1 + x].toInt() and 0xFF
+            val playerX = ram.playerXPosition.toInt() and 0xFF
+            val borrow = if (enemyX < playerX) 1 else 0
+            val enemyPage = ram.sprObjPageLoc[1 + x].toInt() and 0xFF
+            val playerPage = ram.playerPageLoc.toInt() and 0xFF
+            nesCarry = if (enemyPage - playerPage - borrow >= 0) 1 else 0
         }
     }
 
     //> BlooberSwim:
     //> jsr ProcSwimmingB        ;execute sub to make bloober swim characteristically
-    procSwimmingB(x)
+    procSwimmingB(x, nesCarry)
 
     //> Vertical position update
     val yPos = ram.sprObjYPos[1 + x].toInt() and 0xFF
@@ -348,7 +360,7 @@ fun System.moveBloober() {
  * ProcSwimmingB: processes bloober swimming animation state machine.
  * Cycles through: fast swim up -> slow swim up -> float down.
  */
-private fun System.procSwimmingB(x: Int) {
+private fun System.procSwimmingB(x: Int, nesCarry: Int = 0) {
     //> ProcSwimmingB:
     // by Claude - BlooperMoveCounter,x is indexed (same RAM as Enemy_Y_Speed at $a0)
     val moveCounter = ram.sprObjYSpeed[1 + x].toInt() and 0xFF
@@ -368,7 +380,8 @@ private fun System.procSwimmingB(x: Int) {
             return
         }
         //> ChkNearPlayer: check if above player
-        val bloobY = (ram.sprObjYPos[1 + x].toInt() and 0xFF) + 0x10
+        //> adc #$10 — inherited carry from moveBloober call chain (sm2main:8573)
+        val bloobY = (ram.sprObjYPos[1 + x].toInt() and 0xFF) + 0x10 + nesCarry
         val playerY = ram.sprObjYPos[0].toInt() and 0xFF
         //> cmp Player_Y_Position     ;compare result with player's vertical coordinate
         //> bcc Floatdown             ;if modified vertical less than player's, branch
