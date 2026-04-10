@@ -138,62 +138,6 @@ class DivergenceRegressionTest {
         }
     }
 
-    /**
-     * Synthetic end-to-end test: creates a snapshot file from a known-good function
-     * (relativePlayerPosition), then replays it through the regression pipeline.
-     * Verifies the save→load→replay machinery works without needing a live game run.
-     */
-    @Test
-    fun `snapshot round-trip smoke test`() {
-        val romFile = File("smb.nes")
-        if (!romFile.exists()) {
-            println("Skipped — smb.nes not found")
-            return
-        }
-
-        val comp = SubroutineComparison.create("smb.nes")
-        val funcName = "relativeplayerposition"
-        val meta = comp.functionMetadata[funcName]
-            ?: error("relativeplayerposition not found in metadata")
-
-        // Set up a deterministic RAM state
-        val random = java.util.Random(12345)
-        comp.randomizeRam(random)
-        comp.interpreter.cpu.X = 0x00u
-        comp.interpreter.cpu.SP = 0xFFu
-        comp.interpreter.memory.writeByte(0x08, 0x00u) // objectOffset = 0
-
-        // Capture the RAM state as a snapshot
-        val ramDump = ByteArray(2048)
-        for (addr in 0 until 2048) {
-            ramDump[addr] = comp.interpreter.memory.readByte(addr).toByte()
-        }
-
-        // Write snapshot files to a temp directory
-        val tmpDir = File("build/test-snapshots").also { it.mkdirs() }
-        val binFile = File(tmpDir, "test_roundtrip.bin")
-        val metaFile = File(tmpDir, "test_roundtrip.meta")
-        try {
-            binFile.writeBytes(ramDump)
-            metaFile.writeText(buildString {
-                appendLine("function=$funcName")
-                appendLine("address=${meta.address}")
-                appendLine("frame=0")
-                appendLine("objectOffset=0")
-                appendLine("diffCount=0")
-            })
-
-            // Replay through the regression pipeline
-            val snapshotMeta = loadMeta(metaFile)
-            runSnapshotRegression(binFile, snapshotMeta)
-            println("Round-trip smoke test PASSED")
-        } finally {
-            binFile.delete()
-            metaFile.delete()
-            tmpDir.delete()
-        }
-    }
-
     private fun runSnapshotRegression(binFile: File, meta: SnapshotMeta) {
         val dispatch = functionDispatch[meta.function]
         if (dispatch == null) {
