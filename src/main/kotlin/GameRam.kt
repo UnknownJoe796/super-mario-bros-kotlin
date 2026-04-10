@@ -21,6 +21,25 @@ class GameRam {
     var variant: GameVariant = GameVariant.SMB1
 
     companion object {
+        /** Registry mapping Kotlin types to their NES byte converters. */
+        val converters: Map<kotlin.reflect.KClass<*>, RamConverter<*>> = mapOf(
+            Byte::class to ByteRamConverter,
+            UByte::class to UByteRamConverter,
+            Boolean::class to BooleanRamConverter,
+            JoypadBits::class to JoypadBits,
+            SpriteFlags::class to SpriteFlags,
+            PpuControl::class to PpuControl,
+            PpuMask::class to PpuMask,
+            OperMode::class to OperMode,
+            AreaType::class to AreaType,
+            PlayerState::class to PlayerState,
+            PlayerSize::class to PlayerSize,
+            PlayerStatus::class to PlayerStatus,
+            Direction::class to Direction,
+            GameEngineRoutine::class to GameEngineRoutine,
+            ScreenRoutineTask::class to ScreenRoutineTask,
+        )
+
         val clean = GameRam()
         val props by lazy {
             GameRam::class.declaredMemberProperties.mapNotNull {
@@ -99,12 +118,13 @@ class GameRam {
     @RamLocation(0xb) var upDownButtons: Byte = 0
     @RamLocation(0xc) var leftRightButtons: Byte = 0
     @RamLocation(0xd) var previousABButtons: Byte = 0
-    @RamLocation(0xe, size = 0) var gameEngineSubroutine: GameEngineRoutine = GameEngineRoutine.EntranceGameTimerSetup
+    @RamLocation(0xe) var gameEngineSubroutine: GameEngineRoutine = GameEngineRoutine.EntranceGameTimerSetup
     @RamLocation(0x0F) val enemyFlags = ByteArray(6)
     var enemyFlag: Byte
         get() = enemyFlags[0]
         set(value) { enemyFlags[0] = value }
     @RamLocation(0x16) val enemyID: ByteArray = ByteArray(6)  // Enemy_ID, $16-$1B
+    @RamLocation(0x1d) var playerState: PlayerState = PlayerState.OnGround  // Player_State
     @RamLocation(0x1e, size = 6) val enemyState = ByteArray(999)
     @RamLocation(0x24) val fireballStates = ByteArray(2)
     var fireballState: Byte
@@ -121,7 +141,7 @@ class GameRam {
     var miscState: Byte
         get() = miscStates[0]
         set(value) { miscStates[0] = value }
-    @RamLocation(0x33, size = 0) var playerFacingDir: Direction = Direction.None
+    @RamLocation(0x33) var playerFacingDir: Direction = Direction.None
     @RamLocation(0x34) val firebarSpinDirection = ByteArray(6) // FirebarSpinDirection, indexed by enemy slot (overlaps destinationPageLoc/victoryWalkControl)
     var destinationPageLoc: Byte // alias for firebarSpinDirection[0] (same NES address $34)
         get() = firebarSpinDirection[0]
@@ -137,7 +157,7 @@ class GameRam {
         get() = fireballBouncingFlags[0]
         set(v) { fireballBouncingFlags[0] = v }
     @RamLocation(0x3c) val hammerBroJumpTimers: ByteArray = ByteArray(6)
-    @RamLocation(0x45, size = 0) var playerMovingDir: Direction = Direction.None
+    @RamLocation(0x45) var playerMovingDir: Direction = Direction.None
     @RamLocation(0x46) val enemyMovingDirs = ByteArray(6)
     var enemyMovingDir: Direction
         get() = Direction.fromByte(enemyMovingDirs[0])
@@ -564,7 +584,7 @@ class GameRam {
     @RamLocation(0x739) var enemyDataOffset: Byte = 0
     @RamLocation(0x73a) var enemyObjectPageLoc: Byte = 0
     @RamLocation(0x73b) var enemyObjectPageSel: Byte = 0
-    @RamLocation(0x73c, size = 0) var screenRoutineTask: ScreenRoutineTask = ScreenRoutineTask.InitScreen
+    @RamLocation(0x73c) var screenRoutineTask: ScreenRoutineTask = ScreenRoutineTask.InitScreen
     @RamLocation(0x73d) var scrollThirtyTwo: Byte = 0
     @RamLocation(0x73f) var horizontalScroll: Byte = 0
     @RamLocation(0x740) var verticalScroll: Byte = 0
@@ -578,7 +598,7 @@ class GameRam {
     @RamLocation(0x748) var coinTallyFor1Ups: Byte = 0
     @RamLocation(0x749) var secondaryMsgCounter: Byte = 0
     @RamLocation(0x74a) var joypadBitMask: Byte = 0
-    @RamLocation(0x74e, size = 0) var areaType: AreaType = AreaType.Water
+    @RamLocation(0x74e) var areaType: AreaType = AreaType.Water
     @RamLocation(0x74f) var areaAddrsLOffset: Byte = 0
     @RamLocation(0x750) var areaPointer: Byte = 0
     @RamLocation(0x751) var entrancePage: Byte = 0
@@ -588,9 +608,9 @@ class GameRam {
     var currentPlayer: Byte // legacy alias
         get() = selectedPlayer
         set(v) { selectedPlayer = v }
-    @RamLocation(0x754, size = 0) var playerSize: PlayerSize = PlayerSize.Big
+    @RamLocation(0x754) var playerSize: PlayerSize = PlayerSize.Big
     @RamLocation(0x755) var playerPosForScroll: Byte = 0
-    @RamLocation(0x756, size = 0) var playerStatus: PlayerStatus = PlayerStatus.Small
+    @RamLocation(0x756) var playerStatus: PlayerStatus = PlayerStatus.Small
     @RamLocation(0x757) var fetchNewGameTimerFlag: Boolean = false
     @RamLocation(0x758) var joypadOverride: Byte = 0
     @RamLocation(0x759) var gameTimerExpiredFlag: Boolean = false
@@ -618,7 +638,7 @@ class GameRam {
     @RamLocation(0x769) var disableIntermediate: Boolean = false
     @RamLocation(0x76a) var primaryHardMode: Boolean = false
     @RamLocation(0x76b) var worldSelectNumber: Byte = 0
-    @RamLocation(0x770, size = 0) var operMode: OperMode = OperMode.TitleScreen
+    @RamLocation(0x770) var operMode: OperMode = OperMode.TitleScreen
     @RamLocation(0x772) var operModeTask: Byte = 0
     @RamLocation(0x773) var vRAMBufferAddrCtrl: Byte = 0
     @RamLocation(0x774) var disableScreenFlag: Boolean = false
@@ -713,7 +733,6 @@ class GameRam {
 
     var areaData: ByteArray? = null  // Indirect: pointer at 0xe7
     var enemyDataBytes: ByteArray? = null  // by Claude - Indirect: pointer at 0xe9
-    var playerState: PlayerState = PlayerState.OnGround
     // Placeholder bookkeeping for score updates triggered by floatey numbers
     var lastScoreDigitIndex: Byte = 0
     var lastScoreDigitAdd: Byte = 0

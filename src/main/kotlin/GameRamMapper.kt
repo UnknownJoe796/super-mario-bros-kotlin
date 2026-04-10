@@ -1,361 +1,162 @@
 // by Claude - Centralized bidirectional mapper between GameRam fields and flat NES RAM bytes.
-// Builds field descriptors from @RamLocation annotations once at init time.
-// Replaces all scattered reflection-based sync/extract code.
+// Discovers fields via @RamLocation annotations, looks up type converters from GameRam.converters.
 package com.ivieleague.smbtranslation
 
 import com.ivieleague.smbtranslation.interpreter.Memory6502
 import com.ivieleague.smbtranslation.utils.*
+import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.findAnnotation
 
 object GameRamMapper {
 
-    private sealed class FieldDescriptor(val address: Int, val nesSize: Int) {
-        abstract fun writeToFlat(ram: GameRam, flat: ByteArray, flatOffset: Int)
-        abstract fun readFromFlat(ram: GameRam, flat: ByteArray, flatOffset: Int)
-        abstract fun writeToMemory(ram: GameRam, mem: Memory6502)
-        abstract fun readFromMemory(ram: GameRam, mem: Memory6502)
-    }
+    private class Binding(
+        val address: Int,
+        val size: Int,
+        val isBoolean: Boolean = false,
+        val toFlat: (GameRam, ByteArray, Int) -> Unit,
+        val fromFlat: (GameRam, ByteArray, Int) -> Unit,
+    )
 
-    private class ByteArrayField(
-        address: Int, nesSize: Int,
-        val getter: (GameRam) -> ByteArray,
-    ) : FieldDescriptor(address, nesSize) {
-        override fun writeToFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            val arr = getter(ram)
-            for (i in 0 until nesSize) flat[flatOffset + address + i] = arr[i]
-        }
-        override fun readFromFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            val arr = getter(ram)
-            for (i in 0 until nesSize) arr[i] = flat[flatOffset + address + i]
-        }
-        override fun writeToMemory(ram: GameRam, mem: Memory6502) {
-            val arr = getter(ram)
-            for (i in 0 until nesSize) mem.writeByte(address + i, arr[i].toUByte())
-        }
-        override fun readFromMemory(ram: GameRam, mem: Memory6502) {
-            val arr = getter(ram)
-            for (i in 0 until nesSize) arr[i] = mem.readByte(address + i).toByte()
-        }
-    }
+    private val bindings: List<Binding> = buildBindings()
 
-    private class UByteArrayField(
-        address: Int, nesSize: Int,
-        val getter: (GameRam) -> UByteArray,
-    ) : FieldDescriptor(address, nesSize) {
-        override fun writeToFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            val arr = getter(ram)
-            for (i in 0 until nesSize) flat[flatOffset + address + i] = arr[i].toByte()
-        }
-        override fun readFromFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            val arr = getter(ram)
-            for (i in 0 until nesSize) arr[i] = flat[flatOffset + address + i].toUByte()
-        }
-        override fun writeToMemory(ram: GameRam, mem: Memory6502) {
-            val arr = getter(ram)
-            for (i in 0 until nesSize) mem.writeByte(address + i, arr[i])
-        }
-        override fun readFromMemory(ram: GameRam, mem: Memory6502) {
-            val arr = getter(ram)
-            for (i in 0 until nesSize) arr[i] = mem.readByte(address + i)
-        }
-    }
-
-    private class ByteField(
-        address: Int,
-        val getter: (GameRam) -> Byte,
-        val setter: (GameRam, Byte) -> Unit,
-    ) : FieldDescriptor(address, 1) {
-        override fun writeToFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            flat[flatOffset + address] = getter(ram)
-        }
-        override fun readFromFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            setter(ram, flat[flatOffset + address])
-        }
-        override fun writeToMemory(ram: GameRam, mem: Memory6502) {
-            mem.writeByte(address, getter(ram).toUByte())
-        }
-        override fun readFromMemory(ram: GameRam, mem: Memory6502) {
-            setter(ram, mem.readByte(address).toByte())
-        }
-    }
-
-    private class UByteField(
-        address: Int,
-        val getter: (GameRam) -> UByte,
-        val setter: (GameRam, UByte) -> Unit,
-    ) : FieldDescriptor(address, 1) {
-        override fun writeToFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            flat[flatOffset + address] = getter(ram).toByte()
-        }
-        override fun readFromFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            setter(ram, flat[flatOffset + address].toUByte())
-        }
-        override fun writeToMemory(ram: GameRam, mem: Memory6502) {
-            mem.writeByte(address, getter(ram))
-        }
-        override fun readFromMemory(ram: GameRam, mem: Memory6502) {
-            setter(ram, mem.readByte(address))
-        }
-    }
-
-    private class BooleanField(
-        address: Int,
-        val getter: (GameRam) -> Boolean,
-        val setter: (GameRam, Boolean) -> Unit,
-    ) : FieldDescriptor(address, 1) {
-        override fun writeToFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            flat[flatOffset + address] = if (getter(ram)) 1 else 0
-        }
-        override fun readFromFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            setter(ram, flat[flatOffset + address] != 0.toByte())
-        }
-        override fun writeToMemory(ram: GameRam, mem: Memory6502) {
-            mem.writeByte(address, if (getter(ram)) 1u else 0u)
-        }
-        override fun readFromMemory(ram: GameRam, mem: Memory6502) {
-            setter(ram, mem.readByte(address) != 0.toUByte())
-        }
-    }
-
-    // Value class wrapper: single byte with custom get/set (for JoypadBits, PpuControl, etc.)
-    private class ValueByteField(
-        address: Int,
-        val getByte: (GameRam) -> Byte,
-        val setByte: (GameRam, Byte) -> Unit,
-    ) : FieldDescriptor(address, 1) {
-        override fun writeToFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            flat[flatOffset + address] = getByte(ram)
-        }
-        override fun readFromFlat(ram: GameRam, flat: ByteArray, flatOffset: Int) {
-            setByte(ram, flat[flatOffset + address])
-        }
-        override fun writeToMemory(ram: GameRam, mem: Memory6502) {
-            mem.writeByte(address, getByte(ram).toUByte())
-        }
-        override fun readFromMemory(ram: GameRam, mem: Memory6502) {
-            setByte(ram, mem.readByte(address).toByte())
-        }
-    }
-
-    private val descriptors: List<FieldDescriptor> = buildDescriptors()
-
-    // SMB2J uses different NES addresses for some display digit arrays:
-    //   coinDisplay: $07ED -> $07E7
-    //   gameTimerDisplay: $07F8 -> $07EC
-    //   coin2Display ($07F3): excluded (SMB2J has no second player coin display)
-    //   player2ScoreDisplay ($07E3): excluded (SMB2J is single-player, $07E3-$07E8
-    //     overlaps with coinDisplay at $07E7 in the SMB2J memory map)
-    // Also include SMB2J-specific fields that overlap gameTimerDisplay in SMB1.
-    private val smb2jDescriptors: List<FieldDescriptor> = run {
+    // SMB2J remaps some display arrays to different addresses, excludes 2-player fields,
+    // and adds fields that overlap gameTimerDisplay in SMB1.
+    private val smb2jBindings: List<Binding> = run {
         val remapAddresses = setOf(0x7ED, 0x7F8)
         val excludeAddresses = setOf(0x7F3, 0x7E3) // coin2Display, player2ScoreDisplay
-
-        val result = descriptors.filter { it.address !in remapAddresses && it.address !in excludeAddresses }.toMutableList()
-        // Re-add display fields at SMB2J addresses using direct array accessors
-        result.add(ByteArrayField(0x7E7, 2, { it.coinDisplay }))       // CoinDisplay at $07E7
-        result.add(ByteArrayField(0x7EC, 3, { it.gameTimerDisplay }))  // GameTimerDisplay at $07EC
-        // SMB2J-only fields excluded (size=0) in SMB1 but with real addresses in SMB2J.
-        result.add(ByteField(0x7F8, { it.continueMenuSelect }, { r, b -> r.continueMenuSelect = b }))
-        result.add(BooleanField(0x7F9, { it.windFlag }, { r, b -> r.windFlag = b }))
-        result.add(ByteField(0x7FA, { it.completedWorlds }, { r, b -> r.completedWorlds = b }))
-        result.add(BooleanField(0x7FB, { it.hardWorldFlag }, { r, b -> r.hardWorldFlag = b }))
+        val result = bindings.filter { it.address !in remapAddresses && it.address !in excludeAddresses }.toMutableList()
+        result.add(arrayBinding(0x7E7, 2) { it.coinDisplay })
+        result.add(arrayBinding(0x7EC, 3) { it.gameTimerDisplay })
+        result.add(scalarBinding(0x7F8, ByteRamConverter, { it.continueMenuSelect }, { r, b -> r.continueMenuSelect = b }))
+        result.add(scalarBinding(0x7F9, BooleanRamConverter, { it.windFlag }, { r, b -> r.windFlag = b }))
+        result.add(scalarBinding(0x7FA, ByteRamConverter, { it.completedWorlds }, { r, b -> r.completedWorlds = b }))
+        result.add(scalarBinding(0x7FB, BooleanRamConverter, { it.hardWorldFlag }, { r, b -> r.hardWorldFlag = b }))
         result
     }
 
-    private fun descriptorsFor(variant: GameVariant?): List<FieldDescriptor> =
-        if (variant == GameVariant.SMB2J) smb2jDescriptors else descriptors
+    private fun bindingsFor(variant: GameVariant?): List<Binding> =
+        if (variant == GameVariant.SMB2J) smb2jBindings else bindings
 
-    /** All NES addresses covered by at least one descriptor (union of all variants). */
-    val coveredAddresses: Set<Int> = buildSet {
-        for (desc in descriptors) addAll(desc.address until desc.address + desc.nesSize)
-        for (desc in smb2jDescriptors) addAll(desc.address until desc.address + desc.nesSize)
+    private val coveredByVariant: Map<GameVariant, Set<Int>> = GameVariant.entries.associateWith { variant ->
+        buildSet { for (b in bindingsFor(variant)) addAll(b.address until b.address + b.size) }
     }
 
-    /** Covered addresses for a specific variant. */
-    fun coveredAddresses(variant: GameVariant): Set<Int> = buildSet {
-        for (desc in descriptorsFor(variant)) addAll(desc.address until desc.address + desc.nesSize)
-    }
+    val booleanAddresses: Set<Int> = (bindings + smb2jBindings)
+        .filter { it.isBoolean }.map { it.address }.toSet()
 
-    /** Addresses of Boolean-typed fields (for comparison normalization). */
-    val booleanAddresses: Set<Int> = (descriptors + smb2jDescriptors)
-        .filterIsInstance<BooleanField>()
-        .map { it.address }
-        .toSet()
+    fun coveredAddresses(variant: GameVariant): Set<Int> = coveredByVariant.getValue(variant)
 
-    /** Extract GameRam state into a flat 2048-byte NES RAM image. */
     fun toFlat(ram: GameRam): ByteArray {
         val flat = ByteArray(2048)
-        for (desc in descriptorsFor(ram.variant)) desc.writeToFlat(ram, flat, 0)
+        for (b in bindingsFor(ram.variant)) b.toFlat(ram, flat, 0)
         return flat
     }
 
-    /** Sync a flat NES RAM image into GameRam. */
     fun fromFlat(ram: GameRam, flat: ByteArray, offset: Int = 0) {
-        for (desc in descriptorsFor(ram.variant)) desc.readFromFlat(ram, flat, offset)
+        for (b in bindingsFor(ram.variant)) b.fromFlat(ram, flat, offset)
     }
 
-    /** Sync GameRam → interpreter memory. */
     fun toMemory(ram: GameRam, mem: Memory6502) {
-        for (desc in descriptors) desc.writeToMemory(ram, mem)
+        val flat = toFlat(ram)
+        for (addr in coveredAddresses(ram.variant)) mem.writeByte(addr, flat[addr].toUByte())
     }
 
-    /** Sync interpreter memory → GameRam. */
     fun fromMemory(ram: GameRam, mem: Memory6502) {
-        for (desc in descriptors) desc.readFromMemory(ram, mem)
+        val flat = ByteArray(2048)
+        for (addr in coveredAddresses(ram.variant)) flat[addr] = mem.readByte(addr).toByte()
+        fromFlat(ram, flat)
     }
 
-    /** Capture GameRam state as address→byte map (for comparison). */
     fun snapshot(ram: GameRam): Map<Int, UByte> {
         val flat = toFlat(ram)
-        return buildMap {
-            for (desc in descriptors) {
-                for (i in 0 until desc.nesSize) {
-                    put(desc.address + i, flat[desc.address + i].toUByte())
-                }
-            }
-        }
+        return coveredAddresses(ram.variant).associateWith { flat[it].toUByte() }
     }
 
-    @OptIn(ExperimentalUnsignedTypes::class)
-    private fun buildDescriptors(): List<FieldDescriptor> {
-        val sample = GameRam()
-        val all = mutableListOf<FieldDescriptor>()
+    private fun arrayBinding(address: Int, nesSize: Int, getter: (GameRam) -> ByteArray) = Binding(
+        address, nesSize,
+        toFlat = { ram, flat, off -> getter(ram).copyInto(flat, off + address, 0, nesSize) },
+        fromFlat = { ram, flat, off -> flat.copyInto(getter(ram), 0, off + address, off + address + nesSize) },
+    )
 
-        // Reflect over @RamLocation-annotated properties
+    @OptIn(ExperimentalUnsignedTypes::class)
+    private fun ubyteArrayBinding(address: Int, nesSize: Int, getter: (GameRam) -> UByteArray) = Binding(
+        address, nesSize,
+        toFlat = { ram, flat, off -> val a = getter(ram); for (i in 0 until nesSize) flat[off + address + i] = a[i].toByte() },
+        fromFlat = { ram, flat, off -> val a = getter(ram); for (i in 0 until nesSize) a[i] = flat[off + address + i].toUByte() },
+    )
+
+    private fun <T> scalarBinding(address: Int, converter: RamConverter<T>, getter: (GameRam) -> T, setter: (GameRam, T) -> Unit) = Binding(
+        address, 1, isBoolean = converter === BooleanRamConverter,
+        toFlat = { ram, flat, off -> flat[off + address] = converter.toByte(getter(ram), ram) },
+        fromFlat = { ram, flat, off -> setter(ram, converter.fromByte(flat[off + address], ram)) },
+    )
+
+    @OptIn(ExperimentalUnsignedTypes::class)
+    private fun buildBindings(): List<Binding> {
+        val sample = GameRam()
+        val all = mutableListOf<Binding>()
+
         for (prop in GameRam::class.declaredMemberProperties) {
             val ann = prop.findAnnotation<RamLocation>() ?: continue
             val addr = ann.address
             if (addr >= 2048) continue
-
-            val explicitSize = ann.size
-            if (explicitSize == 0) continue // excluded from sync
+            if (ann.size == 0) continue // excluded from sync (SMB2J-only fields, etc.)
 
             val value = prop.getter.call(sample)
             when (value) {
                 is ByteArray -> {
                     val nesSize = when {
-                        explicitSize > 0 -> explicitSize
+                        ann.size > 0 -> ann.size
                         value.size <= 256 -> value.size
-                        else -> error("ByteArray ${prop.name} at \$${addr.toString(16)} has size ${value.size} > 256 without explicit @RamLocation size")
+                        else -> error("ByteArray ${prop.name} at \$${addr.toString(16)} too large without explicit @RamLocation size")
                     }
                     @Suppress("UNCHECKED_CAST")
-                    val getter = prop.getter as (GameRam) -> ByteArray
-                    all.add(ByteArrayField(addr, nesSize, getter))
+                    all.add(arrayBinding(addr, nesSize, prop.getter as (GameRam) -> ByteArray))
                 }
                 is UByteArray -> {
                     val nesSize = when {
-                        explicitSize > 0 -> explicitSize
+                        ann.size > 0 -> ann.size
                         value.size <= 256 -> value.size
-                        else -> error("UByteArray ${prop.name} at \$${addr.toString(16)} has size ${value.size} > 256 without explicit @RamLocation size")
+                        else -> error("UByteArray ${prop.name} at \$${addr.toString(16)} too large without explicit @RamLocation size")
                     }
                     @Suppress("UNCHECKED_CAST")
-                    val getter = prop.getter as (GameRam) -> UByteArray
-                    all.add(UByteArrayField(addr, nesSize, getter))
+                    all.add(ubyteArrayBinding(addr, nesSize, prop.getter as (GameRam) -> UByteArray))
                 }
-                is Byte -> {
-                    val mutableProp = prop as? KMutableProperty1<GameRam, *> ?: continue
+                else -> {
+                    val type = prop.returnType.classifier as? KClass<*> ?: continue
+                    val converter = GameRam.converters[type] ?: continue
+                    val mp = prop as? KMutableProperty1<GameRam, *> ?: continue
                     @Suppress("UNCHECKED_CAST")
-                    val mp = mutableProp as KMutableProperty1<GameRam, Byte>
-                    all.add(ByteField(addr, mp::get, mp::set))
+                    all.add(scalarBinding(addr,
+                        converter as RamConverter<Any?>,
+                        (mp as KMutableProperty1<GameRam, Any?>)::get,
+                        (mp as KMutableProperty1<GameRam, Any?>)::set,
+                    ))
                 }
-                is UByte -> {
-                    val mutableProp = prop as? KMutableProperty1<GameRam, *> ?: continue
-                    @Suppress("UNCHECKED_CAST")
-                    val mp = mutableProp as KMutableProperty1<GameRam, UByte>
-                    all.add(UByteField(addr, mp::get, mp::set))
-                }
-                is Boolean -> {
-                    val mutableProp = prop as? KMutableProperty1<GameRam, *> ?: continue
-                    @Suppress("UNCHECKED_CAST")
-                    val mp = mutableProp as KMutableProperty1<GameRam, Boolean>
-                    all.add(BooleanField(addr, mp::get, mp::set))
-                }
-                // Skip types we can't handle generically (Array<Sprite>, ArrayList, Stack, etc.)
-                // Value classes and enums are handled explicitly below.
             }
         }
 
-        // Value classes — reflection can't set these; hardcode the 5 known instances + 1 enum
-        all.add(ValueByteField(0x6FC,
-            { it.savedJoypadBits.byte }, { r, b -> r.savedJoypadBits = JoypadBits(b) }))
-        all.add(ValueByteField(0x6FD,
-            { it.savedJoypad2Bits.byte }, { r, b -> r.savedJoypad2Bits = JoypadBits(b) }))
-        all.add(ValueByteField(0x778,
-            { it.mirrorPPUCTRLREG1.byte }, { r, b -> r.mirrorPPUCTRLREG1 = PpuControl(b) }))
-        all.add(ValueByteField(0x779,
-            { it.mirrorPPUCTRLREG2.byte }, { r, b -> r.mirrorPPUCTRLREG2 = PpuMask(b) }))
-        all.add(ValueByteField(0x3C4,
-            { it.playerSprAttrib.byte }, { r, b -> r.playerSprAttrib = SpriteFlags(b) }))
-
-        // OperMode enum
-        all.add(ValueByteField(0x770,
-            { r -> r.operMode.ordinal.toByte() },
-            { r, b -> r.operMode = OperMode.entries.getOrElse(b.toInt() and 0xFF) { OperMode.GameOver } }))
-
-        // AreaType enum
-        all.add(ValueByteField(0x74e,
-            { r -> r.areaType.ordinal.toByte() },
-            { r, b -> r.areaType = AreaType.fromByte(b) }))
-
-        // PlayerState enum
-        all.add(ValueByteField(0x1d,
-            { r -> r.playerState.byte },
-            { r, b -> r.playerState = PlayerState.fromByte(b) }))
-
-        // PlayerSize enum
-        all.add(ValueByteField(0x754,
-            { r -> r.playerSize.byte },
-            { r, b -> r.playerSize = PlayerSize.fromByte(b) }))
-
-        // PlayerStatus enum
-        all.add(ValueByteField(0x756,
-            { r -> r.playerStatus.byte },
-            { r, b -> r.playerStatus = PlayerStatus.fromByte(b) }))
-
-        // Direction enums
-        all.add(ValueByteField(0x33,
-            { r -> r.playerFacingDir.byte },
-            { r, b -> r.playerFacingDir = Direction.fromByte(b) }))
-        all.add(ValueByteField(0x45,
-            { r -> r.playerMovingDir.byte },
-            { r, b -> r.playerMovingDir = Direction.fromByte(b) }))
-
-        // GameEngineRoutine enum
-        all.add(ValueByteField(0xe,
-            { r -> r.gameEngineSubroutine.ordinal.toByte() },
-            { r, b -> r.gameEngineSubroutine = GameEngineRoutine.fromByte(b) }))
-
-        // ScreenRoutineTask enum — variant-aware because SMB2J inserts DemoReset at slot 7
-        all.add(ValueByteField(0x73c,
-            { r -> ScreenRoutineTask.toByte(r.screenRoutineTask, r.variant) },
-            { r, b -> r.screenRoutineTask = ScreenRoutineTask.fromByte(b, r.variant) }))
-
-        // Deduplicate: scalar aliases that delegate to arrays share the same start address.
-        // Group by start address and keep the largest descriptor.
-        val byStartAddress = mutableMapOf<Int, FieldDescriptor>()
-        for (desc in all) {
-            val existing = byStartAddress[desc.address]
-            if (existing == null || desc.nesSize > existing.nesSize) {
-                byStartAddress[desc.address] = desc
-            }
+        // Deduplicate: if two descriptors share a start address, keep the larger one.
+        // (Handles scalar aliases that delegate to the same backing array.)
+        val byAddress = mutableMapOf<Int, Binding>()
+        for (b in all) {
+            val existing = byAddress[b.address]
+            if (existing == null || b.size > existing.size) byAddress[b.address] = b
         }
-        val deduplicated = byStartAddress.values.toList()
+        val deduplicated = byAddress.values.toList()
 
-        // Verify no byte is double-covered by different descriptors.
-        // A scalar at $57 that delegates to sprObjXSpeed[0] was already deduped above.
-        // This catches overlapping RANGES — e.g., two arrays whose address ranges intersect.
-        val coverage = mutableMapOf<Int, FieldDescriptor>()
-        for (desc in deduplicated) {
-            for (addr in desc.address until desc.address + desc.nesSize) {
-                val prev = coverage[addr]
+        // Verify no byte is double-covered.
+        val coverage = mutableMapOf<Int, Binding>()
+        for (b in deduplicated) {
+            for (a in b.address until b.address + b.size) {
+                val prev = coverage[a]
                 if (prev != null) {
-                    error("Address \$${addr.toString(16)} is covered by two descriptors: " +
-                        "one at \$${prev.address.toString(16)} (size ${prev.nesSize}) " +
-                        "and one at \$${desc.address.toString(16)} (size ${desc.nesSize})")
+                    error("Address \$${a.toString(16)} covered by descriptors at " +
+                        "\$${prev.address.toString(16)} (size ${prev.size}) and \$${b.address.toString(16)} (size ${b.size})")
                 }
-                coverage[addr] = desc
+                coverage[a] = b
             }
         }
 

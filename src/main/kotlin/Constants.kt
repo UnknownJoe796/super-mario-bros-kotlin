@@ -92,41 +92,50 @@ enum class GameVariant { SMB1, SMB2J }
 enum class Character { Mario, Luigi }
 
 enum class OperMode {
-    TitleScreen, Game, Victory, GameOver
+    TitleScreen, Game, Victory, GameOver;
+    companion object : SimpleRamConverter<OperMode>() {
+        override fun toByte(value: OperMode): Byte = value.ordinal.toByte()
+        override fun fromByte(byte: Byte): OperMode = entries.getOrElse(byte.toInt() and 0xFF) { GameOver }
+    }
 }
 
 enum class AreaType(val byte: Byte) {
     Water(0), Ground(1), Underground(2), Castle(3);
-    companion object {
-        fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { Water }
+    companion object : SimpleRamConverter<AreaType>() {
+        override fun toByte(value: AreaType): Byte = value.byte
+        override fun fromByte(byte: Byte): AreaType = entries.getOrElse(byte.toInt() and 0xFF) { Water }
     }
 }
 
 enum class PlayerState(val byte: Byte) {
     OnGround(0), Falling(1), FallingAlt(2), Climbing(3);
-    companion object {
-        fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { OnGround }
+    companion object : SimpleRamConverter<PlayerState>() {
+        override fun toByte(value: PlayerState): Byte = value.byte
+        override fun fromByte(byte: Byte): PlayerState = entries.getOrElse(byte.toInt() and 0xFF) { OnGround }
     }
 }
 
 enum class PlayerSize(val byte: Byte) {
     Big(0), Small(1);
-    companion object {
-        fun fromByte(b: Byte) = if (b.toInt() and 0xFF == 0) Big else Small
+    companion object : SimpleRamConverter<PlayerSize>() {
+        override fun toByte(value: PlayerSize): Byte = value.byte
+        override fun fromByte(byte: Byte): PlayerSize = if (byte.toInt() and 0xFF == 0) Big else Small
     }
 }
 
 enum class PlayerStatus(val byte: Byte) {
     Small(0), Big(1), Fiery(2);
-    companion object {
-        fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { Small }
+    companion object : SimpleRamConverter<PlayerStatus>() {
+        override fun toByte(value: PlayerStatus): Byte = value.byte
+        override fun fromByte(byte: Byte): PlayerStatus = entries.getOrElse(byte.toInt() and 0xFF) { Small }
     }
 }
 
 enum class Direction(val byte: Byte) {
     None(0), Left(1), Right(2), Both(3);
-    companion object {
-        fun fromByte(b: Byte) = entries.getOrElse(b.toInt() and 0xFF) { None }
+    companion object : SimpleRamConverter<Direction>() {
+        override fun toByte(value: Direction): Byte = value.byte
+        override fun fromByte(byte: Byte): Direction = entries.getOrElse(byte.toInt() and 0xFF) { None }
     }
 }
 
@@ -191,9 +200,10 @@ enum class GameEngineRoutine {
 
     fun next(): GameEngineRoutine = entries[ordinal + 1]
 
-    companion object {
-        fun fromByte(b: Byte): GameEngineRoutine =
-            entries.getOrElse(b.toInt() and 0xFF) { entries.first() }
+    companion object : SimpleRamConverter<GameEngineRoutine>() {
+        override fun toByte(value: GameEngineRoutine): Byte = value.ordinal.toByte()
+        override fun fromByte(byte: Byte): GameEngineRoutine =
+            entries.getOrElse(byte.toInt() and 0xFF) { entries.first() }
     }
 }
 
@@ -237,9 +247,10 @@ enum class ScreenRoutineTask {
         return entries[ordinal + 1]
     }
 
-    companion object {
+    companion object : RamConverter<ScreenRoutineTask> {
         // SMB2J ordinals match the enum directly (DemoReset at 7).
         // SMB1 has no DemoReset, so NES byte values >= 7 are offset by 1.
+        override fun fromByte(byte: Byte, ram: GameRam): ScreenRoutineTask = fromByte(byte, ram.variant)
         fun fromByte(b: Byte, variant: GameVariant = GameVariant.SMB1): ScreenRoutineTask {
             val i = b.toInt() and 0xFF
             return if (variant == GameVariant.SMB2J) {
@@ -251,6 +262,7 @@ enum class ScreenRoutineTask {
             }
         }
 
+        override fun toByte(value: ScreenRoutineTask, ram: GameRam): Byte = toByte(value, ram.variant)
         fun toByte(task: ScreenRoutineTask, variant: GameVariant = GameVariant.SMB1): Byte {
             val ord = task.ordinal
             return if (variant == GameVariant.SMB2J) {

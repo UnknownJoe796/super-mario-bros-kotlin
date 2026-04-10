@@ -1,5 +1,7 @@
 package com.ivieleague.smbtranslation.utils
 
+import com.ivieleague.smbtranslation.GameRam
+
 @JvmInline
 value class JoypadBits(val byte: Byte) {
     val a: Boolean get() = byte.bit(7)
@@ -39,6 +41,11 @@ value class JoypadBits(val byte: Byte) {
         left: Boolean = this.left,
         right: Boolean = this.right,
     ) = JoypadBits(a, b, select, start, up, down, left, right)
+
+    companion object : SimpleRamConverter<JoypadBits>() {
+        override fun toByte(value: JoypadBits): Byte = value.byte
+        override fun fromByte(byte: Byte): JoypadBits = JoypadBits(byte)
+    }
 }
 
 @JvmInline
@@ -64,6 +71,11 @@ value class SpriteFlags(val byte: Byte) {
         behindBackground: Boolean = this.behindBackground,
         palette: Byte = this.palette,
     ) = SpriteFlags(flipVertical, flipHorizontal, behindBackground, palette)
+
+    companion object : SimpleRamConverter<SpriteFlags>() {
+        override fun toByte(value: SpriteFlags): Byte = value.byte
+        override fun fromByte(byte: Byte): SpriteFlags = SpriteFlags(byte)
+    }
 }
 
 @JvmInline
@@ -108,6 +120,11 @@ value class PpuControl(val byte: Byte) {
         drawVertical: Boolean = this.drawVertical,
         baseNametableAddress: Byte = this.baseNametableAddress,
     ) = PpuControl(nmiEnabled, extWrite, tallSpriteMode, backgroundTableOffset, spritePatternTableOffset, drawVertical, baseNametableAddress)
+
+    companion object : SimpleRamConverter<PpuControl>() {
+        override fun toByte(value: PpuControl): Byte = value.byte
+        override fun fromByte(byte: Byte): PpuControl = PpuControl(byte)
+    }
 }
 
 @JvmInline
@@ -157,6 +174,11 @@ value class PpuMask(val byte: Byte) {
         emphasizeGreen: Boolean = this.emphasizeGreen,
         emphasizeBlue: Boolean = this.emphasizeBlue,
     ) = PpuMask(greyscale, showLeftBackground, showLeftSprites, backgroundEnabled, spriteEnabled, emphasizeRed, emphasizeGreen, emphasizeBlue)
+
+    companion object : SimpleRamConverter<PpuMask>() {
+        override fun toByte(value: PpuMask): Byte = value.byte
+        override fun fromByte(byte: Byte): PpuMask = PpuMask(byte)
+    }
 }
 
 @JvmInline
